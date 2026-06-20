@@ -20,7 +20,8 @@ from wikiknowledge.storage.markdown_backend import MarkdownStorageBackend
 
 # Resolve paths relative to the project root
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-KNOWLEDGE_DIR = PROJECT_ROOT / "knowledge"
+env_kb_dir = os.environ.get("WIKIKNOWLEDGE_KB_DIR")
+KNOWLEDGE_DIR = Path(env_kb_dir) if env_kb_dir else PROJECT_ROOT / "knowledge"
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 
 # Create shared instances that will be initialized in the lifespan
@@ -85,6 +86,13 @@ def create_app() -> FastAPI:
             print(f"Warning: MCP server failed to mount: {e}")
     else:
         print("Running in standard web + API mode.")
+        # Mount MCP server under /mcp
+        try:
+            app.mount("/mcp", mcp_server.sse_app(mount_path="/mcp"))
+            print("MCP server mounted at /mcp")
+        except Exception as e:
+            print(f"Warning: MCP server failed to mount at /mcp: {e}")
+
         # API routes
         app.include_router(articles_router, prefix="/api")
         app.include_router(search_router, prefix="/api")
@@ -107,12 +115,31 @@ app = create_app()
 
 def main():
     """Run the server (entry point for pyproject.toml scripts)."""
+    import argparse
+    import os
     import uvicorn
+
+    parser = argparse.ArgumentParser(description="Run WikiKnowledge server.")
+    parser.add_argument(
+        "--kb-dir",
+        type=str,
+        help="Path to the knowledge base directory containing articles/ and categories/",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to run the server on",
+    )
+    args, _ = parser.parse_known_args()
+
+    if args.kb_dir:
+        os.environ["WIKIKNOWLEDGE_KB_DIR"] = os.path.abspath(args.kb_dir)
 
     uvicorn.run(
         "wikiknowledge.api.app:app",
         host="0.0.0.0",
-        port=8000,
+        port=args.port,
         reload=True,
         reload_dirs=[str(PROJECT_ROOT / "wikiknowledge")],
     )

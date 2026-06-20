@@ -37,9 +37,11 @@ uv sync
 The application can run in two modes: **Standard Mode** for the web interface and API, and **MCP-Only Mode** for AI tool integration.
 
 #### Standard Mode (Web + API)
-This mode serves the web UI and the REST API.
+This mode serves the web UI and the REST API. You can launch it using the Python script.
+
+You can pass command-line arguments to specify a custom knowledge base directory and port:
 ```bash
-uvicorn wikiknowledge.api.app:app --reload
+uv run python run.py --kb-dir "D:/Path/To/Your/KnowledgeBase" --port 8000
 ```
 Once running, the following services are active:
 - **Web Interface (SPA)**: [http://localhost:8000/](http://localhost:8000/) — Explore articles, hierarchical category trees, tag clouds, interactive knowledge graphs, and edit markdown files directly.
@@ -56,7 +58,7 @@ uvicorn wikiknowledge.api.app:app --reload
 # On macOS/Linux
 MCP_ONLY=1 uvicorn wikiknowledge.api.app:app --reload
 ```
-When running in this mode, the server will only expose the MCP endpoints at `http://localhost:8000/mcp` and `http://localhost:8000/mcp/sse`. The web UI and API will be disabled.
+When running in this mode, the server will only expose the MCP endpoints at `http://localhost:8000/sse` and `http://localhost:8000/messages`. The web UI and REST API will be disabled.
 
 ---
 
@@ -74,7 +76,7 @@ Cursor supports connecting to external MCP servers using the SSE transport proto
 4. Configure the form:
    - **Name**: `WikiKnowledge`
    - **Type**: `sse`
-   - **URL**: `http://localhost:8000/mcp/sse`
+   - **URL**: `http://localhost:8000/sse`
 5. Click **Save**. The status indicator should turn green, indicating the IDE has successfully loaded the WikiKnowledge tools.
 
 #### Option B: LM Studio
@@ -83,11 +85,11 @@ To add the WikiKnowledge tools to LM Studio:
 1. Open the **Tools / MCP** panel in LM Studio.
 2. Select **SSE** (or HTTP/SSE) as the connection type.
 3. Set the Endpoint URL to the explicit Server-Sent Events route:
-   `http://localhost:8000/mcp/sse`
+   `http://localhost:8000/sse`
 4. Click **Connect** to load the server.
 
 > [!IMPORTANT]
-> Ensure you are running the server in **MCP-Only Mode** before attempting to connect from an MCP client. If you are running in standard mode, the connection will fail with a `404 Not Found` error.
+> Ensure you are running the server in **MCP-Only Mode** (by setting the `MCP_ONLY=1` environment variable before launching) before attempting to connect from an MCP client. If you are running in standard mode, the connection will fail with a `404 Not Found` error.
 
 ---
 

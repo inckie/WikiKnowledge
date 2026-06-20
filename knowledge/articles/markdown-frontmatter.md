@@ -1,11 +1,17 @@
 ---
-id: "markdown-frontmatter"
-title: "Markdown Frontmatter Convention"
-type: "leaf"
-tags: ["markdown", "yaml", "frontmatter", "metadata", "file-format"]
-categories: ["markup-conventions"]
-created: "2026-06-19T21:00:00Z"
-modified: "2026-06-19T21:00:00Z"
+categories:
+- markup-conventions
+created: '2026-06-19T21:00:00+00:00'
+id: markdown-frontmatter
+modified: '2026-06-20T07:38:14.569244+00:00'
+tags:
+- markdown
+- yaml
+- frontmatter
+- metadata
+- file-format
+title: Markdown Frontmatter Convention
+type: leaf
 ---
 
 # Markdown Frontmatter Convention
@@ -18,7 +24,7 @@ Every article in WikiKnowledge begins with a YAML frontmatter block delimited by
 |-------|------|-------------|
 | `id` | string | URL-safe unique identifier (slug). Must match the filename without `.md` extension. |
 | `title` | string | Human-readable title displayed in the UI. |
-| `type` | enum | Either `"leaf"` for content articles or `"category"` for superstructure articles. |
+| `type` | enum | Either `"leaf"` for content articles or `"category"` for overview articles. |
 | `tags` | list[string] | Freeform tags for classification and search. |
 | `categories` | list[string] | List of category article IDs this article belongs to. |
 | `created` | ISO 8601 | Timestamp of initial creation. |

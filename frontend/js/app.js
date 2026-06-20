@@ -94,6 +94,14 @@ const App = {
         try {
             const article = await API.fetchArticle(articleId);
             await Viewer.show(article);
+            // Reset scroll position of the main content to top AFTER content is loaded
+            // and the browser has had a chance to render it.
+            requestAnimationFrame(() => {
+                const mainContent = document.getElementById('main-content');
+                if (mainContent) {
+                    mainContent.scrollTo(0, 0);
+                }
+            });
         } catch (e) {
             document.getElementById('article-body').innerHTML =
                 `<div style="color: var(--color-danger); padding: 2rem;">

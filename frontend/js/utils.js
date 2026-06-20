@@ -27,6 +27,15 @@ const Utils = {
     },
 
     /**
+     * Convert a slug back to a human-readable string.
+     */
+    unslugify(slug) {
+        return slug
+            .replace(/-/g, ' ')
+            .replace(/\b\w/g, char => char.toUpperCase());
+    },
+
+    /**
      * Format an ISO date string for display.
      */
     formatDate(isoString) {

@@ -12,19 +12,29 @@ const Editor = {
     /**
      * Open the editor for a new article.
      */
-    openNew() {
+    openNew(prefillId = null) {
         this._isNew = true;
         this._currentArticleId = null;
 
         document.getElementById('editor-title-label').textContent = 'New Article';
 
-        this._renderMetaPanel({
-            id: '',
-            title: '',
+        const initialArticle = {
+            id: prefillId || '',
+            title: prefillId ? Utils.unslugify(prefillId) : '', // Convert slug back to title
             type: 'leaf',
             tags: [],
             categories: [],
-        });
+        };
+
+        this._renderMetaPanel(initialArticle);
+
+        // If prefillId is provided, mark the ID input as manual to prevent auto-slugification
+        if (prefillId) {
+            const idInput = document.getElementById('meta-id');
+            if (idInput) {
+                idInput.dataset.manual = 'true';
+            }
+        }
 
         document.getElementById('editor-content').value = '';
         document.getElementById('editor-preview').innerHTML = '';

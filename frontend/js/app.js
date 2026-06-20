@@ -50,17 +50,21 @@ const App = {
      * Hash-based router.
      */
     _route() {
-        const hash = window.location.hash || '#/';
-        const parts = hash.replace('#/', '').split('/');
-        const route = parts[0] || '';
-        const param = parts.slice(1).join('/');
+        const hashContent = (window.location.hash || '#/').substring(2); // Remove '#/'
+        const [path, queryString] = hashContent.split('?');
+        
+        const pathSegments = path.split('/');
+        const route = pathSegments[0] || '';
+        const param = pathSegments.slice(1).join('/');
 
         if (route === 'article' && param) {
             this._showArticle(decodeURIComponent(param));
         } else if (route === 'edit' && param) {
             this._showEditor(decodeURIComponent(param));
         } else if (route === 'new') {
-            this._showNewEditor();
+            const urlParams = new URLSearchParams(queryString);
+            const prefillId = urlParams.get('id');
+            this._showNewEditor(prefillId);
         } else if (route === 'graph') {
             this._showGraph();
         } else {
@@ -107,6 +111,9 @@ const App = {
                 `<div style="color: var(--color-danger); padding: 2rem;">
                     <h2>Article Not Found</h2>
                     <p>${Utils.escapeHtml(e.message)}</p>
+                    <button class="btn btn-primary" onclick="window.location.hash = '#/new?id=${encodeURIComponent(articleId)}'">
+                        + Create Article "${Utils.escapeHtml(articleId)}"
+                    </button>
                 </div>`;
         }
     },
@@ -123,10 +130,10 @@ const App = {
     /**
      * Open editor for new article.
      */
-    _showNewEditor() {
+    _showNewEditor(prefillId = null) {
         this._showView('editor');
         this._currentArticleId = null;
-        Editor.openNew();
+        Editor.openNew(prefillId);
     },
 
     /**

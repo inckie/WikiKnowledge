@@ -6,7 +6,6 @@ See [knowledge/articles/overview.md](knowledge/articles/overview.md) for the ove
 
 TODO:
 
-- [ ] fix MCP SSE/UI server API conflicts
 - [ ] connect AI model to the project and implement the update cascading
 - [ ] add what links there for category articles (both "parents" and "children")
 - [ ] missing articles page and autocreation on click

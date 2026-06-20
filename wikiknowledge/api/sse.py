@@ -1,6 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 from mcp.server.sse import SseServerTransport
 from starlette.applications import Starlette
+from starlette.responses import Response
 from starlette.routing import Mount, Route
 
 
@@ -16,6 +17,7 @@ def create_sse_server(mcp: FastMCP):
             await mcp._mcp_server.run(
                 streams[0], streams[1], mcp._mcp_server.create_initialization_options()
             )
+        return Response(status_code=204)
 
     # Create Starlette routes for SSE and message handling
     routes = [

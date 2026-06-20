@@ -35,8 +35,6 @@ def create_mcp_server(
             "separate human-written from AI-generated content. "
             "Use these tools to read, create, update, and query articles."
         ),
-        streamable_http_path="/mcp",
-        sse_path="/mcp/sse",
     )
 
     @mcp.tool()

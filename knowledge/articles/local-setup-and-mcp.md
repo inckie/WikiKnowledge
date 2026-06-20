@@ -34,10 +34,7 @@ uv sync
 ```
 
 ### Running the Server
-The application can run in two modes: **Standard Mode** for the web interface and API, and **MCP-Only Mode** for AI tool integration.
-
-#### Standard Mode (Web + API)
-This mode serves the web UI and the REST API. You can launch it using the Python script.
+The application serves the web UI, a REST API, and the MCP server simultaneously. You can launch it using the Python script.
 
 You can pass command-line arguments to specify a custom knowledge base directory and port:
 ```bash
@@ -47,24 +44,13 @@ Once running, the following services are active:
 - **Web Interface (SPA)**: [http://localhost:8000/](http://localhost:8000/) — Explore articles, hierarchical category trees, tag clouds, interactive knowledge graphs, and edit markdown files directly.
 - **REST API Endpoint**: [http://localhost:8000/api](http://localhost:8000/api) — Direct JSON interface for articles, tags, and graph nodes.
 - **OpenAPI / Swagger Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs) — Browse, test, and run HTTP request scripts against API endpoints.
-
-#### MCP-Only Mode (for AI Tools)
-This mode is required for connecting AI assistants like LM Studio or Cursor. It exposes the MCP server endpoints.
-```bash
-# On Windows (Command Prompt)
-set MCP_ONLY=1
-uvicorn wikiknowledge.api.app:app --reload
-
-# On macOS/Linux
-MCP_ONLY=1 uvicorn wikiknowledge.api.app:app --reload
-```
-When running in this mode, the server will only expose the MCP endpoints at `http://localhost:8000/sse` and `http://localhost:8000/messages`. The web UI and REST API will be disabled.
+- **MCP Server**: `http://localhost:8000/mcp` — Endpoints for AI tool integration.
 
 ---
 
 ## 2. Model Context Protocol (MCP) Integration
 
-Model Context Protocol allows AI agents to directly view, query, and modify the knowledge base. The WikiKnowledge server uses `FastMCP` to provide this functionality. To avoid routing conflicts with the main web application, the MCP server runs in a separate, dedicated mode.
+Model Context Protocol allows AI agents to directly view, query, and modify the knowledge base. The WikiKnowledge server uses `FastMCP` to provide this functionality, which runs alongside the main web application.
 
 ### Configuring MCP Clients
 
@@ -76,7 +62,7 @@ Cursor supports connecting to external MCP servers using the SSE transport proto
 4. Configure the form:
    - **Name**: `WikiKnowledge`
    - **Type**: `sse`
-   - **URL**: `http://localhost:8000/sse`
+   - **URL**: `http://localhost:8000/mcp/sse`
 5. Click **Save**. The status indicator should turn green, indicating the IDE has successfully loaded the WikiKnowledge tools.
 
 #### Option B: LM Studio
@@ -85,11 +71,8 @@ To add the WikiKnowledge tools to LM Studio:
 1. Open the **Tools / MCP** panel in LM Studio.
 2. Select **SSE** (or HTTP/SSE) as the connection type.
 3. Set the Endpoint URL to the explicit Server-Sent Events route:
-   `http://localhost:8000/sse`
+   `http://localhost:8000/mcp/sse`
 4. Click **Connect** to load the server.
-
-> [!IMPORTANT]
-> Ensure you are running the server in **MCP-Only Mode** (by setting the `MCP_ONLY=1` environment variable before launching) before attempting to connect from an MCP client. If you are running in standard mode, the connection will fail with a `404 Not Found` error.
 
 ---
 

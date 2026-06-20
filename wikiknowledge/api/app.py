@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from wikiknowledge.api.articles import router as articles_router
 from wikiknowledge.api.graph import router as graph_router
 from wikiknowledge.api.search import router as search_router
+from wikiknowledge.api.sse import create_sse_server
 from wikiknowledge.core.graph import KnowledgeGraph
 from wikiknowledge.core.index import KnowledgeIndex
 from wikiknowledge.mcp_server import create_mcp_server
@@ -72,39 +73,21 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Conditionally mount routes based on environment variable
-    if os.environ.get("MCP_ONLY"):
-        print("Running in MCP_ONLY mode for IDE integration.")
-        # Mount MCP server components
-        try:
-            # The methods return ASGI applications, so we must call them.
-            # We mount both at the root; their internal routing handles the specific paths.
-            app.mount("/", mcp_server.sse_app())
-            app.mount("/", mcp_server.streamable_http_app())
-            print("MCP server apps mounted at /")
-        except Exception as e:
-            print(f"Warning: MCP server failed to mount: {e}")
-    else:
-        print("Running in standard web + API mode.")
-        # Mount MCP server under /mcp
-        try:
-            app.mount("/mcp", mcp_server.sse_app(mount_path="/mcp"))
-            print("MCP server mounted at /mcp")
-        except Exception as e:
-            print(f"Warning: MCP server failed to mount at /mcp: {e}")
+    # Mount the Starlette SSE server onto the FastAPI app
+    app.mount("/mcp", create_sse_server(mcp_server))
 
-        # API routes
-        app.include_router(articles_router, prefix="/api")
-        app.include_router(search_router, prefix="/api")
-        app.include_router(graph_router, prefix="/api")
+    # API routes
+    app.include_router(articles_router, prefix="/api")
+    app.include_router(search_router, prefix="/api")
+    app.include_router(graph_router, prefix="/api")
 
-        # Static frontend files (mounted last as a catch-all)
-        if FRONTEND_DIR.exists():
-            app.mount(
-                "/",
-                StaticFiles(directory=str(FRONTEND_DIR), html=True),
-                name="frontend",
-            )
+    # Static frontend files (mounted last as a catch-all)
+    if FRONTEND_DIR.exists():
+        app.mount(
+            "/",
+            StaticFiles(directory=str(FRONTEND_DIR), html=True),
+            name="frontend",
+        )
 
     return app
 

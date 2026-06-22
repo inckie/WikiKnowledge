@@ -214,4 +214,18 @@ def create_mcp_server(
             lines.append(f"- {tag}: {count} article(s)")
         return "\n".join(lines)
 
+    @mcp.tool()
+    async def rebuild_index() -> str:
+        """Rebuild the knowledge index from the storage backend.
+
+        This reads all articles from disk, re-parses their frontmatter and links,
+        and reconstructs the in-memory indices (tags, categories, backlinks).
+        """
+        await storage.initialize()
+        index.build(
+            all_meta=dict(storage._meta_cache),
+            all_links=storage.get_all_links(),
+        )
+        return "Knowledge index rebuilt successfully."
+
     return mcp

@@ -87,3 +87,4 @@ Once configured, the AI agent gains access to the following functions:
 - `get_category_members(category_id)`: List all articles nested within a given category.
 - `search(query)`: Run full-text search across titles, tags, and contents.
 - `get_all_tags()`: Fetch all tags along with their usage counts.
+- `rebuild_index()`: Rebuild the knowledge index from the storage backend.

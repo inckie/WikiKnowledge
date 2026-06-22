@@ -155,6 +155,23 @@ class KnowledgeIndex:
         """Article IDs classified under the category."""
         return self.category_index.get(category_id, set())
 
+    def get_sub_articles(self, category_id: str) -> list[ArticleMeta]:
+        """Get all articles that are members of a category."""
+        sub_article_ids = self.articles_in_category(category_id)
+        return [self.get_meta(id) for id in sub_article_ids if self.get_meta(id)]
+
+    def is_dirty(self, category_id: str) -> bool:
+        """Check if a category is dirty."""
+        category_meta = self.get_meta(category_id)
+        if not category_meta:
+            return False
+        
+        sub_articles = self.get_sub_articles(category_id)
+        for sub_article in sub_articles:
+            if sub_article.modified > category_meta.modified:
+                return True
+        return False
+
     def get_all_tags(self) -> dict[str, int]:
         """All tags with their usage counts."""
         return {tag: len(ids) for tag, ids in sorted(self.tag_index.items())}

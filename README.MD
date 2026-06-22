@@ -7,8 +7,6 @@ See [knowledge/articles/overview.md](knowledge/articles/overview.md) for the ove
 TODO:
 
 - [ ] connect AI model to the project and implement the update cascading
-- [ ] add what links there for category articles (both "parents" and "children")
-- [ ] 'dirty' flag for categories: when an article is updated, mark all categories it belongs to as 'dirty' and in need of updating recursively. Probably will be enough to keep timestamp of last seen article change and compare to last update of articles in the category. Category will also be considered dirty if any articles that belong to the category but have been created since the last category last update.
 - [ ] add MongoDB support for storing the knowledge graph
 - [ ] implement purgeable index cache in `knowledge/.index`
 - [ ] implement question answering system

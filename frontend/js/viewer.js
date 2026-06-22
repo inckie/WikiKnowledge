@@ -23,19 +23,16 @@ const Viewer = {
         if (!markdown) return '';
 
         // Pre-process: convert [[wiki-links]] to temporary placeholders
-        // before marked.js processes the markdown
         let processed = this._processWikiLinks(markdown);
 
         // Pre-process: mark human/AI blocks
         processed = this._processContentBlocks(processed);
 
         // Render markdown
-        const html = marked.parse(processed, {
+        return marked.parse(processed, {
             gfm: true,
             breaks: false,
         });
-
-        return html;
     },
 
     /**
@@ -55,18 +52,14 @@ const Viewer = {
      * Wrap human:start/end and ai:start/end blocks with visual indicators.
      */
     _processContentBlocks(text) {
-        // Replace human blocks
         text = text.replace(
             /<!--\s*human:start\s*-->([\s\S]*?)<!--\s*human:end\s*-->/gi,
             '<div class="block-human"><span class="block-badge human">✍️ Human</span>\n$1</div>'
         );
-
-        // Replace AI blocks
         text = text.replace(
             /<!--\s*ai:start\s*-->([\s\S]*?)<!--\s*ai:end\s*-->/gi,
             '<div class="block-ai"><span class="block-badge ai">🤖 AI</span>\n$1</div>'
         );
-
         return text;
     },
 
@@ -75,57 +68,35 @@ const Viewer = {
      * @param {Object} article - Full article object from API
      */
     async show(article) {
-        // Render metadata chips
-        const metaEl = document.getElementById('article-meta');
-        metaEl.innerHTML = this._renderMeta(article);
+        // Render metadata, breadcrumb, and body
+        document.getElementById('article-meta').innerHTML = this._renderMeta(article);
+        document.getElementById('article-breadcrumb').innerHTML = this._renderBreadcrumb(article);
+        document.getElementById('article-body').innerHTML = this.render(article.content);
 
-        // Render breadcrumb
-        const breadcrumb = document.getElementById('article-breadcrumb');
-        breadcrumb.innerHTML = this._renderBreadcrumb(article);
+        // Render category-specific section or clear it
+        const categorySectionEl = document.getElementById('category-section');
+        if (article.type === 'category') {
+            categorySectionEl.innerHTML = this._renderCategorySection(article);
+        } else {
+            categorySectionEl.innerHTML = '';
+        }
 
-        // Render body
-        const bodyEl = document.getElementById('article-body');
-        bodyEl.innerHTML = this.render(article.content);
-
-        // Render backlinks
-        await this._renderBacklinks(article.id);
+        // Render backlinks for all article types
+        await this._renderBacklinks(article);
     },
 
     _renderMeta(article) {
         const parts = [];
-
-        // Type badge
-        parts.push(`<div class="meta-group">
-            <span class="meta-label">Type</span>
-            <span class="chip chip-type">${article.type}</span>
-        </div>`);
-
-        // Tags
+        parts.push(`<div class="meta-group"><span class="meta-label">Type</span><span class="chip chip-type">${article.type}</span></div>`);
         if (article.tags.length) {
-            const tagChips = article.tags
-                .map(t => `<span class="chip chip-tag" onclick="App.filterByTag('${Utils.escapeHtml(t)}')">${Utils.escapeHtml(t)}</span>`)
-                .join('');
-            parts.push(`<div class="meta-divider"></div><div class="meta-group">
-                <span class="meta-label">Tags</span>${tagChips}
-            </div>`);
+            const tagChips = article.tags.map(t => `<span class="chip chip-tag" onclick="App.filterByTag('${Utils.escapeHtml(t)}')">${Utils.escapeHtml(t)}</span>`).join('');
+            parts.push(`<div class="meta-divider"></div><div class="meta-group"><span class="meta-label">Tags</span>${tagChips}</div>`);
         }
-
-        // Categories
         if (article.categories.length) {
-            const catChips = article.categories
-                .map(c => `<a class="chip chip-category" href="#/article/${encodeURIComponent(c)}">${Utils.escapeHtml(c)}</a>`)
-                .join('');
-            parts.push(`<div class="meta-divider"></div><div class="meta-group">
-                <span class="meta-label">Categories</span>${catChips}
-            </div>`);
+            const catChips = article.categories.map(c => `<a class="chip chip-category" href="#/article/${encodeURIComponent(c)}">${Utils.escapeHtml(c)}</a>`).join('');
+            parts.push(`<div class="meta-divider"></div><div class="meta-group"><span class="meta-label">Categories</span>${catChips}</div>`);
         }
-
-        // Modified date
-        parts.push(`<div class="meta-divider"></div><div class="meta-group">
-            <span class="meta-label">Modified</span>
-            <span style="font-size: var(--text-xs); color: var(--text-muted);">${Utils.formatDate(article.modified)}</span>
-        </div>`);
-
+        parts.push(`<div class="meta-divider"></div><div class="meta-group"><span class="meta-label">Modified</span><span style="font-size: var(--text-xs); color: var(--text-muted);">${Utils.formatDate(article.modified)}</span></div>`);
         return parts.join('');
     },
 
@@ -140,10 +111,44 @@ const Viewer = {
         return parts.join(' ');
     },
 
-    async _renderBacklinks(articleId) {
+    _renderCategorySection(article) {
+        const dirtyIndicator = article.is_dirty ?
+            `<span class="dirty-indicator" title="This category might be outdated. One or more of its articles have been modified more recently than this overview.">⚠️</span>` :
+            '';
+
+        const subArticles = (article.sub_articles || []).map(sub => {
+            const unmentionedClass = sub.is_unmentioned ? 'unmentioned' : '';
+            const iconClass = sub.type === 'category' ? 'item-icon category' : 'item-icon';
+            const newerIcon = sub.is_newer ? `<span class="newer-indicator" title="Modified more recently than the category article" style="margin-left: 6px; font-size: 0.9em; cursor: help;">✨</span>` : '';
+            return `
+                <div class="sub-article-item ${unmentionedClass}">
+                    <span class="${iconClass}"></span>
+                    <a href="#/article/${encodeURIComponent(sub.id)}">${Utils.escapeHtml(sub.title)}</a>
+                    ${newerIcon}
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="category-section-title">
+                <span>Sub-articles</span>
+                ${dirtyIndicator}
+            </div>
+            <div>${subArticles}</div>
+        `;
+    },
+
+    async _renderBacklinks(article) {
         const container = document.getElementById('article-backlinks');
         try {
-            const backlinks = await API.fetchBacklinks(articleId);
+            let backlinks = await API.fetchBacklinks(article.id);
+
+            // For categories, filter out backlinks from their own sub-articles
+            if (article.type === 'category' && article.sub_articles) {
+                const subArticleIds = new Set(article.sub_articles.map(sa => sa.id));
+                backlinks = backlinks.filter(bl => !subArticleIds.has(bl.source_id));
+            }
+
             if (!backlinks.length) {
                 container.innerHTML = '';
                 return;
@@ -162,6 +167,7 @@ const Viewer = {
             `;
         } catch (e) {
             container.innerHTML = '';
+            console.error('Failed to render backlinks:', e);
         }
     },
 };

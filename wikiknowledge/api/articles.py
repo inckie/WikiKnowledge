@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Union
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from wikiknowledge.storage.models import Article, ArticleMeta, ArticleType
 
@@ -34,8 +34,21 @@ class ArticleUpdateRequest(BaseModel):
     content: Optional[str] = None
 
 
+class ArticleMetaResponse(BaseModel):
+    """Article metadata response (no content)."""
+    id: str
+    title: str
+    type: str
+    tags: list[str]
+    categories: list[str]
+    created: str
+    modified: str
+    is_unmentioned: bool = False
+    is_newer: bool = False
+
+
 class ArticleResponse(BaseModel):
-    """Full article response."""
+    """Full article response for a leaf article."""
     id: str
     title: str
     type: str
@@ -46,15 +59,10 @@ class ArticleResponse(BaseModel):
     content: str
 
 
-class ArticleMetaResponse(BaseModel):
-    """Article metadata response (no content)."""
-    id: str
-    title: str
-    type: str
-    tags: list[str]
-    categories: list[str]
-    created: str
-    modified: str
+class CategoryArticleResponse(ArticleResponse):
+    """Full article response for a category article."""
+    sub_articles: list[ArticleMetaResponse] = Field(default_factory=list)
+    is_dirty: bool = False
 
 
 class BacklinkResponse(BaseModel):
@@ -66,7 +74,7 @@ class BacklinkResponse(BaseModel):
     source_title: Optional[str] = None
 
 
-def _meta_to_response(meta: ArticleMeta) -> ArticleMetaResponse:
+def _meta_to_response(meta: ArticleMeta, is_unmentioned: bool = False, is_newer: bool = False) -> ArticleMetaResponse:
     """Convert ArticleMeta to API response."""
     return ArticleMetaResponse(
         id=meta.id,
@@ -76,6 +84,8 @@ def _meta_to_response(meta: ArticleMeta) -> ArticleMetaResponse:
         categories=meta.categories,
         created=meta.created.isoformat(),
         modified=meta.modified.isoformat(),
+        is_unmentioned=is_unmentioned,
+        is_newer=is_newer,
     )
 
 
@@ -116,15 +126,43 @@ async def list_articles(
     return [_meta_to_response(m) for m in metas]
 
 
-@router.get("/articles/{article_id}", response_model=ArticleResponse)
+@router.get("/articles/{article_id}", response_model=Union[CategoryArticleResponse, ArticleResponse])
 async def get_article(request: Request, article_id: str):
     """Get a single article with full content."""
     storage = request.app.state.storage
+    index = request.app.state.index
     try:
         article = await storage.get_article(article_id)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Article '{article_id}' not found")
-    return _article_to_response(article)
+
+    if article.meta.type == ArticleType.CATEGORY:
+        sub_article_metas = index.get_sub_articles(article_id)
+        
+        # Determine which sub-articles are unmentioned and newer
+        sub_articles_with_mention_status = [
+            _meta_to_response(
+                meta=sub_meta,
+                is_unmentioned=f"[[{sub_meta.id}" not in article.content,
+                is_newer=sub_meta.modified > article.meta.modified
+            )
+            for sub_meta in sub_article_metas
+        ]
+
+        return CategoryArticleResponse(
+            id=article.meta.id,
+            title=article.meta.title,
+            type=article.meta.type.value,
+            tags=article.meta.tags,
+            categories=article.meta.categories,
+            created=article.meta.created.isoformat(),
+            modified=article.meta.modified.isoformat(),
+            content=article.content,
+            sub_articles=sub_articles_with_mention_status,
+            is_dirty=index.is_dirty(article_id),
+        )
+    else:
+        return _article_to_response(article)
 
 
 @router.post("/articles", response_model=ArticleMetaResponse, status_code=201)
@@ -134,8 +172,7 @@ async def create_article(request: Request, body: ArticleCreateRequest):
     index = request.app.state.index
 
     # Check for duplicate
-    existing = storage._meta_cache.get(body.id)
-    if existing:
+    if body.id in storage._meta_cache:
         raise HTTPException(
             status_code=409,
             detail=f"Article '{body.id}' already exists",
@@ -220,7 +257,6 @@ async def delete_article(request: Request, article_id: str):
 )
 async def get_backlinks(request: Request, article_id: str):
     """Get all articles that link to this one ('What links here')."""
-    storage = request.app.state.storage
     index = request.app.state.index
 
     backlinks = index.what_links_here(article_id)

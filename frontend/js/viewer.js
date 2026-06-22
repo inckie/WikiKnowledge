@@ -25,14 +25,18 @@ const Viewer = {
         // Pre-process: convert [[wiki-links]] to temporary placeholders
         let processed = this._processWikiLinks(markdown);
 
-        // Pre-process: mark human/AI blocks
-        processed = this._processContentBlocks(processed);
-
         // Render markdown
-        return marked.parse(processed, {
+        let html = marked.parse(processed, {
             gfm: true,
             breaks: false,
         });
+
+        // Post-process: mark human/AI blocks on the generated HTML
+        // This ensures we don't accidentally match comments inside code blocks
+        // because marked escapes < and > inside `code` and <pre> tags.
+        html = this._processContentBlocks(html);
+
+        return html;
     },
 
     /**

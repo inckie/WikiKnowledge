@@ -1,4 +1,4 @@
-"""AI Service managing configuration, environment injection, OpenAPI model fetching, and MCP binding foundations."""
+"""AI Service managing configuration, environment injection, OpenAI API model fetching, and MCP binding foundations."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 
 class AIService:
-    """Manages AI integration settings, OpenAPI model fetching, and future MCP binding."""
+    """Manages AI integration settings, OpenAI API model fetching, and future MCP binding."""
 
     def __init__(self, kb_dir: Path | str):
         """Initialize the AI service with the knowledge base directory path."""
@@ -97,7 +97,7 @@ class AIService:
         return True
 
     def fetch_available_models(self, url: str, api_key: str) -> List[str]:
-        """Fetch available models from a remote OpenAPI / OpenAI-compatible endpoint.
+        """Fetch available models from a remote OpenAI API / OpenAI-compatible endpoint.
 
         Args:
             url: Base URL (e.g., https://ollama.com/v1)
@@ -118,7 +118,7 @@ class AIService:
                 body = response.read().decode("utf-8")
                 data = json.loads(body)
 
-                # OpenAPI / OpenAI protocol typically returns {"data": [{"id": "model_name", ...}]}
+                # OpenAI API protocol typically returns {"data": [{"id": "model_name", ...}]}
                 models_list = data.get("data") or data.get("models") or []
                 if isinstance(models_list, list):
                     return [
@@ -130,7 +130,7 @@ class AIService:
         except Exception as e:
             raise RuntimeError(f"Error parsing models from AI endpoint: {e}")
 
-    # --- MCP Binding & OpenAPI Tool Loop ---
+    # --- MCP Binding & OpenAI API Tool Loop ---
 
     async def initialize_mcp_binding(self, mcp_server: Any) -> Any:
         """Initialize and verify binding of FastMCP server tools to the remote AI model."""
@@ -145,7 +145,7 @@ class AIService:
     async def invoke_remote_model_with_tools(self, prompt: str, mcp_server: Any) -> str:
         """Invoke the remote model with an active MCP tool calling loop.
 
-        Allows the remote OpenAPI model to inspect, call, and receive results
+        Allows the remote OpenAI API model to inspect, call, and receive results
         from our embedded FastMCP tools until a final response is generated.
         """
         settings = self.load_settings()
@@ -165,7 +165,7 @@ class AIService:
             "Content-Type": "application/json",
         }
 
-        # Convert FastMCP tools to OpenAPI / OpenAI tool definitions
+        # Convert FastMCP tools to OpenAI API tool definitions
         openapi_tools = []
         try:
             mcp_tools = await mcp_server.list_tools()

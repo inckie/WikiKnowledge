@@ -52,7 +52,7 @@ Once running, the following services are active:
 - **MCP Server**: `http://localhost:8000/mcp` — Endpoints for AI tool integration.
 
 ### Optional AI Integration & Configuration
-WikiKnowledge provides optional AI integration via the OpenAPI protocol. You can configure this directly from the web UI by navigating to the **Settings** page in the sidebar.
+WikiKnowledge provides optional AI integration via the OpenAI API protocol. You can configure this directly from the web UI by navigating to the **Settings** page in the sidebar.
 - **Configuration Storage**: Settings are saved in `[kb_dir]/.settings/ai_config.json`.
 - **Environment Injection**: On launch, if `ai_config.json` is present, the system automatically injects the configured URL, API key, and model ID into `os.environ` (e.g., `WIKIKNOWLEDGE_AI_URL`, `OPENAI_API_BASE`), enabling seamless integration across the backend services.
 

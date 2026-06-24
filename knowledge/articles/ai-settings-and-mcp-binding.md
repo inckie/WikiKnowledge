@@ -2,7 +2,7 @@
 id: ai-settings-and-mcp-binding
 title: AI Settings and MCP Binding
 type: leaf
-tags: ['ai', 'mcp', 'settings', 'openapi', 'configuration']
+tags: ['ai', 'mcp', 'settings', 'openai-api', 'configuration']
 categories: ['ai-integration']
 created: 2026-06-24T04:15:00+00:00
 modified: 2026-06-24T04:15:00+00:00
@@ -10,7 +10,7 @@ modified: 2026-06-24T04:15:00+00:00
 
 # AI Settings and MCP Binding
 
-WikiKnowledge features an optional AI integration architecture built upon the OpenAPI protocol. This allows remote AI models (such as those hosted via Ollama, OpenAI, or compatible endpoints) to seamlessly interact with the knowledge graph, assist in generating hierarchical category overviews, and bind directly to the application's embedded Model Context Protocol (MCP) server tools.
+WikiKnowledge features an optional AI integration architecture built upon the OpenAI API protocol. This allows remote AI models (such as those hosted via Ollama, OpenAI, or compatible endpoints) to seamlessly interact with the knowledge graph, assist in generating hierarchical category overviews, and bind directly to the application's embedded Model Context Protocol (MCP) server tools.
 
 ## Configuration & Environment Injection
 
@@ -42,7 +42,7 @@ The WikiKnowledge web interface includes a dedicated **Settings** page accessibl
 ┌────────────────────────────────────────────────────────┐
 │ ⚙️ AI Integration Settings                             │
 ├────────────────────────────────────────────────────────┤
-│  OpenAPI Base URL:  [ https://ollama.com/v1         ]  │
+│  OpenAI API Base URL: [ https://ollama.com/v1       ]  │
 │  API Key:           [ ***************************** ]  │
 │                                                        │
 │  [ 🔄 Fetch Available Models ]                         │
@@ -56,7 +56,7 @@ The WikiKnowledge web interface includes a dedicated **Settings** page accessibl
 ```
 
 ### Dynamic Model Discovery
-When a user enters an OpenAPI Base URL (e.g., `https://ollama.com/v1`) and an API Key, the **Fetch Available Models** button becomes active. Clicking this button triggers a backend request (`POST /api/ai/models`) which establishes a secure connection to the remote endpoint's `/models` route, parses the available models, and populates the selection dropdown in real-time.
+When a user enters an OpenAI API Base URL (e.g., `https://ollama.com/v1`) and an API Key, the **Fetch Available Models** button becomes active. Clicking this button triggers a backend request (`POST /api/ai/models`) which establishes a secure connection to the remote endpoint's `/models` route, parses the available models, and populates the selection dropdown in real-time.
 
 ## Remote MCP Tool Binding & Active Execution Loop
 
@@ -64,14 +64,14 @@ The core objective of the AI integration is to establish an autonomous feedback 
 
 ```
 ┌──────────────────────┐   tool_calls    ┌──────────────────────┐
-│  Remote OpenAPI AI   │ ◄─────────────► │ WikiKnowledge MCP    │
+│  Remote OpenAI API   │ ◄─────────────► │ WikiKnowledge MCP    │
 │  (Ollama / OpenAI)   │  tool_results   │ Server (FastMCP)     │
 └──────────────────────┘                 └──────────────────────┘
 ```
 
 ### Active Tool Calling Architecture
-Through `AIService.invoke_remote_model_with_tools`, the system implements a fully automated OpenAPI tool execution loop:
-1. **Tool Inspection**: `AIService` extracts the available FastMCP tools (`list_articles`, `get_article`, `search`, `save_article`, etc.) and converts their JSON schemas into OpenAPI function definitions.
+Through `AIService.invoke_remote_model_with_tools`, the system implements a fully automated OpenAI API tool execution loop:
+1. **Tool Inspection**: `AIService` extracts the available FastMCP tools (`list_articles`, `get_article`, `search`, `save_article`, etc.) and converts their JSON schemas into OpenAI API function definitions.
 2. **Execution Loop**: When a user prompt is sent to `/api/ai/chat`, the remote model receives the prompt along with the tool definitions. If the model responds with `tool_calls`, `AIService` intercepts them, executes the corresponding FastMCP tools locally in Python, appends the `tool` result messages to the conversation history, and calls the model again until a final text response is produced.
 
 ## Floating AI Chat Window

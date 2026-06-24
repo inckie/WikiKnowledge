@@ -11,16 +11,16 @@ router = APIRouter(prefix="/ai", tags=["AI Integration"])
 class AISettingsModel(BaseModel):
     """Pydantic model for AI configuration settings."""
 
-    url: str = Field(default="https://ollama.com/v1", description="OpenAPI compatible base URL")
+    url: str = Field(default="https://ollama.com/v1", description="OpenAI API compatible base URL")
     api_key: str = Field(default="", description="API Key for authentication")
     model: str = Field(default="", description="Selected model ID")
     enabled: bool = Field(default=True, description="Whether AI integration is enabled")
 
 
 class FetchModelsRequest(BaseModel):
-    """Pydantic model for fetching models from a remote OpenAPI endpoint."""
+    """Pydantic model for fetching models from a remote OpenAI API endpoint."""
 
-    url: str = Field(..., description="OpenAPI compatible base URL")
+    url: str = Field(..., description="OpenAI API compatible base URL")
     api_key: str = Field(default="", description="API Key for authentication")
 
 
@@ -56,7 +56,7 @@ async def save_ai_settings(settings: AISettingsModel, request: Request):
 
 @router.post("/models")
 async def fetch_available_models(body: FetchModelsRequest, request: Request):
-    """Fetch available models from the remote OpenAPI endpoint."""
+    """Fetch available models from the remote OpenAI API endpoint."""
     ai_service = getattr(request.app.state, "ai_service", None)
     if not ai_service:
         raise HTTPException(status_code=500, detail="AI Service not initialized.")

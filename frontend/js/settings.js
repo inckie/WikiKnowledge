@@ -1,6 +1,6 @@
 /**
  * WikiKnowledge — AI Settings Controller
- * Manages UI logic for configuring OpenAPI AI models and MCP binding.
+ * Manages UI logic for configuring OpenAI API models and MCP binding.
  */
 
 const Settings = {

@@ -59,7 +59,7 @@ On application startup (via FastAPI's lifespan context manager):
 |--------|------|-------------|
 | `GET` | `/api/ai/settings` | Retrieve current AI configuration settings |
 | `POST` | `/api/ai/settings` | Save AI settings to `.settings/ai_config.json` and inject environment |
-| `POST` | `/api/ai/models` | Query remote OpenAPI endpoint for available model IDs |
+| `POST` | `/api/ai/models` | Query remote OpenAI API endpoint for available model IDs |
 
 ### Graph
 

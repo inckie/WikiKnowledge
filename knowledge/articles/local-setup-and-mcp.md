@@ -1,11 +1,16 @@
 ---
-id: "local-setup-and-mcp"
-title: "Local Setup and MCP Configuration"
-type: "leaf"
-tags: ["setup", "deployment", "mcp", "config"]
-categories: ["system-architecture"]
-created: "2026-06-20T02:14:00Z"
-modified: "2026-06-20T02:14:00Z"
+categories:
+- system-architecture
+created: '2026-06-20T02:14:00+00:00'
+id: local-setup-and-mcp
+modified: '2026-06-24T02:24:42.561450+00:00'
+tags:
+- setup
+- deployment
+- mcp
+- config
+title: Local Setup and MCP Configuration
+type: leaf
 ---
 
 # Local Setup and MCP Configuration
@@ -85,6 +90,7 @@ Once configured, the AI agent gains access to the following functions:
 - `delete_article(article_id)`: Delete articles.
 - `get_backlinks(article_id)`: Retrieve a list of all articles linking to the requested ID.
 - `get_category_members(category_id)`: List all articles nested within a given category.
+- `get_category_status(category_id)`: Check if a category article's summary is outdated ('dirty') relative to its members.
 - `search(query)`: Run full-text search across titles, tags, and contents.
 - `get_all_tags()`: Fetch all tags along with their usage counts.
 - `rebuild_index()`: Rebuild the knowledge index from the storage backend.

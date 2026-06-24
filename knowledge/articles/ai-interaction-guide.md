@@ -1,11 +1,16 @@
 ---
-id: "ai-interaction-guide"
-title: "AI Interaction Guide for WikiKnowledge"
-type: "leaf"
-tags: ["ai", "mcp", "guide", "best-practices"]
-categories: ["ai-integration"]
-created: "2026-06-21T10:10:00Z"
-modified: "2026-06-21T11:00:00Z"
+categories:
+- ai-integration
+created: '2026-06-21T10:10:00+00:00'
+id: ai-interaction-guide
+modified: '2026-06-24T02:24:47.009421+00:00'
+tags:
+- ai
+- mcp
+- guide
+- best-practices
+title: AI Interaction Guide for WikiKnowledge
+type: leaf
 ---
 
 # AI Interaction Guide for WikiKnowledge
@@ -45,9 +50,11 @@ Your primary interface to the knowledge base is through MCP tools. Use them to e
 
 3.  **`get_category_members(category_id)`**: See all articles belonging to a specific category.
 
-4.  **`get_backlinks(article_id)`**: Discover which other articles reference the current one. This is a powerful tool for understanding context and relationships.
+4.  **`get_category_status(category_id)`**: Check if a category's summary is outdated ("dirty"). Use this before summarizing categories or during maintenance to identify which category articles need their AI-generated summaries updated.
 
-5.  **`search(query)`**: Use for broad, full-text searches when you don't know where to start.
+5.  **`get_backlinks(article_id)`**: Discover which other articles reference the current one. This is a powerful tool for understanding context and relationships.
+
+6.  **`search(query)`**: Use for broad, full-text searches when you don't know where to start.
 
 ## Adding and Updating Knowledge
 

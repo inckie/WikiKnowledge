@@ -3,7 +3,7 @@ categories:
 - markup-conventions
 created: '2026-06-22T05:53:27.653623+00:00'
 id: category-features
-modified: '2026-06-22T05:53:27.653648+00:00'
+modified: '2026-06-24T02:24:51.546553+00:00'
 tags:
 - category
 - features
@@ -25,6 +25,8 @@ WikiKnowledge encourages authors (and AI summarizers) to explicitly reference su
 
 ## Dirty Indicator
 A category article's purpose is to summarize its members. If any sub-article is modified *after* the category article was last modified, the category is considered "dirty" or outdated. A visual warning indicator (⚠️) is displayed next to the Sub-articles section, signaling to the reader (and maintainers) that the summary might not reflect the latest changes in the sub-articles.
+
+AI agents can check this dirty status programmatically via MCP using the `get_category_status(category_id)` tool, which compares the modification timestamps of the category article and its member articles.
 
 ## Backlinks Filtering
 To reduce noise, the "What links here" (backlinks) section for a category article is filtered. Specifically, it excludes any backlinks coming from its own sub-articles. Since sub-articles intrinsically "link" to their parent category by declaring membership, hiding these implicit backlinks focuses the reader's attention on external references pointing to the category.

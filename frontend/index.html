@@ -213,6 +213,34 @@
     <!-- Autocomplete dropdown (shared, positioned absolutely) -->
     <div id="autocomplete-dropdown" class="autocomplete-dropdown hidden"></div>
 
+    <!-- AI Chat Floating Action Button -->
+    <button id="btn-ai-chat-toggle" class="ai-chat-fab" aria-label="Toggle AI Chat" title="Chat with AI Agent (MCP Enabled)">
+        <span class="fab-icon">🤖</span>
+    </button>
+
+    <!-- AI Floating Chat Window -->
+    <div id="ai-chat-window" class="ai-chat-window hidden">
+        <div class="chat-header">
+            <div class="chat-title">
+                <span class="chat-title-icon">🤖</span>
+                <span>AI Assistant (MCP Enabled)</span>
+            </div>
+            <div class="chat-header-actions">
+                <button id="btn-ai-chat-clear" class="chat-action-btn" title="Clear Chat / Start New Chat">🧹</button>
+                <button id="btn-ai-chat-close" class="chat-action-btn close-btn" title="Close Chat">&times;</button>
+            </div>
+        </div>
+        <div id="chat-messages" class="chat-messages">
+            <div class="chat-message assistant">
+                <div class="message-content">Hello! I am your AI assistant, wired with WikiKnowledge MCP tools. How can I help you today?</div>
+            </div>
+        </div>
+        <div class="chat-input-container">
+            <textarea id="chat-input-textarea" placeholder="Ask AI something... (e.g. check MCP tools)"></textarea>
+            <button id="btn-chat-send" class="btn btn-primary" title="Send message">🚀</button>
+        </div>
+    </div>
+
     <!-- Scripts (ES modules) -->
     <script src="/js/utils.js"></script>
     <script src="/js/api.js"></script>
@@ -221,6 +249,7 @@
     <script src="/js/editor.js"></script>
     <script src="/js/graph.js"></script>
     <script src="/js/settings.js"></script>
+    <script src="/js/chat.js"></script>
     <script src="/js/app.js"></script>
 </body>
 </html>

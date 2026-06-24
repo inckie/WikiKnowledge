@@ -66,3 +66,25 @@ async def fetch_available_models(body: FetchModelsRequest, request: Request):
         return {"models": models}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+class ChatRequest(BaseModel):
+    """Pydantic model for AI chat request."""
+
+    prompt: str = Field(..., description="User prompt for the AI model")
+
+
+@router.post("/chat")
+async def chat_with_ai(body: ChatRequest, request: Request):
+    """Invoke the remote AI model with MCP tool binding."""
+    ai_service = getattr(request.app.state, "ai_service", None)
+    mcp_server = getattr(request.app.state, "mcp_server", None)
+    if not ai_service or not mcp_server:
+        raise HTTPException(status_code=500, detail="AI Service or MCP Server not initialized.")
+
+    try:
+        reply = await ai_service.invoke_remote_model_with_tools(body.prompt, mcp_server)
+        return {"reply": reply}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+

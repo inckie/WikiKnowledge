@@ -52,6 +52,7 @@ async def lifespan(app: FastAPI):
     app.state.index = index
     app.state.graph = graph
     app.state.ai_service = ai_service
+    app.state.mcp_server = mcp_server
 
     # Inject AI configuration into environment on launch
     ai_service.inject_environment()

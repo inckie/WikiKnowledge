@@ -6,7 +6,8 @@ See [knowledge/articles/overview.md](knowledge/articles/overview.md) for the ove
 
 TODO:
 
-- [ ] connect AI model to the project and implement the update cascading
+- [ ] add frontend-looking MCP tools for Chat agent specifically (check current article, help user modify it, suggest new categories or articles, etc.)
+- [ ] implement the dirty articles update cascading with AI
 - [ ] add MongoDB support for storing the knowledge graph
 - [ ] implement purgeable index cache in `knowledge/.index`
 - [ ] implement question answering system

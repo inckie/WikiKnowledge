@@ -31,6 +31,9 @@ const App = {
 
         // Load welcome stats
         this._loadWelcomeStats();
+
+        // Initialize AI floating chat
+        Chat.init();
     },
 
     /**

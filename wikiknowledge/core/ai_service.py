@@ -130,28 +130,114 @@ class AIService:
         except Exception as e:
             raise RuntimeError(f"Error parsing models from AI endpoint: {e}")
 
-    # --- Future MCP Binding Foundations ---
+    # --- MCP Binding & OpenAPI Tool Loop ---
 
-    def initialize_mcp_binding(self, mcp_server: Any) -> Any:
-        """Lay the foundation for binding our own MCP tools to the remote AI model.
+    async def initialize_mcp_binding(self, mcp_server: Any) -> Any:
+        """Initialize and verify binding of FastMCP server tools to the remote AI model."""
+        settings = self.load_settings()
+        if not settings.get("enabled"):
+            raise RuntimeError("AI Integration is not enabled in settings.")
 
-        In the next step, this method will establish the client connection loop
-        between the FastMCP server tools (wikiknowledge/mcp_server.py) and the
-        remote OpenAPI model configured in os.environ.
+        tools = await mcp_server.list_tools()
+        print(f"Verified MCP binding with {len(tools)} tools to remote model.")
+        return {"status": "bound", "bound_tools_count": len(tools)}
+
+    async def invoke_remote_model_with_tools(self, prompt: str, mcp_server: Any) -> str:
+        """Invoke the remote model with an active MCP tool calling loop.
+
+        Allows the remote OpenAPI model to inspect, call, and receive results
+        from our embedded FastMCP tools until a final response is generated.
         """
         settings = self.load_settings()
         if not settings.get("enabled"):
             raise RuntimeError("AI Integration is not enabled in settings.")
 
-        # Foundation placeholder for next step MCP binding initialization
-        print("Initializing MCP binding to remote model...")
-        return {"status": "ready", "bound_tools_count": len(mcp_server._tools)}
+        url = settings.get("url", "").rstrip("/")
+        api_key = settings.get("api_key", "")
+        model = settings.get("model", "")
 
-    async def invoke_remote_model_with_tools(self, prompt: str, mcp_server: Any) -> str:
-        """Foundation stub for invoking the remote model with an active MCP tool calling loop.
+        if not url or not model:
+            raise RuntimeError("AI Base URL or Model is not configured in settings.")
 
-        This will be implemented in the next step to allow the remote model
-        to inspect, call, and receive results from our embedded MCP tools.
-        """
-        # Placeholder for next step implementation
-        return f"Remote model invoked with tools for prompt: {prompt}"
+        endpoint = f"{url}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+
+        # Convert FastMCP tools to OpenAPI / OpenAI tool definitions
+        openapi_tools = []
+        try:
+            mcp_tools = await mcp_server.list_tools()
+            for t in mcp_tools:
+                params = t.inputSchema if getattr(t, "inputSchema", None) else {"type": "object", "properties": {}}
+                openapi_tools.append({
+                    "type": "function",
+                    "function": {
+                        "name": t.name,
+                        "description": t.description or f"Execute {t.name}",
+                        "parameters": params,
+                    },
+                })
+        except Exception as e:
+            print(f"Error listing MCP tools: {e}")
+
+        messages = [{"role": "user", "content": prompt}]
+        max_iterations = 10
+
+        for _ in range(max_iterations):
+            payload = {
+                "model": model,
+                "messages": messages,
+            }
+            if openapi_tools:
+                payload["tools"] = openapi_tools
+
+            data_bytes = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            req = urllib.request.Request(endpoint, data=data_bytes, headers=headers, method="POST")
+
+            try:
+                with urllib.request.urlopen(req, timeout=30) as response:
+                    body = response.read().decode("utf-8")
+                    resp_data = json.loads(body)
+            except urllib.error.HTTPError as e:
+                err_body = e.read().decode("utf-8", errors="ignore")
+                raise RuntimeError(f"AI endpoint HTTPError {e.code}: {err_body}")
+            except Exception as e:
+                raise RuntimeError(f"Failed to communicate with AI endpoint: {e}")
+
+            choices = resp_data.get("choices", [])
+            if not choices:
+                raise RuntimeError("No choices returned in AI response.")
+
+            message = choices[0].get("message", {})
+            tool_calls = message.get("tool_calls")
+
+            if not tool_calls:
+                # No tool calls requested, return final content
+                return message.get("content") or ""
+
+            # Model requested tool call(s), append assistant message to history
+            messages.append(message)
+
+            for tc in tool_calls:
+                tc_id = tc.get("id")
+                func = tc.get("function", {})
+                func_name = func.get("name")
+                func_args_str = func.get("arguments", "{}")
+
+                try:
+                    func_args = json.loads(func_args_str) if func_args_str else {}
+                    content_list, _ = await mcp_server.call_tool(func_name, func_args)
+                    tool_result = "\n".join([getattr(c, "text", str(c)) for c in content_list])
+                except Exception as e:
+                    tool_result = f"Error executing tool '{func_name}': {e}"
+
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc_id,
+                    "name": func_name,
+                    "content": tool_result,
+                })
+
+        return "Error: Exceeded maximum tool execution iterations."

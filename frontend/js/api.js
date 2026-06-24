@@ -101,4 +101,12 @@ const API = {
             body: JSON.stringify({ url, api_key: apiKey }),
         });
     },
+
+    async sendAIChat(prompt) {
+        return this._fetch('/ai/chat', {
+            method: 'POST',
+            body: JSON.stringify({ prompt }),
+        });
+    },
 };
+

@@ -46,10 +46,15 @@ You can pass command-line arguments to specify a custom knowledge base directory
 uv run python run.py --kb-dir "D:/Path/To/Your/KnowledgeBase" --port 8000
 ```
 Once running, the following services are active:
-- **Web Interface (SPA)**: [http://localhost:8000/](http://localhost:8000/) — Explore articles, hierarchical category trees, tag clouds, interactive knowledge graphs, and edit markdown files directly.
-- **REST API Endpoint**: [http://localhost:8000/api](http://localhost:8000/api) — Direct JSON interface for articles, tags, and graph nodes.
+- **Web Interface (SPA)**: [http://localhost:8000/](http://localhost:8000/) — Explore articles, hierarchical category trees, tag clouds, interactive knowledge graphs, edit markdown files, and configure AI settings.
+- **REST API Endpoint**: [http://localhost:8000/api](http://localhost:8000/api) — Direct JSON interface for articles, tags, graph nodes, and AI configuration.
 - **OpenAPI / Swagger Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs) — Browse, test, and run HTTP request scripts against API endpoints.
 - **MCP Server**: `http://localhost:8000/mcp` — Endpoints for AI tool integration.
+
+### Optional AI Integration & Configuration
+WikiKnowledge provides optional AI integration via the OpenAPI protocol. You can configure this directly from the web UI by navigating to the **Settings** page in the sidebar.
+- **Configuration Storage**: Settings are saved in `[kb_dir]/.settings/ai_config.json`.
+- **Environment Injection**: On launch, if `ai_config.json` is present, the system automatically injects the configured URL, API key, and model ID into `os.environ` (e.g., `WIKIKNOWLEDGE_AI_URL`, `OPENAI_API_BASE`), enabling seamless integration across the backend services.
 
 ---
 

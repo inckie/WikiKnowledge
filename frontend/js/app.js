@@ -67,6 +67,8 @@ const App = {
             this._showNewEditor(prefillId);
         } else if (route === 'graph') {
             this._showGraph();
+        } else if (route === 'settings') {
+            this._showSettings();
         } else {
             this._showView('welcome');
         }
@@ -80,6 +82,10 @@ const App = {
         const el = document.getElementById(`view-${viewName}`);
         if (el) el.classList.add('active');
         this._currentView = viewName;
+
+        if (viewName !== 'settings') {
+            document.querySelectorAll('.theme-toggle-btn[title="AI Settings"]').forEach(b => b.classList.remove('active'));
+        }
 
         // Close sidebar on mobile when navigating
         this.closeSidebar();
@@ -149,6 +155,16 @@ const App = {
     },
 
     /**
+     * Show AI settings view.
+     */
+    _showSettings() {
+        this._showView('settings');
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.theme-toggle-btn[title="AI Settings"]').forEach(b => b.classList.add('active'));
+        Settings.load();
+    },
+
+    /**
      * Bind sidebar navigation buttons.
      */
     _bindNav() {
@@ -160,11 +176,21 @@ const App = {
 
                 if (view === 'graph') {
                     window.location.hash = '#/graph';
+                    this._showGraph();
                 } else {
                     this._loadSidebarContent(view);
                 }
             });
         });
+
+        const handleSettingsClick = () => {
+            window.location.hash = '#/settings';
+            this._showSettings();
+        };
+        const btnSettings = document.getElementById('btn-settings-toggle');
+        const btnSettingsMobile = document.getElementById('btn-settings-toggle-mobile');
+        if (btnSettings) btnSettings.addEventListener('click', handleSettingsClick);
+        if (btnSettingsMobile) btnSettingsMobile.addEventListener('click', handleSettingsClick);
 
         // Initial sidebar load
         this._loadSidebarContent('articles');

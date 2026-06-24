@@ -28,8 +28,9 @@ On application startup (via FastAPI's lifespan context manager):
 1. Initialize the `MarkdownStorageBackend` with the `knowledge/` directory path
 2. Scan and parse all markdown files
 3. Build the [[in-memory-index]] from the parsed data
-4. Mount the static frontend files
-5. Register all API routers
+4. Initialize `AIService`, load `.settings/ai_config.json`, and inject environment variables
+5. Mount the static frontend files
+6. Register all API routers
 
 ## API Endpoints
 
@@ -51,6 +52,14 @@ On application startup (via FastAPI's lifespan context manager):
 | `GET` | `/api/tags` | List all tags with usage counts |
 | `GET` | `/api/categories` | List all category articles |
 | `GET` | `/api/search?q=...` | Full-text search across article titles and content |
+
+### AI Integration
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/ai/settings` | Retrieve current AI configuration settings |
+| `POST` | `/api/ai/settings` | Save AI settings to `.settings/ai_config.json` and inject environment |
+| `POST` | `/api/ai/models` | Query remote OpenAPI endpoint for available model IDs |
 
 ### Graph
 

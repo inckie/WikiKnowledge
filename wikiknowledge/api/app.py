@@ -10,10 +10,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from wikiknowledge.api.ai import router as ai_router
 from wikiknowledge.api.articles import router as articles_router
 from wikiknowledge.api.graph import router as graph_router
 from wikiknowledge.api.search import router as search_router
 from wikiknowledge.api.sse import create_sse_server
+from wikiknowledge.core.ai_service import AIService
 from wikiknowledge.core.graph import KnowledgeGraph
 from wikiknowledge.core.index import KnowledgeIndex
 from wikiknowledge.mcp_server import create_mcp_server
@@ -30,6 +32,7 @@ storage = MarkdownStorageBackend(KNOWLEDGE_DIR)
 index = KnowledgeIndex()
 graph = KnowledgeGraph(index)
 mcp_server = create_mcp_server(storage, index, graph)
+ai_service = AIService(KNOWLEDGE_DIR)
 
 
 @asynccontextmanager
@@ -48,7 +51,11 @@ async def lifespan(app: FastAPI):
     app.state.storage = storage
     app.state.index = index
     app.state.graph = graph
-    print("Storage, index, and graph initialized.")
+    app.state.ai_service = ai_service
+
+    # Inject AI configuration into environment on launch
+    ai_service.inject_environment()
+    print("Storage, index, graph, and AI service initialized.")
 
     yield
 
@@ -80,6 +87,7 @@ def create_app() -> FastAPI:
     app.include_router(articles_router, prefix="/api")
     app.include_router(search_router, prefix="/api")
     app.include_router(graph_router, prefix="/api")
+    app.include_router(ai_router, prefix="/api")
 
     # Static frontend files (mounted last as a catch-all)
     if FRONTEND_DIR.exists():

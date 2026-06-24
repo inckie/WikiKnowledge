@@ -81,4 +81,24 @@ const API = {
     async fetchCategoryTree() {
         return this._fetch('/graph/categories');
     },
+
+    // --- AI Integration ---
+
+    async getAISettings() {
+        return this._fetch('/ai/settings');
+    },
+
+    async saveAISettings(data) {
+        return this._fetch('/ai/settings', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async fetchAIModels(url, apiKey) {
+        return this._fetch('/ai/models', {
+            method: 'POST',
+            body: JSON.stringify({ url, api_key: apiKey }),
+        });
+    },
 };

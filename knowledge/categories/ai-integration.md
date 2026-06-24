@@ -19,4 +19,7 @@ This category contains articles related to integrating AI agents with the WikiKn
 <!-- ai:start -->
 ### [[ai-interaction-guide|AI Interaction Guide for WikiKnowledge]]
 A comprehensive guide for AI agents on how to interact with a WikiKnowledge base using MCP. It covers the system's core concepts, knowledge structure, and provides a detailed workflow for how to efficiently discover and add information to the knowledge graph.
+
+### [[ai-settings-and-mcp-binding|AI Settings and MCP Binding]]
+Explains the optional AI integration using the OpenAPI protocol, the web UI Settings page, automatic environment variable injection on startup, and the architectural foundation for remote MCP tool binding.
 <!-- ai:end -->

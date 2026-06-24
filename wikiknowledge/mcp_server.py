@@ -188,6 +188,44 @@ def create_mcp_server(
         return "\n".join(lines)
 
     @mcp.tool()
+    async def get_category_status(category_id: str) -> str:
+        """Check if a category article's summary is outdated ('dirty').
+
+        A category is dirty if any of its member articles have been modified
+        more recently than the category article itself.
+
+        Returns the dirty status, the category's modification time, and the
+        most recent modification time among its members.
+        """
+        try:
+            # Get category article metadata
+            category_meta = await storage.get_meta(category_id)
+            if category_meta.type != ArticleType.CATEGORY:
+                return f"Error: Article '{category_id}' is not a category."
+        except KeyError:
+            return f"Error: Category '{category_id}' not found."
+
+        # Get members and their modification times
+        member_ids = index.articles_in_category(category_id)
+        if not member_ids:
+            return (
+                f"Category '{category_id}' is not dirty (it has no members).\n"
+                f"- Category modified: {category_meta.modified.isoformat()}"
+            )
+
+        member_metas = [await storage.get_meta(mid) for mid in member_ids]
+        most_recent_member = max(member_metas, key=lambda m: m.modified)
+
+        # Compare timestamps
+        is_dirty = most_recent_member.modified > category_meta.modified
+
+        return (
+            f"Category '{category_id}' is {'dirty' if is_dirty else 'not dirty'}.\n"
+            f"- Category modified: {category_meta.modified.isoformat()}\n"
+            f"- Most recent member ('{most_recent_member.id}') modified: {most_recent_member.modified.isoformat()}"
+        )
+
+    @mcp.tool()
     async def search(query: str) -> str:
         """Full-text search across article titles, tags, and content.
 

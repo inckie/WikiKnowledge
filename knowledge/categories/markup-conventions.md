@@ -1,14 +1,17 @@
 ---
-id: "markup-conventions"
-title: "Markup Conventions"
-type: "category"
-tags: ["markup", "conventions", "syntax", "documentation"]
-categories: ["system-architecture"]
-created: "2026-06-19T21:00:00Z"
-modified: "2026-06-19T21:00:00Z"
+categories:
+- system-architecture
+created: '2026-06-19T21:00:00+00:00'
+id: markup-conventions
+modified: '2026-06-24T02:12:20.737346+00:00'
+tags:
+- markup
+- conventions
+- syntax
+- documentation
+title: Markup Conventions
+type: category
 ---
-
-# Markup Conventions
 
 <!-- human:start -->
 WikiKnowledge extends standard Markdown with a small set of conventions that enable structured knowledge management. These conventions are deliberately minimal — a plain Markdown file with no extensions is still a valid article (it just won't have metadata or internal links).
@@ -35,4 +38,7 @@ Explains the `[[article-id]]` and `[[article-id|Display Text]]` double-bracket s
 
 ### [[human-protected-blocks|Human-Protected Blocks]]
 Describes the HTML comment marker system for distinguishing human-written content from AI-generated summaries in category articles. Covers the `<!-- human:start/end -->` and `<!-- ai:start/end -->` syntax, the "safe by default" rule (unmarked content is treated as human), nesting restrictions, and the visual indicators shown in the web UI.
+
+### [[category-features|Category Features]]
+Details the specialized UI and data consistency features for category articles. This includes the automatic "Sub-articles" section, highlighting of unmentioned sub-articles to prompt authors for updates, a "dirty" indicator (⚠️) when a category's summary may be out of sync with its members, and intelligent backlink filtering to reduce noise from sub-article references.
 <!-- ai:end -->

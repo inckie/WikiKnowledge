@@ -9,6 +9,8 @@ TODO:
 - [ ] fix get_category_status tool
 - [ ] add frontend-looking MCP tools for Chat agent specifically (check current article, help user modify it, suggest new categories or articles, etc.). Probably can be done by sending "context" to backend
 - [ ] binary files support (images). Each item will have .meta file next to it
+- [ ] multiple knowledge bases on one server
+- [ ] readonly mode
 - [ ] implement the dirty articles update cascading with AI
 - [ ] add MongoDB/SQLite support for storing the knowledge graph
 - [ ] implement purgeable index cache in `knowledge/.index`

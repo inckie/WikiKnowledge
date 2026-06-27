@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from wikiknowledge.api.ai import router as ai_router
 from wikiknowledge.api.articles import router as articles_router
 from wikiknowledge.api.graph import router as graph_router
+from wikiknowledge.api.resources import router as resources_router
 from wikiknowledge.api.search import router as search_router
 from wikiknowledge.api.sse import create_sse_server
 from wikiknowledge.core.ai_service import AIService
@@ -41,10 +42,12 @@ async def lifespan(app: FastAPI):
     # Initialize storage backend
     await storage.initialize()
 
-    # Build in-memory index
+    # Build in-memory index (articles + resources)
     index.build(
         all_meta=dict(storage._meta_cache),
         all_links=storage.get_all_links(),
+        all_resource_meta=dict(storage._resource_meta_cache),
+        all_resource_links=storage.get_all_resource_links(),
     )
 
     # Store on app state for access from other routes
@@ -86,6 +89,7 @@ def create_app() -> FastAPI:
 
     # API routes
     app.include_router(articles_router, prefix="/api")
+    app.include_router(resources_router, prefix="/api")
     app.include_router(search_router, prefix="/api")
     app.include_router(graph_router, prefix="/api")
     app.include_router(ai_router, prefix="/api")

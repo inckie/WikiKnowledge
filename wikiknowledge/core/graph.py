@@ -29,6 +29,10 @@ class KnowledgeGraph:
         nodes = []
         links_set: set[tuple[str, str]] = set()
 
+        # All known node IDs (articles + resources)
+        all_known_ids = set(self.index._all_meta.keys()) | set(self.index._all_resource_meta.keys())
+
+        # Add article nodes
         for article_id, meta in self.index._all_meta.items():
             incoming = len(self.index.back_links.get(article_id, []))
             outgoing = len(self.index.forward_links.get(article_id, []))
@@ -44,7 +48,7 @@ class KnowledgeGraph:
 
             # Add wiki-link edges
             for link in self.index.forward_links.get(article_id, []):
-                if link.target_id in self.index._all_meta:
+                if link.target_id in all_known_ids:
                     edge = (article_id, link.target_id)
                     links_set.add(edge)
 
@@ -52,6 +56,27 @@ class KnowledgeGraph:
             for cat_id in meta.categories:
                 if cat_id in self.index._all_meta:
                     edge = (article_id, cat_id)
+                    links_set.add(edge)
+
+        # Add resource nodes
+        for resource_id, meta in self.index._all_resource_meta.items():
+            incoming = len(self.index.back_links.get(resource_id, []))
+            outgoing = len(self.index.forward_links.get(resource_id, []))
+
+            nodes.append({
+                "id": resource_id,
+                "title": meta.title,
+                "type": "resource",
+                "linkCount": incoming + outgoing,
+                "tags": meta.tags,
+                "categories": meta.categories,
+                "mime_type": meta.mime_type,
+            })
+
+            # Add resource `related` edges
+            for link in self.index.forward_links.get(resource_id, []):
+                if link.target_id in all_known_ids:
+                    edge = (resource_id, link.target_id)
                     links_set.add(edge)
 
         links = [
@@ -64,13 +89,14 @@ class KnowledgeGraph:
     def get_subgraph(
         self, article_id: str, depth: int = 2
     ) -> dict[str, list[dict[str, Any]]]:
-        """Return a neighborhood subgraph around an article.
+        """Return a neighborhood subgraph around a node (article or resource).
 
         Args:
             article_id: Center node.
             depth: How many hops to include (default 2).
         """
-        if article_id not in self.index._all_meta:
+        all_known_ids = set(self.index._all_meta.keys()) | set(self.index._all_resource_meta.keys())
+        if article_id not in all_known_ids:
             return {"nodes": [], "links": []}
 
         # BFS to collect nearby nodes
@@ -86,12 +112,12 @@ class KnowledgeGraph:
 
                 # Outgoing links
                 for link in self.index.forward_links.get(node_id, []):
-                    if link.target_id in self.index._all_meta:
+                    if link.target_id in all_known_ids:
                         next_frontier.add(link.target_id)
 
                 # Incoming links
                 for link in self.index.back_links.get(node_id, []):
-                    if link.source_id in self.index._all_meta:
+                    if link.source_id in all_known_ids:
                         next_frontier.add(link.source_id)
 
                 # Category membership

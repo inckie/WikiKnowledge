@@ -8,8 +8,11 @@ from typing import Optional
 from wikiknowledge.storage.models import WikiLink, ContentBlock
 
 # Matches [[target]] or [[target|display text]]
-# Does NOT match inside fenced code blocks (handled by pre-processing)
-WIKI_LINK_RE = re.compile(r"\[\[([^\[\]|]+?)(?:\|([^\[\]]+?))?\]\]")
+# Does NOT match [[file:...]] links (those are handled separately)
+WIKI_LINK_RE = re.compile(r"\[\[(?!file:)([^\[\]|]+?)(?:\|([^\[\]]+?))?\]\]", re.IGNORECASE)
+
+# Matches [[file:resource-id]] or [[file:resource-id|display text]]
+FILE_LINK_RE = re.compile(r"\[\[file:([^\[\]|]+?)(?:\|([^\[\]]+?))?\]\]", re.IGNORECASE)
 
 # Fenced code block boundaries
 CODE_FENCE_RE = re.compile(r"^(`{3,}|~{3,})")
@@ -26,6 +29,7 @@ def extract_wiki_links(
 ) -> list[WikiLink]:
     """Extract all wiki links from markdown content.
 
+    Extracts both regular [[target]] links and [[file:resource-id]] links.
     Skips links inside fenced code blocks.
 
     Args:
@@ -55,7 +59,7 @@ def extract_wiki_links(
         if in_code_block:
             continue
 
-        # Extract wiki links from this line
+        # Extract regular wiki links from this line
         for match in WIKI_LINK_RE.finditer(line):
             target_id = match.group(1).strip()
             display_text = match.group(2)
@@ -68,6 +72,24 @@ def extract_wiki_links(
                     target_id=target_id,
                     display_text=display_text,
                     line_number=line_num,
+                    is_file_link=False,
+                )
+            )
+
+        # Extract [[file:...]] links from this line
+        for match in FILE_LINK_RE.finditer(line):
+            target_id = match.group(1).strip()
+            display_text = match.group(2)
+            if display_text:
+                display_text = display_text.strip()
+
+            links.append(
+                WikiLink(
+                    source_id=source_id,
+                    target_id=target_id,
+                    display_text=display_text,
+                    line_number=line_num,
+                    is_file_link=True,
                 )
             )
 

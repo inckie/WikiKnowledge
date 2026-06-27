@@ -34,6 +34,17 @@ The pipe character `|` separates the target article ID from the display text:
 
 > The system uses [YAML metadata](#) for each article.
 
+### Media / Resource Link
+
+```markdown
+Here is the diagram: [[file:architecture-diagram.png|System Architecture]]
+```
+
+The `file:` prefix (case-insensitive) denotes a link to a binary or media resource rather than an article.
+- **Resource IDs**: To avoid ID collisions between files with the same base name (e.g., `logo.svg` vs `logo.png`) and to maintain intuitive compatibility with standard wiki conventions (like Wikipedia's `[[File:Example.jpg]]`), resource IDs explicitly retain their file extensions (e.g., `architecture-diagram.png`).
+- **Images** (`image/*` like SVG, PNG, JPEG) render as inline `<figure>` elements with the image and a caption.
+- **Other files** (audio, video, documents, archives) render as styled download links with a descriptive file icon (e.g., 📄, 🎵, 🎬, 📕, 📎).
+
 ## Resolution Rules
 
 1. The text inside `[[...]]` (before any `|`) is matched against the `id` field in article [[markdown-frontmatter|frontmatter]]

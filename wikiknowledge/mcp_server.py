@@ -256,14 +256,76 @@ def create_mcp_server(
     async def rebuild_index() -> str:
         """Rebuild the knowledge index from the storage backend.
 
-        This reads all articles from disk, re-parses their frontmatter and links,
-        and reconstructs the in-memory indices (tags, categories, backlinks).
+        This reads all articles and resources from disk, re-parses their
+        frontmatter and links, and reconstructs the in-memory indices
+        (tags, categories, backlinks, resource graph edges).
         """
         await storage.initialize()
         index.build(
             all_meta=dict(storage._meta_cache),
             all_links=storage.get_all_links(),
+            all_resource_meta=dict(storage._resource_meta_cache),
+            all_resource_links=storage.get_all_resource_links(),
         )
         return "Knowledge index rebuilt successfully."
 
+    # --- Resource tools ---
+
+    @mcp.tool()
+    async def get_resource(resource_id: str) -> str:
+        """Read resource metadata by its ID.
+
+        Returns resource metadata as YAML. For text-based resources
+        (like SVG), also includes the file content.
+        """
+        try:
+            resource = await storage.get_resource(resource_id)
+        except KeyError:
+            return f"Error: Resource '{resource_id}' not found"
+
+        meta = resource.meta
+        result = (
+            f"id: {meta.id}\n"
+            f"title: {meta.title}\n"
+            f"filename: {meta.filename}\n"
+            f"mime_type: {meta.mime_type}\n"
+            f"tags: {meta.tags}\n"
+            f"categories: {meta.categories}\n"
+            f"related: {meta.related}\n"
+            f"description: {meta.description}\n"
+            f"created: {meta.created.isoformat()}\n"
+            f"modified: {meta.modified.isoformat()}\n"
+        )
+
+        # Include content for text-based resources
+        if resource.data and meta.mime_type.startswith(("text/", "image/svg")):
+            try:
+                text_content = resource.data.decode("utf-8")
+                result += f"\n--- content ---\n{text_content}"
+            except UnicodeDecodeError:
+                result += "\n(Binary content, not displayable as text)"
+        else:
+            result += f"\n(Binary file, {len(resource.data or b'')} bytes)"
+
+        return result
+
+    @mcp.tool()
+    async def list_resources() -> str:
+        """List all media resources in the knowledge base.
+
+        Returns a formatted list of resource IDs, titles, and MIME types.
+        """
+        metas = await storage.list_resources()
+        if not metas:
+            return "No resources found."
+
+        lines = [f"Found {len(metas)} resource(s):\n"]
+        for m in metas:
+            lines.append(
+                f"- {m.id}: \"{m.title}\" ({m.mime_type}) "
+                f"tags={m.tags} related={m.related}"
+            )
+        return "\n".join(lines)
+
     return mcp
+

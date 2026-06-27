@@ -94,6 +94,7 @@ const Graph = {
         const colorMap = {
             leaf: '#3b82f6',
             category: '#a855f7',
+            resource: '#14b8a6',
         };
 
         // Size scale based on link count
@@ -124,21 +125,55 @@ const Graph = {
             .attr('class', 'graph-node')
             .call(this._drag(this._simulation));
 
-        // Node circles
-        node.append('circle')
-            .attr('r', d => sizeScale(d.linkCount))
-            .attr('fill', d => colorMap[d.type] || '#6366f1')
-            .attr('stroke', d => d3.color(colorMap[d.type] || '#6366f1').brighter(0.5))
-            .attr('stroke-width', 1.5)
-            .attr('opacity', 0.85);
+        // Node shapes: circles for articles, diamonds for resources
+        node.each(function(d) {
+            const el = d3.select(this);
+            const r = sizeScale(d.linkCount);
+            const color = colorMap[d.type] || '#6366f1';
+
+            if (d.type === 'resource') {
+                // Diamond shape for resources
+                el.append('polygon')
+                    .attr('points', `0,${-r} ${r},0 0,${r} ${-r},0`)
+                    .attr('fill', color)
+                    .attr('stroke', d3.color(color).brighter(0.5))
+                    .attr('stroke-width', 1.5)
+                    .attr('opacity', 0.85)
+                    .attr('class', 'node-shape');
+            } else {
+                // Circle for articles
+                el.append('circle')
+                    .attr('r', r)
+                    .attr('fill', color)
+                    .attr('stroke', d3.color(color).brighter(0.5))
+                    .attr('stroke-width', 1.5)
+                    .attr('opacity', 0.85)
+                    .attr('class', 'node-shape');
+            }
+        });
 
         // Node glow effect
-        node.append('circle')
-            .attr('r', d => sizeScale(d.linkCount) + 4)
-            .attr('fill', 'none')
-            .attr('stroke', d => colorMap[d.type] || '#6366f1')
-            .attr('stroke-width', 0.5)
-            .attr('opacity', 0.3);
+        node.each(function(d) {
+            const el = d3.select(this);
+            const r = sizeScale(d.linkCount) + 4;
+            const color = colorMap[d.type] || '#6366f1';
+
+            if (d.type === 'resource') {
+                el.append('polygon')
+                    .attr('points', `0,${-r} ${r},0 0,${r} ${-r},0`)
+                    .attr('fill', 'none')
+                    .attr('stroke', color)
+                    .attr('stroke-width', 0.5)
+                    .attr('opacity', 0.3);
+            } else {
+                el.append('circle')
+                    .attr('r', r)
+                    .attr('fill', 'none')
+                    .attr('stroke', color)
+                    .attr('stroke-width', 0.5)
+                    .attr('opacity', 0.3);
+            }
+        });
 
         // Labels
         node.append('text')
@@ -150,10 +185,11 @@ const Graph = {
         const tooltip = document.getElementById('graph-tooltip');
 
         node.on('mouseover', (event, d) => {
+            const typeInfo = d.type === 'resource' ? `resource (${d.mime_type || 'unknown'})` : d.type;
             tooltip.innerHTML = `
                 <div class="tooltip-title">${Utils.escapeHtml(d.title)}</div>
-                <div class="tooltip-type">${d.type} · ${d.linkCount} connections</div>
-                ${d.tags.length ? `<div style="margin-top:4px;font-size:11px;color:var(--text-muted);">Tags: ${d.tags.join(', ')}</div>` : ''}
+                <div class="tooltip-type">${typeInfo} · ${d.linkCount} connections</div>
+                ${d.tags && d.tags.length ? `<div style="margin-top:4px;font-size:11px;color:var(--text-muted);">Tags: ${d.tags.join(', ')}</div>` : ''}
             `;
             tooltip.style.left = `${event.pageX + 15}px`;
             tooltip.style.top = `${event.pageY - 10}px`;
@@ -168,7 +204,7 @@ const Graph = {
                 if (tId === d.id) connectedIds.add(sId);
             });
 
-            node.select('circle:first-child')
+            node.select('.node-shape')
                 .attr('opacity', n => n.id === d.id || connectedIds.has(n.id) ? 1 : 0.2);
 
             link.attr('stroke-opacity', l => {
@@ -180,7 +216,7 @@ const Graph = {
 
         node.on('mouseout', () => {
             tooltip.classList.add('hidden');
-            node.select('circle:first-child').attr('opacity', 0.85);
+            node.select('.node-shape').attr('opacity', 0.85);
             link.attr('stroke-opacity', 0.4);
         });
 

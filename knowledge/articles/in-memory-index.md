@@ -20,7 +20,7 @@ The in-memory index is the heart of WikiKnowledge's query system. Built on appli
 forward_links: dict[str, list[WikiLink]]
 ```
 
-Maps each article ID to the list of [[wiki-link-syntax|wiki links]] found in its content. Used to render outgoing links and to detect broken links (targets that don't exist).
+Maps each article or resource ID to the list of [[wiki-link-syntax|wiki links]] found in its content (or `related` metadata field). Used to render outgoing links and to detect broken links (targets that don't exist).
 
 ### Back Links Index
 
@@ -66,10 +66,10 @@ For a knowledge base of a few thousand articles, this completes in under a secon
 
 ## Incremental Updates
 
-When a single article is modified, a full rebuild is wasteful. Instead, the index supports `rebuild_article(id)`:
+When a single article or resource is modified, a full rebuild is wasteful. Instead, the index supports `rebuild_article(id, meta, content)` and `rebuild_resource(id, meta)`:
 
-1. Remove the old article's entries from all indices
-2. Re-parse the updated article
+1. Remove the old article/resource's entries from all indices
+2. Re-parse the updated metadata, content, or `related` links
 3. Insert the new entries
 4. Recompute only the affected back-links
 
@@ -94,10 +94,12 @@ The index also provides a `get_graph_data()` method that serializes the entire l
 {
   "nodes": [
     {"id": "article-one", "title": "Article One", "type": "leaf", "linkCount": 5},
-    {"id": "cat-one", "title": "Category One", "type": "category", "linkCount": 12}
+    {"id": "cat-one", "title": "Category One", "type": "category", "linkCount": 12},
+    {"id": "wikiknowledge-logo.svg", "title": "WikiKnowledge Logo", "type": "resource", "linkCount": 1, "mime_type": "image/svg+xml"}
   ],
   "links": [
-    {"source": "article-one", "target": "cat-one"}
+    {"source": "article-one", "target": "cat-one"},
+    {"source": "article-one", "target": "wikiknowledge-logo.svg"}
   ]
 }
 ```

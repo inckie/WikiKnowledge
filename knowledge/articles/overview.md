@@ -11,6 +11,8 @@ type: leaf
 
 # WikiKnowledge Graph Construction and Question Answering System
 
+[[file:wikiknowledge-logo.svg|WikiKnowledge Logo]]
+
 ## Why Wikipedia Thrives While Wikibooks Does Not
 
 ### The Anatomy of a Textbook

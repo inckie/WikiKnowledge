@@ -46,6 +46,35 @@ class WikiLink(BaseModel):
     target_id: str
     display_text: Optional[str] = None
     line_number: int = 0
+    is_file_link: bool = False  # True for [[file:...]] links to media resources
+
+
+class ResourceMeta(BaseModel):
+    """Metadata for a binary/media resource (stored in .meta sidecar files)."""
+    id: str
+    title: str
+    filename: str  # actual file on disk, e.g. "logo.svg"
+    mime_type: str = "application/octet-stream"
+    tags: list[str] = Field(default_factory=list)
+    categories: list[str] = Field(default_factory=list)
+    related: list[str] = Field(default_factory=list)  # outgoing links (like [[]] in articles)
+    description: str = ""  # alt-text / content description for non-multimodal LLMs
+    created: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    modified: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class Resource(BaseModel):
+    """Full resource: metadata + optional binary data."""
+    meta: ResourceMeta
+    data: Optional[bytes] = None
+
+    @property
+    def id(self) -> str:
+        return self.meta.id
+
+    @property
+    def title(self) -> str:
+        return self.meta.title
 
 
 class ContentBlock(BaseModel):

@@ -82,6 +82,16 @@ const API = {
         return this._fetch('/graph/categories');
     },
 
+    // --- Resources ---
+
+    async fetchResources() {
+        return this._fetch('/resources');
+    },
+
+    async fetchResource(id) {
+        return this._fetch(`/resources/${encodeURIComponent(id)}`);
+    },
+
     // --- AI Integration ---
 
     async getAISettings() {

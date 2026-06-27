@@ -6,12 +6,22 @@
 const Viewer = {
     /** All known article IDs (populated on init) */
     _knownArticles: new Set(),
+    /** All known resource metadata keyed by ID */
+    _knownResources: new Map(),
 
     /**
      * Update the set of known article IDs for link resolution.
      */
     setKnownArticles(articles) {
         this._knownArticles = new Set(articles.map(a => a.id));
+    },
+
+    /**
+     * Update the map of known resources for file link resolution.
+     * @param {Array} resources - Array of resource metadata objects
+     */
+    setKnownResources(resources) {
+        this._knownResources = new Map(resources.map(r => [r.id, r]));
     },
 
     /**
@@ -22,8 +32,9 @@ const Viewer = {
     render(markdown) {
         if (!markdown) return '';
 
-        // Pre-process: convert [[wiki-links]] to temporary placeholders
-        let processed = this._processWikiLinks(markdown);
+        // Pre-process: convert [[file:...]] links first, then [[wiki-links]]
+        let processed = this._processFileLinks(markdown);
+        processed = this._processWikiLinks(processed);
 
         // Render markdown
         let html = marked.parse(processed, {
@@ -32,18 +43,65 @@ const Viewer = {
         });
 
         // Post-process: mark human/AI blocks on the generated HTML
-        // This ensures we don't accidentally match comments inside code blocks
-        // because marked escapes < and > inside `code` and <pre> tags.
         html = this._processContentBlocks(html);
 
         return html;
     },
 
     /**
+     * Replace [[file:resource-id]] and [[file:resource-id|display]] with
+     * inline images or download links.
+     */
+    _processFileLinks(text) {
+        return text.replace(/\[\[file:([^\[\]|]+?)(?:\|([^\[\]]+?))?\]\]/gi, (match, resourceId, displayText) => {
+            resourceId = resourceId.trim();
+            let resource = this._knownResources.get(resourceId);
+            if (!resource) {
+                // Fallback: try matching with or without extension
+                for (const [id, res] of this._knownResources.entries()) {
+                    if (id.split('.')[0] === resourceId.split('.')[0]) {
+                        resource = res;
+                        break;
+                    }
+                }
+            }
+            const display = displayText ? displayText.trim() : (resource ? resource.title : resourceId);
+
+            if (!resource) {
+                return `<a class="wiki-link missing file-link" title="Resource not found: ${Utils.escapeHtml(resourceId)}">${Utils.escapeHtml(display)}</a>`;
+            }
+
+            const fileUrl = `/api/resources/${encodeURIComponent(resource.id)}/file`;
+
+            if (resource.mime_type && resource.mime_type.startsWith('image/')) {
+                // Render images inline
+                const alt = resource.description || display;
+                return `<figure class="wiki-resource-figure"><img class="wiki-resource-img" src="${fileUrl}" alt="${Utils.escapeHtml(alt)}" title="${Utils.escapeHtml(display)}" loading="lazy"><figcaption>${Utils.escapeHtml(display)}</figcaption></figure>`;
+            } else {
+                // Render non-image resources as download links
+                const icon = this._getResourceIcon(resource.mime_type);
+                return `<a class="wiki-link file-link" href="${fileUrl}" target="_blank" title="${Utils.escapeHtml(resource.description || display)}">${icon} ${Utils.escapeHtml(display)}</a>`;
+            }
+        });
+    },
+
+    /**
+     * Get an appropriate icon emoji for a MIME type.
+     */
+    _getResourceIcon(mimeType) {
+        if (!mimeType) return '📎';
+        if (mimeType.startsWith('audio/')) return '🎵';
+        if (mimeType.startsWith('video/')) return '🎬';
+        if (mimeType.startsWith('text/')) return '📄';
+        if (mimeType.includes('pdf')) return '📕';
+        return '📎';
+    },
+
+    /**
      * Replace [[target]] and [[target|display]] with clickable HTML links.
      */
     _processWikiLinks(text) {
-        return text.replace(/\[\[([^\[\]|]+?)(?:\|([^\[\]]+?))?\]\]/g, (match, targetId, displayText) => {
+        return text.replace(/\[\[(?!file:)([^\[\]|]+?)(?:\|([^\[\]]+?))?\]\]/gi, (match, targetId, displayText) => {
             targetId = targetId.trim();
             const display = displayText ? displayText.trim() : targetId;
             const exists = this._knownArticles.has(targetId);
@@ -75,7 +133,12 @@ const Viewer = {
         // Render metadata, breadcrumb, and body
         document.getElementById('article-meta').innerHTML = this._renderMeta(article);
         document.getElementById('article-breadcrumb').innerHTML = this._renderBreadcrumb(article);
-        document.getElementById('article-body').innerHTML = this.render(article.content);
+
+        if (article.type === 'resource') {
+            document.getElementById('article-body').innerHTML = this._renderResourcePage(article);
+        } else {
+            document.getElementById('article-body').innerHTML = this.render(article.content);
+        }
 
         // Render category-specific section or clear it
         const categorySectionEl = document.getElementById('category-section');
@@ -92,27 +155,97 @@ const Viewer = {
     _renderMeta(article) {
         const parts = [];
         parts.push(`<div class="meta-group"><span class="meta-label">Type</span><span class="chip chip-type">${article.type}</span></div>`);
-        if (article.tags.length) {
+        if (article.mime_type) {
+            parts.push(`<div class="meta-divider"></div><div class="meta-group"><span class="meta-label">MIME Type</span><span class="chip" style="background:var(--bg-tertiary); border:1px solid var(--border-color); padding: 2px 8px; border-radius: 4px; font-size: var(--text-xs);">${Utils.escapeHtml(article.mime_type)}</span></div>`);
+        }
+        if (article.tags && article.tags.length) {
             const tagChips = article.tags.map(t => `<span class="chip chip-tag" onclick="App.filterByTag('${Utils.escapeHtml(t)}')">${Utils.escapeHtml(t)}</span>`).join('');
             parts.push(`<div class="meta-divider"></div><div class="meta-group"><span class="meta-label">Tags</span>${tagChips}</div>`);
         }
-        if (article.categories.length) {
+        if (article.categories && article.categories.length) {
             const catChips = article.categories.map(c => `<a class="chip chip-category" href="#/article/${encodeURIComponent(c)}">${Utils.escapeHtml(c)}</a>`).join('');
             parts.push(`<div class="meta-divider"></div><div class="meta-group"><span class="meta-label">Categories</span>${catChips}</div>`);
         }
-        parts.push(`<div class="meta-divider"></div><div class="meta-group"><span class="meta-label">Modified</span><span style="font-size: var(--text-xs); color: var(--text-muted);">${Utils.formatDate(article.modified)}</span></div>`);
+        if (article.modified) {
+            parts.push(`<div class="meta-divider"></div><div class="meta-group"><span class="meta-label">Modified</span><span style="font-size: var(--text-xs); color: var(--text-muted);">${Utils.formatDate(article.modified)}</span></div>`);
+        }
         return parts.join('');
     },
 
     _renderBreadcrumb(article) {
         const parts = [`<a href="#/">Home</a>`, `<span class="separator">›</span>`];
-        if (article.categories.length) {
+        if (article.categories && article.categories.length) {
             const cat = article.categories[0];
             parts.push(`<a href="#/article/${encodeURIComponent(cat)}">${Utils.escapeHtml(cat)}</a>`);
             parts.push(`<span class="separator">›</span>`);
         }
-        parts.push(`<span>${Utils.escapeHtml(article.title)}</span>`);
+        parts.push(`<span>${Utils.escapeHtml(article.title || article.id)}</span>`);
         return parts.join(' ');
+    },
+
+    _renderResourcePage(resource) {
+        const fileUrl = `/api/resources/${encodeURIComponent(resource.id)}/file`;
+        let previewHtml = '';
+
+        if (resource.mime_type && resource.mime_type.startsWith('image/')) {
+            previewHtml = `
+                <div class="resource-media-preview" style="text-align: center; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-6); box-shadow: var(--shadow-inner);">
+                    <a href="${fileUrl}" target="_blank" title="Click to view full size">
+                        <img src="${fileUrl}" alt="${Utils.escapeHtml(resource.title)}" style="max-width: 100%; max-height: 500px; object-fit: contain; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); background: #ffffff;">
+                    </a>
+                    <div style="margin-top: var(--space-3); font-size: var(--text-sm); color: var(--text-muted);">
+                        <a href="${fileUrl}" target="_blank" style="color: var(--accent-primary); text-decoration: none;">🔍 View original file (${Utils.escapeHtml(resource.filename)})</a>
+                    </div>
+                </div>
+            `;
+        } else {
+            const icon = this._getResourceIcon(resource.mime_type);
+            previewHtml = `
+                <div class="resource-media-preview" style="text-align: center; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: var(--space-8); margin-bottom: var(--space-6);">
+                    <div style="font-size: 4rem; margin-bottom: var(--space-3);">${icon}</div>
+                    <h3 style="margin-bottom: var(--space-2); color: var(--text-normal);">${Utils.escapeHtml(resource.filename)}</h3>
+                    <p style="color: var(--text-muted); font-size: var(--text-sm); margin-bottom: var(--space-4);">MIME Type: ${Utils.escapeHtml(resource.mime_type || 'unknown')}</p>
+                    <a class="btn btn-primary" href="${fileUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 8px;">
+                        📥 Download File
+                    </a>
+                </div>
+            `;
+        }
+
+        const descriptionHtml = resource.description ? `
+            <h2 style="margin-bottom: var(--space-3); border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-2);">Summary</h2>
+            <div style="font-size: var(--text-base); line-height: 1.6; color: var(--text-normal); margin-bottom: var(--space-6);">
+                ${this.render(resource.description)}
+            </div>
+        ` : '';
+
+        const relatedHtml = resource.related && resource.related.length ? `
+            <h2 style="margin-bottom: var(--space-3); border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-2);">Related Articles</h2>
+            <div style="display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-6);">
+                ${resource.related.map(rel => `
+                    <div class="related-item">
+                        <span class="item-icon leaf"></span>
+                        <a class="wiki-link" href="#/article/${encodeURIComponent(rel)}">${Utils.escapeHtml(rel)}</a>
+                    </div>
+                `).join('')}
+            </div>
+        ` : '';
+
+        const embedHtml = `
+            <h2 style="margin-bottom: var(--space-3); border-bottom: 1px solid var(--border-color); padding-bottom: var(--space-2);">File Usage</h2>
+            <p style="color: var(--text-muted); font-size: var(--text-sm); margin-bottom: var(--space-3);">To embed this resource in any wiki article, use the following syntax:</p>
+            <pre style="background: var(--bg-tertiary); border: 1px solid var(--border-color); padding: var(--space-3); border-radius: var(--radius-md); font-family: monospace; color: var(--accent-primary);">[[file:${Utils.escapeHtml(resource.id)}|${Utils.escapeHtml(resource.title)}]]</pre>
+        `;
+
+        return `
+            <div class="resource-info-page">
+                <h1 style="margin-bottom: var(--space-6); color: var(--text-normal);">${Utils.escapeHtml(resource.title)}</h1>
+                ${previewHtml}
+                ${descriptionHtml}
+                ${relatedHtml}
+                ${embedHtml}
+            </div>
+        `;
     },
 
     _renderCategorySection(article) {

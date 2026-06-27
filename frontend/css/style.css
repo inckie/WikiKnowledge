@@ -878,6 +878,37 @@ body {
     margin-left: 1px;
 }
 
+.wiki-link.file-link {
+    border-bottom: 1px solid var(--accent-primary);
+    font-weight: 500;
+}
+
+.wiki-resource-figure {
+    margin: var(--space-4) 0;
+    text-align: center;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    box-shadow: var(--shadow-sm);
+}
+
+.wiki-resource-img {
+    max-width: 100%;
+    height: auto;
+    max-height: 400px;
+    border-radius: var(--radius-md);
+    display: block;
+    margin: 0 auto;
+}
+
+.wiki-resource-figure figcaption {
+    margin-top: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    font-style: italic;
+}
+
 /* Human/AI block indicators */
 .block-human {
     border-left: 3px solid var(--color-human);

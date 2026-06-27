@@ -35,6 +35,16 @@ The `StorageBackend` base class defines the contract:
 | `get_all_categories()` | List all category-type articles |
 | `get_backlinks(id)` | Find all articles that link to the given article via [[wiki-link-syntax|wiki links]] |
 
+### Resource CRUD Operations
+
+| Method | Description |
+|--------|-------------|
+| `get_resource(id)` | Retrieve a full resource (metadata + binary data) by its unique ID |
+| `get_resource_meta(id)` | Retrieve only the metadata (`ResourceMeta`) for a resource |
+| `list_resources()` | List metadata for all binary/media resources |
+| `save_resource(id, data, meta)` | Create or update a resource file and its YAML `.meta` sidecar |
+| `delete_resource(id)` | Remove a resource file and its sidecar from storage |
+
 ## Markdown Backend
 
 The `MarkdownStorageBackend` is the first concrete implementation. It maps directly to the filesystem:
@@ -44,17 +54,21 @@ knowledge/
 ├── articles/          # type: "leaf"
 │   ├── article-one.md
 │   └── article-two.md
-└── categories/        # type: "category"
-    ├── cat-one.md
-    └── cat-two.md
+├── categories/        # type: "category"
+│   ├── cat-one.md
+│   └── cat-two.md
+└── media/             # binary resources + sidecars
+    ├── my-image.png
+    └── my-image.png.meta
 ```
 
-### File ↔ Article Mapping
+### File ↔ Article / Resource Mapping
 
 - The **filename** (without `.md`) must match the article's `id` field in [[markdown-frontmatter|frontmatter]]
 - **Leaf articles** live in `knowledge/articles/`
 - **Category articles** live in `knowledge/categories/`
 - The `type` field in frontmatter determines which directory an article is written to
+- **Media resources** live in `knowledge/media/` as raw binary files (`.png`, `.svg`, `.mp3`) alongside YAML sidecar metadata files (`.meta` appended after the full extension, e.g., `my-image.png.meta`). The `id` property inside the sidecar explicitly retains the full filename extension (e.g., `id: my-image.png`) to avoid collisions between different file types sharing the same base name and to match standard wiki link formats (`[[file:my-image.png]]`).
 
 ### Startup Behavior
 

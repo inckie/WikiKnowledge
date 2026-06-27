@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import mimetypes
 import os
 import tempfile
 from datetime import datetime, timezone
@@ -9,6 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 import frontmatter
+import yaml
 
 from wikiknowledge.core.parser import extract_wiki_links
 from wikiknowledge.storage.base import StorageBackend
@@ -16,6 +18,8 @@ from wikiknowledge.storage.models import (
     Article,
     ArticleMeta,
     ArticleType,
+    Resource,
+    ResourceMeta,
     WikiLink,
 )
 
@@ -35,23 +39,29 @@ class MarkdownStorageBackend(StorageBackend):
         self.knowledge_dir = Path(knowledge_dir)
         self.articles_dir = self.knowledge_dir / "articles"
         self.categories_dir = self.knowledge_dir / "categories"
+        self.media_dir = self.knowledge_dir / "media"
 
         # Ensure directories exist
         self.articles_dir.mkdir(parents=True, exist_ok=True)
         self.categories_dir.mkdir(parents=True, exist_ok=True)
+        self.media_dir.mkdir(parents=True, exist_ok=True)
 
         # In-memory cache: article_id → ArticleMeta
         self._meta_cache: dict[str, ArticleMeta] = {}
         # In-memory cache: article_id → list of outgoing WikiLinks
         self._links_cache: dict[str, list[WikiLink]] = {}
+        # In-memory cache: resource_id → ResourceMeta
+        self._resource_meta_cache: dict[str, ResourceMeta] = {}
 
     # --- Initialization ---
 
     async def initialize(self) -> None:
-        """Scan all markdown files and populate caches."""
+        """Scan all markdown files and resource sidecars, populate caches."""
         self._meta_cache.clear()
         self._links_cache.clear()
+        self._resource_meta_cache.clear()
 
+        # Scan articles and categories
         for directory in [self.articles_dir, self.categories_dir]:
             if not directory.exists():
                 continue
@@ -64,9 +74,19 @@ class MarkdownStorageBackend(StorageBackend):
                 except Exception as e:
                     print(f"Warning: Failed to parse {md_file}: {e}")
 
+        # Scan media resources (.meta sidecar files)
+        if self.media_dir.exists():
+            for meta_file in sorted(self.media_dir.glob("*.meta")):
+                try:
+                    resource_meta = self._read_resource_meta(meta_file)
+                    self._resource_meta_cache[resource_meta.id] = resource_meta
+                except Exception as e:
+                    print(f"Warning: Failed to parse resource meta {meta_file}: {e}")
+
         print(
             f"Loaded {len(self._meta_cache)} articles "
-            f"({sum(len(v) for v in self._links_cache.values())} wiki links)"
+            f"({sum(len(v) for v in self._links_cache.values())} wiki links), "
+            f"{len(self._resource_meta_cache)} resources"
         )
 
     # --- CRUD ---
@@ -191,11 +211,99 @@ class MarkdownStorageBackend(StorageBackend):
 
         return sorted(results, key=lambda m: m.title)
 
+    # --- Resource CRUD ---
+
+    async def get_resource(self, resource_id: str) -> Resource:
+        """Read a resource (metadata + binary data) from disk."""
+        meta = self._resource_meta_cache.get(resource_id)
+        if not meta:
+            raise KeyError(f"Resource '{resource_id}' not found")
+
+        file_path = self.media_dir / meta.filename
+        if not file_path.exists():
+            raise KeyError(f"Resource file '{meta.filename}' not found on disk")
+
+        data = file_path.read_bytes()
+        return Resource(meta=meta, data=data)
+
+    async def get_resource_meta(self, resource_id: str) -> ResourceMeta:
+        """Retrieve resource metadata only."""
+        meta = self._resource_meta_cache.get(resource_id)
+        if not meta:
+            raise KeyError(f"Resource '{resource_id}' not found")
+        return meta
+
+    async def list_resources(self) -> list[ResourceMeta]:
+        """List all resource metadata from cache."""
+        return sorted(self._resource_meta_cache.values(), key=lambda m: m.title)
+
+    async def save_resource(
+        self, resource_id: str, data: bytes, meta: ResourceMeta
+    ) -> ResourceMeta:
+        """Write a resource file + .meta sidecar to disk and update cache."""
+        meta.modified = datetime.now(timezone.utc)
+
+        file_path = self.media_dir / meta.filename
+        meta_path = self.media_dir / f"{meta.filename}.meta"
+
+        # Write binary file atomically
+        fd, tmp_path = tempfile.mkstemp(dir=str(self.media_dir), suffix=".tmp")
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(data)
+            os.replace(tmp_path, str(file_path))
+        except Exception:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
+
+        # Write .meta sidecar atomically
+        self._write_resource_meta(meta_path, meta)
+
+        # Update cache
+        self._resource_meta_cache[resource_id] = meta
+        return meta
+
+    async def delete_resource(self, resource_id: str) -> None:
+        """Delete a resource file + .meta sidecar and update cache."""
+        meta = self._resource_meta_cache.get(resource_id)
+        if not meta:
+            raise KeyError(f"Resource '{resource_id}' not found")
+
+        file_path = self.media_dir / meta.filename
+        meta_path = self.media_dir / f"{meta.filename}.meta"
+
+        if file_path.exists():
+            file_path.unlink()
+        if meta_path.exists():
+            meta_path.unlink()
+
+        self._resource_meta_cache.pop(resource_id, None)
+
     # --- Link access for index building ---
 
     def get_all_links(self) -> dict[str, list[WikiLink]]:
         """Return the full forward-links cache (used by KnowledgeIndex)."""
         return dict(self._links_cache)
+
+    def get_all_resource_links(self) -> dict[str, list[WikiLink]]:
+        """Build forward-links from resource `related` fields.
+
+        Returns a dict mapping resource_id → list of WikiLinks
+        pointing to the related article/resource IDs.
+        """
+        resource_links: dict[str, list[WikiLink]] = {}
+        for res_id, meta in self._resource_meta_cache.items():
+            links = []
+            for target_id in meta.related:
+                links.append(WikiLink(
+                    source_id=res_id,
+                    target_id=target_id,
+                    is_file_link=False,  # these are outgoing article links
+                ))
+            if links:
+                resource_links[res_id] = links
+        return resource_links
 
     # --- Internal helpers ---
 
@@ -265,6 +373,56 @@ class MarkdownStorageBackend(StorageBackend):
             os.replace(tmp_path, str(path))
         except Exception:
             # Clean up temp file on failure
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
+
+    def _read_resource_meta(self, meta_path: Path) -> ResourceMeta:
+        """Parse a .meta YAML sidecar file into a ResourceMeta object."""
+        text = meta_path.read_text(encoding="utf-8")
+        data = yaml.safe_load(text)
+
+        # Derive filename from meta_path: e.g. "logo.svg.meta" → "logo.svg"
+        filename = meta_path.name
+        if filename.endswith(".meta"):
+            filename = filename[:-5]  # strip ".meta"
+
+        return ResourceMeta(
+            id=data.get("id", meta_path.stem),
+            title=data.get("title", filename),
+            filename=data.get("filename", filename),
+            mime_type=data.get("mime_type", mimetypes.guess_type(filename)[0] or "application/octet-stream"),
+            tags=data.get("tags", []),
+            categories=data.get("categories", []),
+            related=data.get("related", []),
+            description=data.get("description", ""),
+            created=data.get("created", datetime.now(timezone.utc)),
+            modified=data.get("modified", datetime.now(timezone.utc)),
+        )
+
+    def _write_resource_meta(self, meta_path: Path, meta: ResourceMeta) -> None:
+        """Write a ResourceMeta to a .meta YAML sidecar file atomically."""
+        data = {
+            "id": meta.id,
+            "title": meta.title,
+            "filename": meta.filename,
+            "mime_type": meta.mime_type,
+            "tags": meta.tags,
+            "categories": meta.categories,
+            "related": meta.related,
+            "description": meta.description,
+            "created": meta.created.isoformat(),
+            "modified": meta.modified.isoformat(),
+        }
+
+        serialized = yaml.dump(data, default_flow_style=False, allow_unicode=True)
+
+        fd, tmp_path = tempfile.mkstemp(dir=str(meta_path.parent), suffix=".meta.tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(serialized)
+            os.replace(tmp_path, str(meta_path))
+        except Exception:
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
             raise

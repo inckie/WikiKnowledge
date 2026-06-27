@@ -45,6 +45,16 @@ On application startup (via FastAPI's lifespan context manager):
 | `DELETE` | `/api/articles/{id}` | Delete an article and remove it from the index |
 | `GET` | `/api/articles/{id}/backlinks` | "What links here" — returns articles that link to this one |
 
+### Resources
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/resources` | List metadata for all media/binary resources |
+| `GET` | `/api/resources/{id}` | Get metadata for a single resource |
+| `GET` | `/api/resources/{id}/file` | Download the raw binary file for a resource |
+| `POST` | `/api/resources` | Upload a new resource (multipart/form-data with file and metadata fields) |
+| `DELETE` | `/api/resources/{id}` | Delete a resource and its sidecar file |
+
 ### Search and Discovery
 
 | Method | Path | Description |

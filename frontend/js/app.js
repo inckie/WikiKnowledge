@@ -5,6 +5,7 @@
 
 const App = {
     _articles: [],
+    _resources: [],
     _currentView: 'welcome',
     _currentArticleId: null,
 
@@ -41,11 +42,18 @@ const App = {
      */
     async _loadArticles() {
         try {
-            this._articles = await API.fetchArticles();
+            const [articles, resources] = await Promise.all([
+                API.fetchArticles(),
+                API.fetchResources().catch(() => []),
+            ]);
+            this._articles = articles;
+            this._resources = resources;
             Viewer.setKnownArticles(this._articles);
+            Viewer.setKnownResources(this._resources);
         } catch (e) {
             console.error('Failed to load articles:', e);
             this._articles = [];
+            this._resources = [];
         }
     },
 
@@ -105,8 +113,27 @@ const App = {
         this._highlightSidebarItem(articleId);
 
         try {
-            const article = await API.fetchArticle(articleId);
-            await Viewer.show(article);
+            let data;
+            try {
+                data = await API.fetchArticle(articleId);
+            } catch (e) {
+                // If article not found, try fetching as a resource
+                try {
+                    data = await API.fetchResource(articleId);
+                    data.type = 'resource';
+                } catch (resErr) {
+                    // Try fallback matching with extension if omitted
+                    const resources = await API.fetchResources().catch(() => []);
+                    const found = resources.find(r => r.id.split('.')[0] === articleId.split('.')[0]);
+                    if (found) {
+                        data = await API.fetchResource(found.id);
+                        data.type = 'resource';
+                    } else {
+                        throw e; // Throw original article not found error
+                    }
+                }
+            }
+            await Viewer.show(data);
             // Reset scroll position of the main content to top AFTER content is loaded
             // and the browser has had a chance to render it.
             requestAnimationFrame(() => {
@@ -439,10 +466,11 @@ const App = {
      */
     async _loadWelcomeStats() {
         try {
-            const [articles, tags, categories] = await Promise.all([
+            const [articles, tags, categories, resources] = await Promise.all([
                 API.fetchArticles(),
                 API.fetchTags(),
                 API.fetchCategories(),
+                API.fetchResources().catch(() => []),
             ]);
 
             document.getElementById('welcome-stats').innerHTML = `
@@ -457,6 +485,10 @@ const App = {
                 <div class="stat-card">
                     <div class="stat-value">${tags.length}</div>
                     <div class="stat-label">Tags</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${resources.length}</div>
+                    <div class="stat-label">Media</div>
                 </div>
             `;
         } catch {

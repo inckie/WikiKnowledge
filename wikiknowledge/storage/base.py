@@ -5,7 +5,14 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from wikiknowledge.storage.models import Article, ArticleMeta, ArticleType, WikiLink
+from wikiknowledge.storage.models import (
+    Article,
+    ArticleMeta,
+    ArticleType,
+    Resource,
+    ResourceMeta,
+    WikiLink,
+)
 
 
 class StorageBackend(ABC):
@@ -16,7 +23,7 @@ class StorageBackend(ABC):
     lookups ("what links here").
     """
 
-    # --- CRUD ---
+    # --- Article CRUD ---
 
     @abstractmethod
     async def get_article(self, article_id: str) -> Article:
@@ -44,7 +51,7 @@ class StorageBackend(ABC):
             KeyError: If the article does not exist.
         """
 
-    # --- Queries ---
+    # --- Article Queries ---
 
     @abstractmethod
     async def get_by_tag(self, tag: str) -> list[ArticleMeta]:
@@ -73,3 +80,40 @@ class StorageBackend(ABC):
     @abstractmethod
     async def search(self, query: str) -> list[ArticleMeta]:
         """Full-text search across article titles and content."""
+
+    # --- Resource CRUD ---
+
+    @abstractmethod
+    async def get_resource(self, resource_id: str) -> Resource:
+        """Retrieve a resource (metadata + binary data) by ID.
+
+        Raises:
+            KeyError: If the resource does not exist.
+        """
+
+    @abstractmethod
+    async def get_resource_meta(self, resource_id: str) -> ResourceMeta:
+        """Retrieve resource metadata only.
+
+        Raises:
+            KeyError: If the resource does not exist.
+        """
+
+    @abstractmethod
+    async def list_resources(self) -> list[ResourceMeta]:
+        """List all resource metadata."""
+
+    @abstractmethod
+    async def save_resource(
+        self, resource_id: str, data: bytes, meta: ResourceMeta
+    ) -> ResourceMeta:
+        """Create or update a resource. Returns updated metadata."""
+
+    @abstractmethod
+    async def delete_resource(self, resource_id: str) -> None:
+        """Delete a resource by ID.
+
+        Raises:
+            KeyError: If the resource does not exist.
+        """
+

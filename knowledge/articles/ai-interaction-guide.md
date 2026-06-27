@@ -56,6 +56,10 @@ Your primary interface to the knowledge base is through MCP tools. Use them to e
 
 6.  **`search(query)`**: Use for broad, full-text searches when you don't know where to start.
 
+7.  **`list_resources()` / `get_resource(resource_id)`**: Discover what images, diagrams, or other binary files are already uploaded in the knowledge base and retrieve their metadata or content.
+
+8.  **`upload_resource(...)` / `delete_resource(resource_id)`**: Upload or delete media resources.
+
 ## Adding and Updating Knowledge
 
 When adding new information, your goal is to integrate it cleanly into the existing graph.
@@ -73,6 +77,17 @@ When adding new information, your goal is to integrate it cleanly into the exist
 3.  **Identify Tags**: Use **`get_all_tags()`** to see existing tags. Reuse existing tags where possible to maintain consistency.
 
 4.  **Create the Article**: Use the **`save_article()`** tool with `article_type='leaf'`.
+
+### Workflow for Managing and Embedding Media Files
+
+When an article requires images, diagrams, logos, or other binary files:
+
+1.  **Check Existing**: Run **`list_resources()`** to see if the file is already uploaded.
+2.  **Upload/Update**: If not, use the **`upload_resource()`** tool.
+    *   **Resource ID**: Ensure the `resource_id` explicitly retains the file extension (e.g., `id: diagram.png`) to avoid name collisions and ensure clarity.
+    *   **Description**: Provide a rich, descriptive summary of the media's content in the `description` parameter. This is critical for text-only LLMs accessing the knowledge base to understand the image or graphic.
+    *   **Related**: Link the resource to the parent article using the `related` field to establish the connection in the graph.
+3.  **Embed**: Reference the uploaded resource in your article's markdown using: `[[file:resource-id.ext|optional display caption]]`. For images, this renders as a structured `<figure>` inline; for non-image files, it renders as a download link.
 
 ### Workflow for Creating a Category Article
 

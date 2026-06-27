@@ -1,11 +1,14 @@
 ---
-id: "system-architecture"
-title: "System Architecture"
-type: "category"
-tags: ["architecture", "overview", "design"]
 categories: []
-created: "2026-06-19T21:00:00Z"
-modified: "2026-06-19T21:00:00Z"
+created: '2026-06-19T21:00:00+00:00'
+id: system-architecture
+modified: '2026-06-27T19:23:19.385922+00:00'
+tags:
+- architecture
+- overview
+- design
+title: System Architecture
+type: category
 ---
 
 # System Architecture
@@ -54,4 +57,10 @@ The core indexing engine that builds forward-link, back-link, tag, and category 
 
 ### [[fastapi-backend|FastAPI Backend]]
 The REST API layer serving article CRUD, search/discovery, and graph endpoints. Mounts the static frontend and initializes the storage + index on startup via FastAPI's lifespan handler. Auto-generates OpenAPI documentation at `/docs`.
+
+### [[local-setup-and-mcp|Local Setup and MCP Configuration]]
+Guide for installing dependencies, configuring the Model Context Protocol (MCP) server, and running the knowledge base locally. Covers environment variables, database initialization, and development workflow tips.
+
+### [[markup-conventions|Markup Conventions]]
+Documentation of the markdown and wiki-link conventions used across the knowledge base. Includes frontmatter schema, tag syntax, category declarations, and linking style guidelines.
 <!-- ai:end -->

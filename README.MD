@@ -9,7 +9,6 @@ See [knowledge/articles/overview.md](knowledge/articles/overview.md) for the ove
 
 TODO:
 
-- [ ] fix get_category_status tool
 - [ ] add frontend-looking MCP tools for Chat agent specifically (check current article, help user modify it, suggest new categories or articles, etc.). Probably can be done by sending "context" to backend
 - [ ] multiple knowledge bases on one server
 - [ ] readonly mode

@@ -203,13 +203,12 @@ def create_mcp_server(
         Returns the dirty status, the category's modification time, and the
         most recent modification time among its members.
         """
-        try:
-            # Get category article metadata
-            category_meta = await storage.get_meta(category_id)
-            if category_meta.type != ArticleType.CATEGORY:
-                return f"Error: Article '{category_id}' is not a category."
-        except KeyError:
+        # Get category article metadata
+        category_meta = index.get_meta(category_id)
+        if not category_meta:
             return f"Error: Category '{category_id}' not found."
+        if category_meta.type != ArticleType.CATEGORY:
+            return f"Error: Article '{category_id}' is not a category."
 
         # Get members and their modification times
         member_ids = index.articles_in_category(category_id)
@@ -219,7 +218,13 @@ def create_mcp_server(
                 f"- Category modified: {category_meta.modified.isoformat()}"
             )
 
-        member_metas = [await storage.get_meta(mid) for mid in member_ids]
+        member_metas = [index.get_meta(mid) for mid in member_ids]
+        member_metas = [m for m in member_metas if m is not None]
+        if not member_metas:
+            return (
+                f"Category '{category_id}' is not dirty (it has no valid members).\n"
+                f"- Category modified: {category_meta.modified.isoformat()}"
+            )
         most_recent_member = max(member_metas, key=lambda m: m.modified)
 
         # Compare timestamps

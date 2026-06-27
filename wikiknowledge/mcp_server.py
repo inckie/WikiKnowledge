@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import base64
+import mimetypes
+from datetime import datetime, timezone
 from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
@@ -9,9 +12,12 @@ from mcp.server.fastmcp import FastMCP
 from wikiknowledge.core.graph import KnowledgeGraph
 from wikiknowledge.core.index import KnowledgeIndex
 from wikiknowledge.storage.markdown_backend import MarkdownStorageBackend
-from wikiknowledge.storage.models import Article, ArticleMeta, ArticleType
-
-from datetime import datetime, timezone
+from wikiknowledge.storage.models import (
+    Article,
+    ArticleMeta,
+    ArticleType,
+    ResourceMeta,
+)
 
 
 def create_mcp_server(
@@ -326,6 +332,82 @@ def create_mcp_server(
                 f"tags={m.tags} related={m.related}"
             )
         return "\n".join(lines)
+
+    @mcp.tool()
+    async def upload_resource(
+        resource_id: str,
+        title: str,
+        data: str,
+        is_base64: bool = False,
+        mime_type: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+        categories: Optional[list[str]] = None,
+        related: Optional[list[str]] = None,
+        description: Optional[str] = None,
+    ) -> str:
+        """Upload or update a media resource in the knowledge base.
+
+        Args:
+            resource_id: Unique ID including file extension (e.g., 'logo.svg').
+            title: Human-readable title of the resource.
+            data: Raw string content (for text/SVG) or base64-encoded binary string.
+            is_base64: Set to True if `data` is a base64-encoded string.
+            mime_type: Optional MIME type (e.g., 'image/svg+xml'). Guessed from extension if omitted.
+            tags: List of tags.
+            categories: List of categories.
+            related: List of related article IDs (outgoing links).
+            description: Summary/description of the resource content for non-multimodal LLMs.
+        """
+        if is_base64:
+            try:
+                raw_data = base64.b64decode(data)
+            except Exception as e:
+                return f"Error: Invalid base64 data: {e}"
+        else:
+            raw_data = data.encode("utf-8")
+
+        if not mime_type:
+            mime_type = mimetypes.guess_type(resource_id)[0] or "application/octet-stream"
+
+        now = datetime.now(timezone.utc)
+        meta = ResourceMeta(
+            id=resource_id,
+            title=title,
+            filename=resource_id,
+            mime_type=mime_type,
+            tags=tags or [],
+            categories=categories or [],
+            related=related or [],
+            description=description or "",
+            created=now,
+            modified=now,
+        )
+
+        try:
+            saved_meta = await storage.save_resource(resource_id, raw_data, meta)
+            index.rebuild_resource(resource_id, saved_meta)
+            return (
+                f"Success: Resource '{resource_id}' uploaded successfully.\n"
+                f"Embed syntax: [[file:{resource_id}|{title}]]"
+            )
+        except Exception as e:
+            return f"Error: Failed to save resource '{resource_id}': {e}"
+
+    @mcp.tool()
+    async def delete_resource(resource_id: str) -> str:
+        """Delete a media resource and its metadata sidecar from the knowledge base.
+
+        Args:
+            resource_id: Unique ID of the resource to delete.
+        """
+        try:
+            await storage.delete_resource(resource_id)
+            index.remove_resource(resource_id)
+            return f"Success: Resource '{resource_id}' deleted successfully."
+        except KeyError:
+            return f"Error: Resource '{resource_id}' not found."
+        except Exception as e:
+            return f"Error: Failed to delete resource '{resource_id}': {e}"
 
     return mcp
 

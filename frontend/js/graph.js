@@ -71,13 +71,6 @@ const Graph = {
             console.error('Failed to load graph:', e);
         }
 
-        // Depth slider
-        const depthSlider = document.getElementById('graph-depth');
-        const depthLabel = document.getElementById('graph-depth-label');
-        depthSlider.oninput = () => {
-            depthLabel.textContent = depthSlider.value;
-        };
-
         // Reset button
         document.getElementById('btn-graph-reset').onclick = () => {
             this._svg.transition().duration(500)
@@ -126,7 +119,7 @@ const Graph = {
             .call(this._drag(this._simulation));
 
         // Node shapes: circles for articles, diamonds for resources
-        node.each(function(d) {
+        node.each(function (d) {
             const el = d3.select(this);
             const r = sizeScale(d.linkCount);
             const color = colorMap[d.type] || '#6366f1';
@@ -153,7 +146,7 @@ const Graph = {
         });
 
         // Node glow effect
-        node.each(function(d) {
+        node.each(function (d) {
             const el = d3.select(this);
             const r = sizeScale(d.linkCount) + 4;
             const color = colorMap[d.type] || '#6366f1';

@@ -316,12 +316,22 @@ const Viewer = {
                 backlinks = backlinks.filter(bl => !subArticleIds.has(bl.source_id));
             }
 
-            if (!backlinks.length) {
+            // Deduplicate by source_id
+            const uniqueBacklinks = [];
+            const seen = new Set();
+            for (const bl of backlinks) {
+                if (!seen.has(bl.source_id)) {
+                    seen.add(bl.source_id);
+                    uniqueBacklinks.push(bl);
+                }
+            }
+
+            if (!uniqueBacklinks.length) {
                 container.innerHTML = '';
                 return;
             }
 
-            const items = backlinks.map(bl => {
+            const items = uniqueBacklinks.map(bl => {
                 const title = bl.source_title || bl.source_id;
                 return `<a class="backlink-item" href="#/article/${encodeURIComponent(bl.source_id)}">
                     ← ${Utils.escapeHtml(title)}
@@ -329,7 +339,7 @@ const Viewer = {
             }).join('');
 
             container.innerHTML = `
-                <div class="backlinks-title">🔗 What Links Here (${backlinks.length})</div>
+                <div class="backlinks-title">🔗 What Links Here (${uniqueBacklinks.length})</div>
                 <div>${items}</div>
             `;
         } catch (e) {

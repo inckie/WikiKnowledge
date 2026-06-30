@@ -13,6 +13,7 @@ TODO:
 - [ ] multiple knowledge bases on one server
 - [ ] readonly mode
 - [ ] sections editing (or better block structure)
+- [ ] @mcp.resource support
 - [ ] implement the dirty articles update cascading with AI
 - [ ] add MongoDB/SQLite support for storing the knowledge graph
 - [ ] add revision hooks for the Storage abstraction layer, with optional transactions support. Can use git for file system backing. Has parallel access implications.

@@ -45,6 +45,17 @@ const Viewer = {
         // Post-process: mark human/AI blocks on the generated HTML
         html = this._processContentBlocks(html);
 
+        // Process mermaid code blocks
+        html = html.replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/gi, (match, code) => {
+            let unescaped = code
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;/g, "'")
+                .replace(/&amp;/g, '&');
+            return `<div class="mermaid">${unescaped}</div>`;
+        });
+
         return html;
     },
 
@@ -150,6 +161,25 @@ const Viewer = {
 
         // Render backlinks for all article types
         await this._renderBacklinks(article);
+
+        // Render any mermaid diagrams
+        this.renderMermaid();
+    },
+
+    /**
+     * Render Mermaid diagrams in the DOM.
+     */
+    async renderMermaid() {
+        if (window.mermaid) {
+            try {
+                await mermaid.run({
+                    querySelector: '.mermaid',
+                    suppressErrors: true
+                });
+            } catch (e) {
+                console.warn('Mermaid render error:', e);
+            }
+        }
     },
 
     _renderMeta(article) {

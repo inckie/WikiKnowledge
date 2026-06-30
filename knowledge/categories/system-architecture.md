@@ -2,7 +2,7 @@
 categories: []
 created: '2026-06-19T21:00:00+00:00'
 id: system-architecture
-modified: '2026-06-27T19:23:19.385922+00:00'
+modified: '2026-06-30T04:24:54.001823+00:00'
 tags:
 - architecture
 - overview
@@ -20,7 +20,7 @@ WikiKnowledge is a knowledge graph construction system built on three pillars:
 
 2. **Index** — An in-memory engine that parses wiki links, tags, and categories to build inverted indices. These indices power fast lookups: "what links here?", "what articles have this tag?", "what belongs to this category?" — without touching the filesystem.
 
-3. **Interface** — A FastAPI backend serves a REST API consumed by a vanilla JavaScript frontend. The frontend provides a markdown viewer with live wiki-link resolution, a split-pane editor with metadata chip controls, and a D3.js force-directed graph visualization.
+3. **Interface** — A FastAPI backend serves a REST API consumed by a vanilla JavaScript frontend. The frontend provides a markdown viewer with live wiki-link resolution and inline Mermaid diagram rendering, a split-pane editor with metadata chip controls and live previews, and a D3.js force-directed graph visualization.
 
 The system is designed to be self-documenting: its own development knowledge is stored as articles within the knowledge base it manages. This creates a bootstrapping feedback loop where building the system also builds the content that tests it.
 
@@ -63,4 +63,7 @@ Guide for installing dependencies, configuring the Model Context Protocol (MCP) 
 
 ### [[markup-conventions|Markup Conventions]]
 Documentation of the markdown and wiki-link conventions used across the knowledge base. Includes frontmatter schema, tag syntax, category declarations, and linking style guidelines.
+
+### [[mermaid-diagrams|Mermaid Diagrams]]
+Documentation of Mermaid support. To embed a diagram, use a standard markdown fenced code block and specify mermaid as the language.
 <!-- ai:end -->

@@ -60,6 +60,7 @@ const Editor = {
 
             // Trigger preview
             document.getElementById('editor-preview').innerHTML = Viewer.render(article.content);
+            if (Viewer.renderMermaid) Viewer.renderMermaid();
 
             this._bindPreview();
         } catch (e) {
@@ -157,6 +158,7 @@ const Editor = {
 
         const updatePreview = Utils.debounce(() => {
             preview.innerHTML = Viewer.render(textarea.value);
+            if (Viewer.renderMermaid) Viewer.renderMermaid();
         }, 300);
 
         textarea.removeEventListener('input', textarea._previewHandler);

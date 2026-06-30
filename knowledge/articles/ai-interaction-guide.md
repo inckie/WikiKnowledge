@@ -3,7 +3,7 @@ categories:
 - ai-integration
 created: '2026-06-21T10:10:00+00:00'
 id: ai-interaction-guide
-modified: '2026-06-24T02:24:47.009421+00:00'
+modified: '2026-06-30T04:27:05.845976+00:00'
 tags:
 - ai
 - mcp
@@ -88,6 +88,21 @@ When an article requires images, diagrams, logos, or other binary files:
     *   **Description**: Provide a rich, descriptive summary of the media's content in the `description` parameter. This is critical for text-only LLMs accessing the knowledge base to understand the image or graphic.
     *   **Related**: Link the resource to the parent article using the `related` field to establish the connection in the graph.
 3.  **Embed**: Reference the uploaded resource in your article's markdown using: `[[file:resource-id.ext|optional display caption]]`. For images, this renders as a structured `<figure>` inline; for non-image files, it renders as a download link.
+
+### Workflow for Embedding Diagrams with Mermaid
+
+When an article requires flowcharts, sequence diagrams, state diagrams, or other structural visuals that can be expressed as code, prefer using inline Mermaid diagrams over uploading static images:
+
+1.  Create a standard fenced code block specifying `mermaid` as the language:
+    ```markdown
+    ` ``mermaid
+    graph TD
+        A[Start] --> B[Process];
+    ` ``
+    ```
+    *(Note: remove the space between backticks when using)*
+2.  The frontend automatically intercepts and renders these blocks seamlessly.
+3.  This is highly recommended for AIs because it allows for easy future modification and version control compared to static binary images.
 
 ### Workflow for Creating a Category Article
 

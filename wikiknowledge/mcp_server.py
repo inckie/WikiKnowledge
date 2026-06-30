@@ -287,7 +287,8 @@ def create_mcp_server(
         """Read resource metadata by its ID.
 
         Returns resource metadata as YAML. For text-based resources
-        (like SVG), also includes the file content.
+        (like SVG), also includes the file content. For binary files,
+        includes the base64-encoded content.
         """
         try:
             resource = await storage.get_resource(resource_id)
@@ -308,15 +309,20 @@ def create_mcp_server(
             f"modified: {meta.modified.isoformat()}\n"
         )
 
-        # Include content for text-based resources
-        if resource.data and meta.mime_type.startswith(("text/", "image/svg")):
-            try:
-                text_content = resource.data.decode("utf-8")
-                result += f"\n--- content ---\n{text_content}"
-            except UnicodeDecodeError:
-                result += "\n(Binary content, not displayable as text)"
+        # Include content for resources
+        if resource.data:
+            if meta.mime_type.startswith(("text/", "image/svg")):
+                try:
+                    text_content = resource.data.decode("utf-8")
+                    result += f"\n--- content ---\n{text_content}"
+                except UnicodeDecodeError:
+                    b64_content = base64.b64encode(resource.data).decode("utf-8")
+                    result += f"\n--- base64 content ---\n{b64_content}"
+            else:
+                b64_content = base64.b64encode(resource.data).decode("utf-8")
+                result += f"\n--- base64 content ---\n{b64_content}"
         else:
-            result += f"\n(Binary file, {len(resource.data or b'')} bytes)"
+            result += "\n(Empty file)"
 
         return result
 

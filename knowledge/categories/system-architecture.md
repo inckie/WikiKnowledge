@@ -2,7 +2,7 @@
 categories: []
 created: '2026-06-19T21:00:00+00:00'
 id: system-architecture
-modified: '2026-06-30T04:24:54.001823+00:00'
+modified: '2026-06-30T05:12:57.649585+00:00'
 tags:
 - architecture
 - overview
@@ -63,7 +63,4 @@ Guide for installing dependencies, configuring the Model Context Protocol (MCP) 
 
 ### [[markup-conventions|Markup Conventions]]
 Documentation of the markdown and wiki-link conventions used across the knowledge base. Includes frontmatter schema, tag syntax, category declarations, and linking style guidelines.
-
-### [[mermaid-diagrams|Mermaid Diagrams]]
-Documentation of Mermaid support. To embed a diagram, use a standard markdown fenced code block and specify mermaid as the language.
 <!-- ai:end -->

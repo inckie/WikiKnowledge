@@ -3,7 +3,7 @@ categories:
 - system-architecture
 created: '2026-06-19T21:00:00+00:00'
 id: markup-conventions
-modified: '2026-06-24T02:12:20.737346+00:00'
+modified: '2026-06-30T05:13:14.230911+00:00'
 tags:
 - markup
 - conventions
@@ -41,4 +41,7 @@ Describes the HTML comment marker system for distinguishing human-written conten
 
 ### [[category-features|Category Features]]
 Details the specialized UI and data consistency features for category articles. This includes the automatic "Sub-articles" section, highlighting of unmentioned sub-articles to prompt authors for updates, a "dirty" indicator (⚠️) when a category's summary may be out of sync with its members, and intelligent backlink filtering to reduce noise from sub-article references.
+
+### [[mermaid-diagrams|Mermaid Diagrams]]
+Documentation of Mermaid support. To embed a diagram, use a standard markdown fenced code block and specify mermaid as the language.
 <!-- ai:end -->

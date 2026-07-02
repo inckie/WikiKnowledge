@@ -336,7 +336,8 @@ class MarkdownStorageBackend(StorageBackend):
 
     def _read_file(self, path: Path) -> Article:
         """Parse a markdown file into an Article object."""
-        post = frontmatter.load(str(path))
+        with path.open("r", encoding="utf-8") as f:
+            post = frontmatter.load(f)
 
         meta = ArticleMeta(
             id=post.get("id", path.stem),

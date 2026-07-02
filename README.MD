@@ -1,4 +1,4 @@
-# WikiKnowledge Graph Construction and Question Answering System
+# WikiKnowledge. Knowledge engineering for Humans and AIs.
 
 ![Logo](knowledge/media/wikiknowledge-logo.svg)
 

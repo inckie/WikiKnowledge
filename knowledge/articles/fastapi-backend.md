@@ -42,6 +42,7 @@ On application startup (via FastAPI's lifespan context manager):
 | `GET` | `/api/articles/{id}` | Get a single article with full content and metadata |
 | `POST` | `/api/articles` | Create a new article. Body: `{id, title, type, tags, categories, content}` |
 | `PUT` | `/api/articles/{id}` | Update an existing article. Body: same as POST |
+| `PATCH` | `/api/articles/{id}` | Patch an existing article. Body: optional `{title, type, tags, categories, content, content_patches}` (supports `diff-match-patch`) |
 | `DELETE` | `/api/articles/{id}` | Delete an article and remove it from the index |
 | `GET` | `/api/articles/{id}/backlinks` | "What links here" — returns articles that link to this one |
 

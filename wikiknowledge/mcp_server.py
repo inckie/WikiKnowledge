@@ -6,6 +6,7 @@ import base64
 import mimetypes
 from datetime import datetime, timezone
 from typing import Optional
+import diff_match_patch as dmp_module
 
 from mcp.server.fastmcp import FastMCP
 
@@ -147,6 +148,61 @@ def create_mcp_server(
 
         action = "Created" if is_new else "Updated"
         return f"{action} article '{article_id}' ({title})"
+
+    @mcp.tool()
+    async def update_article(
+        article_id: str,
+        title: str | None = None,
+        article_type: str | None = None,
+        tags: list[str] | None = None,
+        categories: list[str] | None = None,
+        content: str | None = None,
+        content_patches: str | None = None,
+    ) -> str:
+        """Update an existing article using partial metadata, full content replacement, or diff-match-patch patches.
+
+        Args:
+            article_id: URL-safe unique identifier of existing article.
+            title: Human-readable title (optional).
+            article_type: 'leaf' or 'category' (optional).
+            tags: List of freeform tags (optional).
+            categories: List of category article IDs (optional).
+            content: Entire new Markdown body content (optional).
+            content_patches: Patches in standard diff-match-patch text format (optional).
+
+        Returns confirmation of the update.
+        """
+        try:
+            existing = await storage.get_article(article_id)
+        except KeyError:
+            return f"Error: Article '{article_id}' not found"
+
+        if title is not None:
+            existing.meta.title = title
+        if article_type is not None:
+            existing.meta.type = ArticleType(article_type)
+        if tags is not None:
+            existing.meta.tags = tags
+        if categories is not None:
+            existing.meta.categories = categories
+
+        if content is not None:
+            existing.content = content
+        elif content_patches is not None:
+            dmp = dmp_module.diff_match_patch()
+            try:
+                patches = dmp.patch_fromText(content_patches)
+                new_text, results = dmp.patch_apply(patches, existing.content)
+                if not all(results):
+                    return "Error: Some patches could not be applied cleanly."
+                existing.content = new_text
+            except Exception as e:
+                return f"Error: Failed to apply patches: {e}"
+
+        meta = await storage.save_article(existing)
+        index.rebuild_article(article_id, meta, existing.content)
+
+        return f"Updated article '{article_id}'"
 
     @mcp.tool()
     async def delete_article(article_id: str) -> str:

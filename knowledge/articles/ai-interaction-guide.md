@@ -78,6 +78,15 @@ When adding new information, your goal is to integrate it cleanly into the exist
 
 4.  **Create the Article**: Use the **`save_article()`** tool with `article_type='leaf'`.
 
+### Workflow for Updating an Existing Article
+
+When you need to make partial updates to an existing article, avoid using `save_article` as it requires sending the entire content back, which is inefficient and risks data loss for large articles.
+Instead, use the **`update_article()`** tool.
+
+1.  **Metadata Updates**: You can provide partial metadata (`title`, `tags`, etc.) to update just those fields.
+2.  **Content Updates (diff-match-patch)**: To modify parts of the content, provide a `content_patches` argument formatted as a standard [diff-match-patch](https://github.com/google/diff-match-patch) patch string. This allows for safe, localized text replacements without overwriting the entire file.
+3.  **Full Content Replacement**: If generating patches is too complex or the entire content needs rewriting, you can pass the full markdown text via the `content` argument (which will override `content_patches`).
+
 ### Workflow for Managing and Embedding Media Files
 
 When an article requires images, diagrams, logos, or other binary files:

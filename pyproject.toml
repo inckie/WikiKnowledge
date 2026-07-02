@@ -9,6 +9,7 @@ dependencies = [
     "pyyaml>=6.0",
     "python-multipart>=0.0.9",
     "mcp[cli]>=1.0.0",
+    "diff-match-patch>=20241021",
 ]
 
 [project.scripts]

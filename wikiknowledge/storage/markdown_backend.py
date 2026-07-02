@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import mimetypes
 import os
-import tempfile
+import shutil
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -57,6 +58,7 @@ class MarkdownStorageBackend(StorageBackend):
 
     async def initialize(self) -> None:
         """Scan all markdown files and resource sidecars, populate caches."""
+        start_time = time.perf_counter()
         self._meta_cache.clear()
         self._links_cache.clear()
         self._resource_meta_cache.clear()
@@ -83,10 +85,12 @@ class MarkdownStorageBackend(StorageBackend):
                 except Exception as e:
                     print(f"Warning: Failed to parse resource meta {meta_file}: {e}")
 
+        elapsed_time = time.perf_counter() - start_time
         print(
             f"Loaded {len(self._meta_cache)} articles "
             f"({sum(len(v) for v in self._links_cache.values())} wiki links), "
-            f"{len(self._resource_meta_cache)} resources"
+            f"{len(self._resource_meta_cache)} resources "
+            f"(took {elapsed_time:.3f}s)"
         )
 
     # --- CRUD ---

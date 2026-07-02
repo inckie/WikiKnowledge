@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from wikiknowledge.core.parser import extract_wiki_links
 from wikiknowledge.storage.models import ArticleMeta, ResourceMeta, WikiLink
 
@@ -39,6 +41,7 @@ class KnowledgeIndex:
             all_resource_meta: Map of resource_id → ResourceMeta (optional).
             all_resource_links: Map of resource_id → outgoing WikiLinks from `related` (optional).
         """
+        start_time = time.perf_counter()
         self._all_meta = dict(all_meta)
         self._all_resource_meta = dict(all_resource_meta or {})
         self.forward_links = {k: list(v) for k, v in all_links.items()}
@@ -74,11 +77,13 @@ class KnowledgeIndex:
         total_links = sum(len(v) for v in self.forward_links.values())
         orphans = self.get_orphans()
         broken = self.get_broken_links()
+        elapsed_time = time.perf_counter() - start_time
         print(
             f"Index built: {len(all_meta)} articles, "
             f"{len(self._all_resource_meta)} resources, "
             f"{total_links} links, "
-            f"{len(orphans)} orphans, {len(broken)} broken links"
+            f"{len(orphans)} orphans, {len(broken)} broken links "
+            f"(took {elapsed_time:.3f}s)"
         )
 
     def rebuild_article(

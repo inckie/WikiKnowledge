@@ -92,7 +92,7 @@ Once configured, the AI agent gains access to the following functions:
 - `get_article(article_id)`: Read a full article with its YAML frontmatter metadata and markdown content.
 - `list_articles(article_type, tag, category)`: Query, search, and filter matching articles.
 - `save_article(article_id, title, article_type, tags, categories, content)`: Create or update articles programmatically.
-- `update_article(article_id, title, article_type, tags, categories, content_patches)`: Update an existing article using partial metadata or diff-match-patch patches.
+- `update_article(article_id, title, article_type, tags, categories, content, content_patches)`: Update an existing article using partial metadata, full content replacement, or diff-match-patch patches.
 - `delete_article(article_id)`: Delete articles.
 - `get_backlinks(article_id)`: Retrieve a list of all articles linking to the requested ID.
 - `get_category_members(category_id)`: List all articles nested within a given category.

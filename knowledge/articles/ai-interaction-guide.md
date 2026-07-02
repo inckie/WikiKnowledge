@@ -3,7 +3,7 @@ categories:
 - ai-integration
 created: '2026-06-21T10:10:00+00:00'
 id: ai-interaction-guide
-modified: '2026-06-30T04:27:05.845976+00:00'
+modified: '2026-07-02T01:18:58.971717+00:00'
 tags:
 - ai
 - mcp
@@ -127,6 +127,18 @@ This is AI written overview of the topic and list of the subcategories and leaf 
 ```
 
 When you use `save_article`, pass this markdown text as the `content` parameter.
+
+### Workflow for Updating a Dirty Category Article
+
+When a leaf article is created or modified, its parent categories become "dirty" because their AI-generated summaries are out of date. **As an AI agent, it is your responsibility to manually rewrite and update this summary block.** 
+
+Follow this exact process to update a dirty category:
+
+1.  **Identify**: Use `get_category_status(category_id)` to identify which categories need updating.
+2.  **Fetch Existing Content**: Call `get_article(category_id)` to retrieve the current markdown of the category. You must preserve the human-written context between `<!-- human:start -->` and `<!-- human:end -->`.
+3.  **Fetch Children**: Call `get_category_members(category_id)` to get the most up-to-date list of child articles that belong to this category.
+4.  **Rewrite AI Block**: Rewrite the markdown exclusively between `<!-- ai:start -->` and `<!-- ai:end -->`. Synthesize a new overview of the topic and list the subcategories and leaf articles with brief descriptions for each, ensuring all new/updated children are represented.
+5.  **Save**: Call `save_article()` with your fully updated markdown string for the category.
 
 ### Example: Adding a "Collision Detection" Leaf Article
 

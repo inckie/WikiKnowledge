@@ -49,7 +49,14 @@ This project provides a means to build a hierarchical "fractal" knowledge graph 
 ### Data organization
 
 Knowledge is stored in "leaf" articles, which have wiki tags and category anchors to make these articles indexable. For each category there is an **overview article**, which is a summary of the category and its relation to other categories. The **overview articles** are also organized in a hierarchical way, where each **overview** has a parent **overview**, and so on. The top-level **overview** is the root of the graph, and it provides an overview of the entire knowledge graph.
-Every article can be part of many categories, so there is no strict hierarchical structure, but it is still always possible to go "up".
+
+#### Distinction from Obsidian and File-System Notes
+Tools like Obsidian rely primarily on standard file-system directories for structure. Consequently, every note is locked into a single parent folder (a 1-to-N hierarchy), relying solely on freeform tags or inline wiki-links to establish cross-references.
+
+In contrast, WikiKnowledge adopts **Wikipedia's categorization mechanism**, which is a core reason why Wikipedia excels at organizing complex, multi-faceted knowledge:
+- **Many-to-Many Categories:** Articles are not bound to a single folder; an article can belong to multiple categories simultaneously without duplicating content.
+- **Traversable Hierarchy:** Despite being many-to-many, categories form a navigable "tree". Users and AI agents can seamlessly "climb up" the hierarchy from a specific leaf article to its parent category overviews, and further up to macro-level summaries.
+
 Combinations of different categories can also have their own **overview articles**, which are summaries of the combined knowledge of the categories. For example, if there are two categories "Rigid body dynamics" and "Computer simulation", there can be an **overview article** "Rigid body dynamics in computer simulation", which is a summary of the knowledge in both categories and their relation to each other, explaining different approaches to building physics simulation engines.
 
 On the physical level, information can be [[storage-abstraction|stored]] in one of two ways: markdown files and an index file, which can be rebuilt from scratch at any time. Another option is a NoSQL database like MongoDB with categories and external references separated into indexable fields.

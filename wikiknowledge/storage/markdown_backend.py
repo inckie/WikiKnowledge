@@ -5,6 +5,7 @@ from __future__ import annotations
 import mimetypes
 import os
 import shutil
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path

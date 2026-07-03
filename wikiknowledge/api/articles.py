@@ -33,16 +33,7 @@ class ArticleUpdateRequest(BaseModel):
     tags: Optional[list[str]] = None
     categories: Optional[list[str]] = None
     content: Optional[str] = None
-
-
-class ArticlePatchRequest(BaseModel):
-    """Request body for patching an existing article (partial updates)."""
-    title: Optional[str] = None
-    type: Optional[str] = None
-    tags: Optional[list[str]] = None
-    categories: Optional[list[str]] = None
     content_patches: Optional[str] = None
-    content: Optional[str] = None
 
 
 class ArticleMetaResponse(BaseModel):
@@ -215,42 +206,7 @@ async def create_article(request: Request, body: ArticleCreateRequest):
 async def update_article(
     request: Request, article_id: str, body: ArticleUpdateRequest
 ):
-    """Update an existing article."""
-    storage = request.app.state.storage
-    index = request.app.state.index
-
-    try:
-        existing = await storage.get_article(article_id)
-    except KeyError:
-        raise HTTPException(
-            status_code=404, detail=f"Article '{article_id}' not found"
-        )
-
-    # Apply updates
-    if body.title is not None:
-        existing.meta.title = body.title
-    if body.type is not None:
-        existing.meta.type = ArticleType(body.type)
-    if body.tags is not None:
-        existing.meta.tags = body.tags
-    if body.categories is not None:
-        existing.meta.categories = body.categories
-    if body.content is not None:
-        existing.content = body.content
-
-    meta = await storage.save_article(existing)
-
-    # Update index
-    index.rebuild_article(article_id, meta, existing.content)
-
-    return _meta_to_response(meta)
-
-
-@router.patch("/articles/{article_id}", response_model=ArticleMetaResponse)
-async def patch_article(
-    request: Request, article_id: str, body: ArticlePatchRequest
-):
-    """Patch an existing article (partial metadata update and/or content patches)."""
+    """Update an existing article (partial metadata update, full content replacement, and/or diff-match-patch patches)."""
     storage = request.app.state.storage
     index = request.app.state.index
 

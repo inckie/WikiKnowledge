@@ -35,6 +35,11 @@ class ArticleUpdateRequest(BaseModel):
     content: Optional[str] = None
     content_patches: Optional[str] = None
 
+class ArticleMoveRequest(ArticleUpdateRequest):
+    """Request body for moving/renaming an existing article."""
+    new_id: str
+    update_links: bool = True
+
 
 class ArticleMetaResponse(BaseModel):
     """Article metadata response (no content)."""
@@ -255,6 +260,31 @@ async def update_article(
     index.rebuild_article(article_id, meta, existing.content)
 
     return _meta_to_response(meta)
+
+
+@router.post("/articles/{article_id}/move", response_model=ArticleMetaResponse)
+async def move_article(
+    request: Request, article_id: str, body: ArticleMoveRequest
+):
+    """Rename an article and update all references to it."""
+    storage = request.app.state.storage
+    index = request.app.state.index
+    from wikiknowledge.core.refactor import rename_article
+
+    try:
+        updates = body.model_dump(exclude_unset=True, exclude={"new_id", "update_links"})
+        meta = await rename_article(
+            storage, index, article_id, body.new_id, updates, body.update_links
+        )
+        return _meta_to_response(meta)
+    except KeyError:
+        raise HTTPException(
+            status_code=404, detail=f"Article '{article_id}' not found"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=409, detail=str(e)
+        )
 
 
 @router.delete("/articles/{article_id}", status_code=204)

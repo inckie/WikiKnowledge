@@ -16,7 +16,12 @@ from wikiknowledge.storage.models import ResourceMeta
 router = APIRouter(tags=["resources"])
 
 
-# --- Response schemas ---
+# --- Request/Response schemas ---
+
+class ResourceMoveRequest(BaseModel):
+    """Request body for moving/renaming an existing resource."""
+    new_id: str
+    update_references: bool = True
 
 
 class ResourceMetaResponse(BaseModel):

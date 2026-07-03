@@ -94,6 +94,7 @@ Once configured, the AI agent gains access to the following functions:
 - `save_article(article_id, title, article_type, tags, categories, content)`: Create or update articles programmatically.
 - `update_article(article_id, title, article_type, tags, categories, content, content_patches)`: Update an existing article using partial metadata, full content replacement, or diff-match-patch patches.
 - `delete_article(article_id)`: Delete articles.
+- `move_article(article_id, new_id, title, article_type, tags, categories, content, content_patches, update_links)`: Rename an article, update its properties, and update all links to it.
 - `get_backlinks(article_id)`: Retrieve a list of all articles linking to the requested ID.
 - `get_category_members(category_id)`: List all articles nested within a given category.
 - `get_category_status(category_id)`: Check if a category article's summary is outdated ('dirty') relative to its members.
@@ -103,4 +104,5 @@ Once configured, the AI agent gains access to the following functions:
 - `get_resource(resource_id)`: Retrieve a media resource (metadata + content) by its unique ID.
 - `list_resources()`: List all media resources (metadata, tags, and associations) currently in the knowledge base.
 - `upload_resource(resource_id, title, data, is_base64, mime_type, tags, categories, related, description)`: Upload or update a media resource with sidecar metadata.
+- `move_resource(resource_id, new_id, update_references)`: Rename a resource and update all references to it.
 - `delete_resource(resource_id)`: Delete a media resource and its `.meta` sidecar.

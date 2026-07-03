@@ -41,6 +41,7 @@ On application startup (via FastAPI's lifespan context manager):
 | `GET` | `/api/articles` | List all articles. Query params: `type` (leaf/category), `tag`, `category` |
 | `GET` | `/api/articles/{id}` | Get a single article with full content and metadata |
 | `POST` | `/api/articles` | Create a new article. Body: `{id, title, type, tags, categories, content}` |
+| `POST` | `/api/articles/{id}/move` | Rename/move an article. Body: `{new_id, update_links, title, type, tags, categories, content, content_patches}` |
 | `PUT` | `/api/articles/{id}` | Update an existing article. Body: optional `{title, type, tags, categories, content, content_patches}` (supports `diff-match-patch`) |
 | `DELETE` | `/api/articles/{id}` | Delete an article and remove it from the index |
 | `GET` | `/api/articles/{id}/backlinks` | "What links here" — returns articles that link to this one |
@@ -53,6 +54,7 @@ On application startup (via FastAPI's lifespan context manager):
 | `GET` | `/api/resources/{id}` | Get metadata for a single resource |
 | `GET` | `/api/resources/{id}/file` | Download the raw binary file for a resource |
 | `POST` | `/api/resources` | Upload a new resource (multipart/form-data with file and metadata fields) |
+| `POST` | `/api/resources/{id}/move` | Rename/move a resource. Body: `{new_id, update_references}` |
 | `DELETE` | `/api/resources/{id}` | Delete a resource and its sidecar file |
 
 ### Search and Discovery

@@ -215,6 +215,71 @@ def create_mcp_server(
             return f"Error: Article '{article_id}' not found"
 
     @mcp.tool()
+    async def move_article(
+        article_id: str,
+        new_id: str,
+        title: str | None = None,
+        article_type: str | None = None,
+        tags: list[str] | None = None,
+        categories: list[str] | None = None,
+        content: str | None = None,
+        content_patches: str | None = None,
+        update_links: bool = True
+    ) -> str:
+        """Rename an article and optionally update all references to it globally.
+        
+        Args:
+            article_id: The current ID of the article.
+            new_id: The new ID to assign to the article.
+            title: Optional new title.
+            article_type: Optional new type (leaf, category).
+            tags: Optional new list of tags.
+            categories: Optional new list of categories.
+            content: Optional new content (full replacement).
+            content_patches: Optional patches string in diff-match-patch format.
+            update_links: Whether to update all wiki links and category references globally.
+        """
+        from wikiknowledge.core.refactor import rename_article
+        try:
+            updates = {
+                "title": title,
+                "type": article_type,
+                "tags": tags,
+                "categories": categories,
+                "content": content,
+                "content_patches": content_patches,
+            }
+            updates = {k: v for k, v in updates.items() if v is not None}
+            await rename_article(storage, index, article_id, new_id, updates, update_links)
+            return f"Moved article '{article_id}' to '{new_id}'"
+        except KeyError:
+            return f"Error: Article '{article_id}' not found"
+        except ValueError as e:
+            return f"Error: {e}"
+
+    @mcp.tool()
+    async def move_resource(
+        resource_id: str,
+        new_id: str,
+        update_references: bool = True
+    ) -> str:
+        """Rename a resource and optionally update all references to it globally.
+        
+        Args:
+            resource_id: The current ID of the resource.
+            new_id: The new ID to assign to the resource.
+            update_references: Whether to update all file links globally.
+        """
+        from wikiknowledge.core.refactor import rename_resource
+        try:
+            await rename_resource(storage, index, resource_id, new_id, update_references)
+            return f"Moved resource '{resource_id}' to '{new_id}'"
+        except KeyError:
+            return f"Error: Resource '{resource_id}' not found"
+        except (ValueError, FileExistsError) as e:
+            return f"Error: {e}"
+
+    @mcp.tool()
     async def get_backlinks(article_id: str) -> str:
         """Get all articles that link to a given article ('What links here').
 

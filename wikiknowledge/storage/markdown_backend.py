@@ -269,6 +269,14 @@ class MarkdownStorageBackend(StorageBackend):
         self._resource_meta_cache[resource_id] = meta
         return meta
 
+    async def save_resource_meta(self, meta: ResourceMeta) -> ResourceMeta:
+        """Update just the .meta sidecar file without modifying binary data."""
+        meta.modified = datetime.now(timezone.utc)
+        meta_path = self.media_dir / f"{meta.filename}.meta"
+        self._write_resource_meta(meta_path, meta)
+        self._resource_meta_cache[meta.id] = meta
+        return meta
+
     async def delete_resource(self, resource_id: str) -> None:
         """Delete a resource file + .meta sidecar and update cache."""
         meta = self._resource_meta_cache.get(resource_id)
@@ -284,6 +292,40 @@ class MarkdownStorageBackend(StorageBackend):
             meta_path.unlink()
 
         self._resource_meta_cache.pop(resource_id, None)
+
+    async def rename_resource_files(self, old_id: str, new_id: str) -> ResourceMeta:
+        """Rename a physical resource and its .meta sidecar on disk."""
+        meta = self._resource_meta_cache.get(old_id)
+        if not meta:
+            raise KeyError(f"Resource '{old_id}' not found")
+            
+        ext = os.path.splitext(meta.filename)[1]
+        new_filename = f"{new_id}{ext}"
+        
+        old_file_path = self.media_dir / meta.filename
+        old_meta_path = self.media_dir / f"{meta.filename}.meta"
+        
+        new_file_path = self.media_dir / new_filename
+        new_meta_path = self.media_dir / f"{new_filename}.meta"
+        
+        if new_file_path.exists() or new_meta_path.exists():
+            raise FileExistsError(f"Resource file for '{new_id}' already exists")
+            
+        meta.id = new_id
+        meta.filename = new_filename
+        meta.modified = datetime.now(timezone.utc)
+        
+        if old_file_path.exists():
+            os.rename(old_file_path, new_file_path)
+        if old_meta_path.exists():
+            os.unlink(old_meta_path)
+            
+        self._write_resource_meta(new_meta_path, meta)
+        
+        self._resource_meta_cache.pop(old_id, None)
+        self._resource_meta_cache[new_id] = meta
+        
+        return meta
 
     # --- Link access for index building ---
 

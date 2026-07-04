@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """WikiKnowledge entry point.
 
 Run with: python run.py

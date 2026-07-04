@@ -3,12 +3,13 @@ categories:
 - ai-integration
 created: '2026-06-21T10:10:00+00:00'
 id: ai-interaction-guide
-modified: '2026-07-02T01:18:58.971717+00:00'
+modified: '2026-07-04T17:34:45.390043+00:00'
 tags:
 - ai
 - mcp
 - guide
 - best-practices
+- skill
 title: AI Interaction Guide for WikiKnowledge
 type: leaf
 ---

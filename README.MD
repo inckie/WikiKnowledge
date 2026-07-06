@@ -10,11 +10,11 @@ See [knowledge/articles/overview.md](knowledge/articles/overview.md) for the ove
 TODO:
 
 - [ ] add frontend-looking MCP tools for Chat agent specifically (check current article, help user modify it, suggest new categories or articles, etc.). Probably can be done by sending "context" to backend
-- [ ] multiple knowledge bases on one server
+- [ ] source code connection: allow to keep articles in the code as comments, and import it as part of the graph
 - [ ] readonly mode
 - [ ] sections editing (or better block structure)
 - [ ] @mcp.resource support
-- [ ] implement the dirty articles update cascading with AI
+- [ ] implement automatic dirty articles update cascading with AI
 - [ ] add MongoDB/SQLite support for storing the knowledge graph
 - [ ] sync, export/import and migrations for DBs
 - [ ] add revision hooks for the Storage abstraction layer, with optional transactions support. Can use git for file system backing. Has parallel access implications.
@@ -22,3 +22,4 @@ TODO:
 - [ ] implement purgeable index cache in `knowledge/.index`
 - [ ] implement authentication
 - [ ] provide response techical details in chat when possible (token count, t/s)
+- [ ] multiple knowledge bases on one server (maybe not needed, solved with dashboard)

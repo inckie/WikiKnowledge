@@ -1,6 +1,12 @@
 /**
  * WikiKnowledge — Markdown Viewer
+ * 
+ * @wk-id wk/markdown-viewer
+ * @wk-tags javascript, markdown, renderer
+ * @wk-categories system-architecture
+ *
  * Renders markdown with wiki-link resolution and human/AI block indicators.
+ * Links to: [[wiki-link-syntax]], [[human-protected-blocks]], [[src:wikiknowledge/wk/frontend-app]]
  */
 
 const Viewer = {
@@ -116,8 +122,13 @@ const Viewer = {
             targetId = targetId.trim();
             const display = displayText ? displayText.trim() : targetId;
             const exists = this._knownArticles.has(targetId);
-            const cssClass = exists ? 'wiki-link' : 'wiki-link missing';
-            return `<a class="${cssClass}" href="#/article/${encodeURIComponent(targetId)}" data-article-id="${Utils.escapeHtml(targetId)}">${Utils.escapeHtml(display)}</a>`;
+            let cssClass = exists ? 'wiki-link' : 'wiki-link missing';
+            let icon = '';
+            if (targetId.startsWith('src:')) {
+                cssClass += ' source-link';
+                icon = '<span class="source-icon" title="External Source Code" style="font-size: 0.9em; margin-right: 2px;">🔌</span>';
+            }
+            return `<a class="${cssClass}" href="#/article/${encodeURIComponent(targetId)}" data-article-id="${Utils.escapeHtml(targetId)}">${icon}${Utils.escapeHtml(display)}</a>`;
         });
     },
 
@@ -287,10 +298,12 @@ const Viewer = {
             const unmentionedClass = sub.is_unmentioned ? 'unmentioned' : '';
             const iconClass = sub.type === 'category' ? 'item-icon category' : 'item-icon';
             const newerIcon = sub.is_newer ? `<span class="newer-indicator" title="Modified more recently than the category article" style="margin-left: 6px; font-size: 0.9em; cursor: help;">✨</span>` : '';
+            const isExternal = sub.id.startsWith('src:');
+            const externalIcon = isExternal ? '<span title="External Source" style="margin-right: 4px; text-decoration: none; display: inline-block;">🔌</span>' : '';
             return `
                 <div class="sub-article-item ${unmentionedClass}">
                     <span class="${iconClass}"></span>
-                    <a href="#/article/${encodeURIComponent(sub.id)}">${Utils.escapeHtml(sub.title)}</a>
+                    <a href="#/article/${encodeURIComponent(sub.id)}">${externalIcon}${Utils.escapeHtml(sub.title)}</a>
                     ${newerIcon}
                 </div>
             `;

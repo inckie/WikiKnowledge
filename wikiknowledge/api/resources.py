@@ -65,7 +65,7 @@ async def list_resources(request: Request):
     return [_meta_to_response(m) for m in metas]
 
 
-@router.get("/resources/{resource_id}", response_model=ResourceMetaResponse)
+@router.get("/resources/{resource_id:path}", response_model=ResourceMetaResponse)
 async def get_resource_meta(request: Request, resource_id: str):
     """Get metadata for a single resource."""
     storage = request.app.state.storage
@@ -78,7 +78,7 @@ async def get_resource_meta(request: Request, resource_id: str):
     return _meta_to_response(meta)
 
 
-@router.get("/resources/{resource_id}/file")
+@router.get("/resources/{resource_id:path}/file")
 async def get_resource_file(request: Request, resource_id: str):
     """Download the actual binary file for a resource."""
     storage = request.app.state.storage

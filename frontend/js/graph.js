@@ -1,5 +1,12 @@
 /**
  * WikiKnowledge — D3.js Knowledge Graph Visualization
+ * 
+ * @wk-id wk/graph-visualization
+ * @wk-tags javascript, d3, graph, visualization
+ * @wk-categories system-architecture
+ *
+ * D3.js force-directed graph rendering.
+ * Links to: [[src:wikiknowledge/wk/graph-builder]], [[src:wikiknowledge/wk/frontend-app]]
  */
 
 const Graph = {
@@ -172,15 +179,24 @@ const Graph = {
         node.append('text')
             .attr('class', 'graph-node-label')
             .attr('dy', d => sizeScale(d.linkCount) + 14)
-            .text(d => d.title.length > 20 ? d.title.substring(0, 18) + '…' : d.title);
+            .text(d => {
+                let text = d.title.length > 20 ? d.title.substring(0, 18) + '…' : d.title;
+                if (d.id && d.id.startsWith('src:')) {
+                    text = '🔌 ' + text;
+                }
+                return text;
+            });
 
         // Tooltip
         const tooltip = document.getElementById('graph-tooltip');
 
         node.on('mouseover', (event, d) => {
-            const typeInfo = d.type === 'resource' ? `resource (${d.mime_type || 'unknown'})` : d.type;
+            let typeInfo = d.type === 'resource' ? `resource (${d.mime_type || 'unknown'})` : d.type;
+            if (d.id && d.id.startsWith('src:')) {
+                typeInfo = 'virtual source module';
+            }
             tooltip.innerHTML = `
-                <div class="tooltip-title">${Utils.escapeHtml(d.title)}</div>
+                <div class="tooltip-title">${(d.id && d.id.startsWith('src:') ? '🔌 ' : '') + Utils.escapeHtml(d.title)}</div>
                 <div class="tooltip-type">${typeInfo} · ${d.linkCount} connections</div>
                 ${d.tags && d.tags.length ? `<div style="margin-top:4px;font-size:11px;color:var(--text-muted);">Tags: ${d.tags.join(', ')}</div>` : ''}
             `;

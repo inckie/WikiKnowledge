@@ -34,11 +34,10 @@ class SearchResultResponse(BaseModel):
 @router.get("/tags", response_model=list[TagResponse])
 async def list_tags(request: Request):
     """List all tags with usage counts."""
-    storage = request.app.state.storage
-    tag_counts = await storage.get_all_tags()
+    index = request.app.state.index
     return [
-        TagResponse(name=name, count=count)
-        for name, count in tag_counts.items()
+        TagResponse(name=name, count=len(item_ids))
+        for name, item_ids in sorted(index.tag_index.items())
     ]
 
 

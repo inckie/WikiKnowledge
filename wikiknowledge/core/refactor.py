@@ -1,4 +1,12 @@
-"""Core operations for refactoring/renaming articles and resources across the knowledge base."""
+"""
+Core operations for refactoring/renaming articles and resources across the knowledge base.
+:wk-id: wk/refactoring
+:wk-tags: python, refactor, operations
+:wk-categories: system-architecture
+
+Global rename operations with cross-article link updates.
+Links to: [[src:wikiknowledge/wk/index-engine]], [[src:wikiknowledge/wk/markdown-storage]]
+"""
 
 import re
 

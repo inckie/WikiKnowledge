@@ -1,4 +1,12 @@
-"""MCP (Model Context Protocol) server for AI tool access to the knowledge base."""
+"""
+MCP (Model Context Protocol) server for AI tool access to the knowledge base.
+:wk-id: wk/mcp-interface
+:wk-tags: python, mcp, agents, tools
+:wk-categories: ai-integration
+
+17-tool MCP server factory. Gives AI agents full CRUD + query access to the knowledge base.
+Links to: [[ai-interaction-guide]], [[src:wikiknowledge/wk/index-engine]], [[src:wikiknowledge/wk/markdown-storage]]
+"""
 
 from __future__ import annotations
 
@@ -25,6 +33,7 @@ def create_mcp_server(
     storage: MarkdownStorageBackend,
     index: KnowledgeIndex,
     graph: KnowledgeGraph,
+    source_manager,
 ) -> FastMCP:
     """Create an MCP server with tools for knowledge base access.
 
@@ -51,9 +60,14 @@ def create_mcp_server(
         Returns the article as YAML frontmatter + markdown body.
         """
         try:
-            article = await storage.get_article(article_id)
-        except KeyError:
-            return f"Error: Article '{article_id}' not found"
+            if article_id.startswith("src:"):
+                content = await source_manager.get_article_content(article_id)
+                meta = index._all_meta[article_id]
+                article = Article(meta=meta, content=content)
+            else:
+                article = await storage.get_article(article_id)
+        except KeyError as e:
+            return f"Error: Article '{article_id}' not found. {e}"
 
         meta = article.meta
         return (
@@ -119,6 +133,9 @@ def create_mcp_server(
 
         Returns confirmation with the saved article ID.
         """
+        if article_id.startswith("src:"):
+            return f"Error: Cannot manually save virtual source articles ({article_id})"
+            
         is_new = article_id not in storage._meta_cache
 
         # Preserve original created timestamp if updating
@@ -540,6 +557,36 @@ def create_mcp_server(
             return f"Error: Resource '{resource_id}' not found."
         except Exception as e:
             return f"Error: Failed to delete resource '{resource_id}': {e}"
+
+    @mcp.tool()
+    async def list_sources() -> list[dict]:
+        """List all configured knowledge sources and their connection status."""
+        return source_manager.get_status()
+
+    @mcp.tool()
+    async def rescan_sources() -> str:
+        """Re-initialize all sources and rebuild the knowledge graph index."""
+        try:
+            await source_manager.initialize()
+            virtual_articles = await source_manager.discover_all_articles()
+            virtual_meta = {a.id: a for a in virtual_articles}
+            virtual_links = await source_manager.get_all_links()
+
+            all_meta = dict(storage._meta_cache)
+            all_meta.update(virtual_meta)
+            
+            all_links = storage.get_all_links()
+            all_links.update(virtual_links)
+
+            index.build(
+                all_meta=all_meta,
+                all_links=all_links,
+                all_resource_meta=dict(storage._resource_meta_cache),
+                all_resource_links=storage.get_all_resource_links(),
+            )
+            return f"Successfully rebuilt index and rescanned sources. Discovered {len(virtual_articles)} virtual articles."
+        except Exception as e:
+            return f"Error triggering rescan: {e}"
 
     return mcp
 

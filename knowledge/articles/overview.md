@@ -2,7 +2,7 @@
 categories: []
 created: '2026-06-20T02:02:12.540707+00:00'
 id: overview
-modified: '2026-06-20T07:23:14.525030+00:00'
+modified: '2026-07-06T06:00:45.748359+00:00'
 tags:
 - documentation
 title: WikiKnowledge overview
@@ -56,6 +56,8 @@ Tools like Obsidian rely primarily on standard file-system directories for struc
 In contrast, WikiKnowledge adopts **Wikipedia's categorization mechanism**, which is a core reason why Wikipedia excels at organizing complex, multi-faceted knowledge:
 - **Many-to-Many Categories:** Articles are not bound to a single folder; an article can belong to multiple categories simultaneously without duplicating content.
 - **Traversable Hierarchy:** Despite being many-to-many, categories form a navigable "tree". Users and AI agents can seamlessly "climb up" the hierarchy from a specific leaf article to its parent category overviews, and further up to macro-level summaries.
+
+Additionally, WikiKnowledge supports **Knowledge Sources**, a plugin system that allows external data (like source code repositories) to act as direct participants in the knowledge graph. Rather than duplicating architectural knowledge from code into wiki articles, developers can use [[source-code-plugin|source code annotations]] to embed metadata directly in their files. These "virtual articles" appear seamlessly in the category tree alongside native articles, ensuring that the codebase and the documentation remain perfectly in sync.
 
 Combinations of different categories can also have their own **overview articles**, which are summaries of the combined knowledge of the categories. For example, if there are two categories "Rigid body dynamics" and "Computer simulation", there can be an **overview article** "Rigid body dynamics in computer simulation", which is a summary of the knowledge in both categories and their relation to each other, explaining different approaches to building physics simulation engines.
 

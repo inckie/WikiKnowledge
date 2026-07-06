@@ -14,7 +14,7 @@ The storage abstraction layer provides a uniform interface for reading, writing,
 
 ## Abstract Interface
 
-The `StorageBackend` base class defines the contract:
+The `StorageBackend` base class ([[src:wikiknowledge/wk/storage-contract]]) defines the contract:
 
 ### CRUD Operations
 
@@ -47,7 +47,7 @@ The `StorageBackend` base class defines the contract:
 
 ## Markdown Backend
 
-The `MarkdownStorageBackend` is the first concrete implementation. It maps directly to the filesystem:
+The `MarkdownStorageBackend` ([[src:wikiknowledge/wk/markdown-storage]]) is the first concrete implementation. It maps directly to the filesystem:
 
 ```
 knowledge/

@@ -1,4 +1,12 @@
-"""Data models for WikiKnowledge articles and links."""
+"""
+Data models for WikiKnowledge articles and links.
+:wk-id: wk/data-models
+:wk-tags: python, pydantic, models, core
+:wk-categories: system-architecture
+
+Pydantic data model foundation: Article, ArticleMeta, WikiLink, Resource, ResourceMeta, ContentBlock.
+Links to: [[markdown-frontmatter]], [[src:wikiknowledge/wk/storage-contract]]
+"""
 
 from __future__ import annotations
 

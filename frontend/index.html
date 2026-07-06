@@ -166,9 +166,27 @@
             <!-- AI Settings View -->
             <div id="view-settings" class="view">
                 <div class="settings-toolbar">
-                    <h3>AI Integration Settings</h3>
+                    <h3>System Settings</h3>
                 </div>
                 <div class="settings-container">
+                    <!-- Knowledge Sources Card -->
+                    <div class="settings-card">
+                        <div class="settings-header">
+                            <span class="settings-icon">📚</span>
+                            <div>
+                                <h4>Knowledge Sources</h4>
+                                <p class="settings-desc">Manage connected repositories and external source code indexing.</p>
+                            </div>
+                        </div>
+                        <div id="sources-container">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                        <div class="settings-footer" style="margin-top: 1rem;">
+                            <button id="btn-rescan-sources" class="btn btn-secondary">🔄 Re-scan Sources</button>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Settings Card -->
                     <div class="settings-card">
                         <div class="settings-header">
                             <span class="settings-icon">🤖</span>

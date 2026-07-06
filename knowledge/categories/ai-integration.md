@@ -22,4 +22,7 @@ A comprehensive guide for AI agents on how to interact with a WikiKnowledge base
 
 ### [[ai-settings-and-mcp-binding|AI Settings and MCP Binding]]
 Explains the optional AI integration using the OpenAI API protocol, the web UI Settings page, automatic environment variable injection on startup, and the architectural foundation for remote MCP tool binding.
+
+### [[ai-source-code-annotations|AI Source Code Annotations Guide]]
+Provides guidelines and syntax requirements for AI agents to follow when annotating source code with metadata (`wk-id`, `wk-tags`, `wk-categories`). Covers both Python (RST style) and JavaScript (JSDoc style) conventions to ensure code modules are properly registered as virtual articles in the WikiKnowledge graph.
 <!-- ai:end -->

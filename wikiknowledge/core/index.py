@@ -1,4 +1,11 @@
-"""In-memory knowledge index for fast lookups."""
+"""
+In-Memory Index Engine
+:wk-id: wk/index-engine
+:wk-tags: python, memory, graph, fast-lookup
+:wk-categories: system-architecture
+
+The KnowledgeIndex maintains an in-memory graph of all articles, resources, and their relationships. It provides fast lookups for tags, categories, backlinks, and search indexing, allowing the application to quickly serve graph-related queries without hitting the storage backend for every request.
+"""
 
 from __future__ import annotations
 
@@ -44,7 +51,9 @@ class KnowledgeIndex:
         start_time = time.perf_counter()
         self._all_meta = dict(all_meta)
         self._all_resource_meta = dict(all_resource_meta or {})
+
         self.forward_links = {k: list(v) for k, v in all_links.items()}
+
         self.back_links = {}
         self.tag_index = {}
         self.category_index = {}
@@ -55,7 +64,7 @@ class KnowledgeIndex:
                 self.forward_links[res_id] = list(links)
 
         # Build tag and category indices from article metadata
-        for article_id, meta in all_meta.items():
+        for article_id, meta in self._all_meta.items():
             for tag in meta.tags:
                 if tag not in self.tag_index:
                     self.tag_index[tag] = set()
@@ -65,6 +74,13 @@ class KnowledgeIndex:
                 if cat_id not in self.category_index:
                     self.category_index[cat_id] = set()
                 self.category_index[cat_id].add(article_id)
+
+        # Build tag index from resource metadata
+        for res_id, meta in self._all_resource_meta.items():
+            for tag in meta.tags:
+                if tag not in self.tag_index:
+                    self.tag_index[tag] = set()
+                self.tag_index[tag].add(res_id)
 
         # Invert forward links to build back links (articles + resources)
         for source_id, links in self.forward_links.items():

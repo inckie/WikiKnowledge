@@ -120,26 +120,61 @@ async def list_articles(
     category: Optional[str] = None,
 ):
     """List all articles, optionally filtered by type, tag, or category."""
-    storage = request.app.state.storage
+    index = request.app.state.index
 
     if tag:
-        metas = await storage.get_by_tag(tag)
+        article_ids = index.tag_index.get(tag, set())
+        metas = [index._all_meta[a_id] for a_id in article_ids if a_id in index._all_meta]
     elif category:
-        metas = await storage.get_by_category(category)
+        article_ids = index.category_index.get(category, set())
+        metas = [index._all_meta[a_id] for a_id in article_ids if a_id in index._all_meta]
     else:
-        article_type = ArticleType(type) if type else None
-        metas = await storage.list_articles(article_type)
+        metas = list(index._all_meta.values())
+        if type:
+            article_type = ArticleType(type)
+            metas = [m for m in metas if m.type == article_type]
 
     return [_meta_to_response(m) for m in metas]
 
 
-@router.get("/articles/{article_id}", response_model=Union[CategoryArticleResponse, ArticleResponse])
+@router.get(
+    "/articles/{article_id:path}/backlinks",
+    response_model=list[BacklinkResponse],
+)
+async def get_backlinks(request: Request, article_id: str):
+    """Get all articles that link to this one ('What links here')."""
+    index = request.app.state.index
+
+    backlinks = index.what_links_here(article_id)
+    result = []
+    for bl in backlinks:
+        source_meta = index.get_meta(bl.source_id)
+        result.append(
+            BacklinkResponse(
+                source_id=bl.source_id,
+                target_id=bl.target_id,
+                display_text=bl.display_text,
+                line_number=bl.line_number,
+                source_title=source_meta.title if source_meta else None,
+            )
+        )
+    return result
+
+
+@router.get("/articles/{article_id:path}", response_model=Union[CategoryArticleResponse, ArticleResponse])
 async def get_article(request: Request, article_id: str):
     """Get a single article with full content."""
     storage = request.app.state.storage
     index = request.app.state.index
     try:
-        article = await storage.get_article(article_id)
+        if article_id.startswith("src:"):
+            content = await request.app.state.source_manager.get_article_content(article_id)
+            meta = index.get_meta(article_id)
+            if not meta:
+                raise KeyError(article_id)
+            article = Article(meta=meta, content=content)
+        else:
+            article = await storage.get_article(article_id)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Article '{article_id}' not found")
 
@@ -301,27 +336,3 @@ async def delete_article(request: Request, article_id: str):
         )
 
     index.remove_article(article_id)
-
-
-@router.get(
-    "/articles/{article_id}/backlinks",
-    response_model=list[BacklinkResponse],
-)
-async def get_backlinks(request: Request, article_id: str):
-    """Get all articles that link to this one ('What links here')."""
-    index = request.app.state.index
-
-    backlinks = index.what_links_here(article_id)
-    result = []
-    for bl in backlinks:
-        source_meta = index.get_meta(bl.source_id)
-        result.append(
-            BacklinkResponse(
-                source_id=bl.source_id,
-                target_id=bl.target_id,
-                display_text=bl.display_text,
-                line_number=bl.line_number,
-                source_title=source_meta.title if source_meta else None,
-            )
-        )
-    return result

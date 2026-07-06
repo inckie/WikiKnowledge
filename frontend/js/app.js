@@ -1,6 +1,12 @@
 /**
  * WikiKnowledge — Main Application Controller
- * Hash-based routing, sidebar management, view switching.
+ * 
+ * @wk-id wk/frontend-app
+ * @wk-tags javascript, spa, frontend, routing
+ * @wk-categories system-architecture
+ *
+ * SPA controller: hash-based routing, sidebar management, view switching.
+ * Links to: [[fastapi-backend]], [[src:wikiknowledge/wk/markdown-viewer]], [[src:wikiknowledge/wk/graph-visualization]]
  */
 
 const App = {
@@ -108,6 +114,11 @@ const App = {
     async _showArticle(articleId) {
         this._showView('article');
         this._currentArticleId = articleId;
+
+        // Hide edit/delete buttons for virtual source code articles
+        const isVirtual = articleId.startsWith('src:');
+        document.getElementById('btn-edit').style.display = isVirtual ? 'none' : '';
+        document.getElementById('btn-delete').style.display = isVirtual ? 'none' : '';
 
         // Highlight in sidebar
         this._highlightSidebarItem(articleId);
@@ -331,13 +342,20 @@ const App = {
 
         if (view === 'articles') {
             await this._loadArticles();
-            container.innerHTML = this._articles.map(a =>
-                `<div class="sidebar-list-item${this._currentArticleId === a.id ? ' active' : ''}"
+            
+            const sortedArticles = [...this._articles].sort((a, b) => 
+                (a.title || a.id).localeCompare(b.title || b.id)
+            );
+            
+            container.innerHTML = sortedArticles.map(a => {
+                const isExternal = a.id.startsWith('src:');
+                const externalIcon = isExternal ? '<span title="External Source" style="margin-right: 4px;">🔌</span>' : '';
+                return `<div class="sidebar-list-item${this._currentArticleId === a.id ? ' active' : ''}"
                      data-id="${Utils.escapeHtml(a.id)}">
                     <span class="item-icon ${a.type}"></span>
-                    <span class="item-title">${Utils.escapeHtml(a.title)}</span>
-                </div>`
-            ).join('');
+                    <span class="item-title">${externalIcon}${Utils.escapeHtml(a.title)}</span>
+                </div>`;
+            }).join('');
 
             container.querySelectorAll('.sidebar-list-item').forEach(el => {
                 el.addEventListener('click', () => {
@@ -473,10 +491,16 @@ const App = {
                 API.fetchResources().catch(() => []),
             ]);
 
+            const externalCount = articles.filter(a => a.id.startsWith('src:')).length;
+
             document.getElementById('welcome-stats').innerHTML = `
                 <div class="stat-card">
                     <div class="stat-value">${articles.length}</div>
                     <div class="stat-label">Articles</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="color: var(--accent-color);">${externalCount}</div>
+                    <div class="stat-label">Ext Sources</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${categories.length}</div>

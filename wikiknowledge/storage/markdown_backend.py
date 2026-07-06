@@ -1,4 +1,11 @@
-"""Markdown file storage backend."""
+"""
+Markdown Storage Implementation
+:wk-id: wk/markdown-storage
+:wk-tags: python, markdown, filesystem, persistence
+:wk-categories: system-architecture
+
+The MarkdownStorageBackend implements the StorageBackend contract using the local filesystem. It stores articles as Markdown files with YAML frontmatter, and handles reading, writing, and parsing of physical knowledge base files.
+"""
 
 from __future__ import annotations
 

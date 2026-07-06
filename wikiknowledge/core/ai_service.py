@@ -1,4 +1,11 @@
-"""AI Service managing configuration, environment injection, OpenAI API model fetching, and MCP binding foundations."""
+"""
+AI Service Integration
+:wk-id: wk/ai-service
+:wk-tags: python, ollama, mcp, agents
+:wk-categories: ai-integration
+
+The AIService manages the integration with the LangChain/Ollama backend. It handles environment injection, dynamic tool binding via the MCP server, and processes natural language queries against the knowledge base context.
+"""
 
 from __future__ import annotations
 

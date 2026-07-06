@@ -118,5 +118,23 @@ const API = {
             body: JSON.stringify({ prompt }),
         });
     },
-};
 
+    // --- Knowledge Sources ---
+
+    async getSources() {
+        return this._fetch('/sources');
+    },
+
+    async updateSourcePath(id, path) {
+        return this._fetch(`/sources/${encodeURIComponent(id)}/path`, {
+            method: 'PUT',
+            body: JSON.stringify({ path }),
+        });
+    },
+
+    async rescanSources() {
+        return this._fetch('/sources/rescan', {
+            method: 'POST',
+        });
+    }
+};

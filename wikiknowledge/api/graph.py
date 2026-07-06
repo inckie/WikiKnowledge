@@ -23,7 +23,7 @@ async def get_category_tree(request: Request) -> list[dict[str, Any]]:
     return graph.get_category_tree()
 
 
-@router.get("/graph/{article_id}")
+@router.get("/graph/{article_id:path}")
 async def get_subgraph(
     request: Request,
     article_id: str,

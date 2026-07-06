@@ -1,4 +1,11 @@
-"""Abstract base class for storage backends."""
+"""
+Storage Contract Base
+:wk-id: wk/storage-contract
+:wk-tags: python, abc, contract, architecture
+:wk-categories: system-architecture
+
+The StorageBackend base class defines the contract for any storage implementation used by WikiKnowledge. It abstracts operations for articles and resources, ensuring that the rest of the application remains agnostic to the underlying persistence layer.
+"""
 
 from __future__ import annotations
 

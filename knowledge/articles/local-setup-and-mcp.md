@@ -100,7 +100,8 @@ Once configured, the AI agent gains access to the following functions:
 - `get_category_status(category_id)`: Check if a category article's summary is outdated ('dirty') relative to its members.
 - `search(query)`: Run full-text search across titles, tags, and contents.
 - `get_all_tags()`: Fetch all tags along with their usage counts.
-- `rebuild_index()`: Rebuild the knowledge index from the storage backend.
+- `list_sources()`: List all configured knowledge sources and their connection status.
+- `rescan_sources()`: Re-initialize all sources and completely rebuild the knowledge graph index.
 - `get_resource(resource_id)`: Retrieve a media resource (metadata + content) by its unique ID.
 - `list_resources()`: List all media resources (metadata, tags, and associations) currently in the knowledge base.
 - `upload_resource(resource_id, title, data, is_base64, mime_type, tags, categories, related, description)`: Upload or update a media resource with sidecar metadata.

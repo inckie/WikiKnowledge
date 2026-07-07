@@ -65,19 +65,9 @@ async def list_resources(request: Request):
     return [_meta_to_response(m) for m in metas]
 
 
-@router.get("/resources/{resource_id:path}", response_model=ResourceMetaResponse)
-async def get_resource_meta(request: Request, resource_id: str):
-    """Get metadata for a single resource."""
-    storage = request.app.state.storage
-    try:
-        meta = await storage.get_resource_meta(resource_id)
-    except KeyError:
-        raise HTTPException(
-            status_code=404, detail=f"Resource '{resource_id}' not found"
-        )
-    return _meta_to_response(meta)
-
-
+# NOTE: This route MUST be defined before the `/resources/{resource_id:path}` route below.
+# Because `{resource_id:path}` matches any path including slashes, it would intercept 
+# requests ending in `/file` if it were defined first, causing 404 errors.
 @router.get("/resources/{resource_id:path}/file")
 async def get_resource_file(request: Request, resource_id: str):
     """Download the actual binary file for a resource."""
@@ -96,6 +86,19 @@ async def get_resource_file(request: Request, resource_id: str):
             "Content-Disposition": f'inline; filename="{resource.meta.filename}"',
         },
     )
+
+
+@router.get("/resources/{resource_id:path}", response_model=ResourceMetaResponse)
+async def get_resource_meta(request: Request, resource_id: str):
+    """Get metadata for a single resource."""
+    storage = request.app.state.storage
+    try:
+        meta = await storage.get_resource_meta(resource_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=404, detail=f"Resource '{resource_id}' not found"
+        )
+    return _meta_to_response(meta)
 
 
 @router.post("/resources", response_model=ResourceMetaResponse, status_code=201)

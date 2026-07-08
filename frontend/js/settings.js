@@ -173,26 +173,114 @@ const Settings = {
                 return;
             }
 
-            container.innerHTML = sources.map(source => `
-                <div class="source-item form-group" style="border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <strong>${Utils.escapeHtml(source.id)}</strong>
-                        <span class="kb-badge" style="background: ${source.available ? 'var(--secondary-color)' : 'var(--danger-color)'};">
-                            ${source.available ? 'Connected' : '⊘ Disconnected'}
-                        </span>
-                    </div>
-                    <div style="margin-bottom: 0.5rem; font-size: 0.85em; color: var(--text-muted);">
-                        Type: ${Utils.escapeHtml(source.type)}
-                    </div>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" class="form-control" id="src-path-${Utils.escapeHtml(source.id)}" value="${Utils.escapeHtml(source.path || '')}" placeholder="Local absolute path override">
-                        <button class="btn" onclick="Settings.updateSourcePath('${Utils.escapeHtml(source.id)}')">Update Path</button>
-                    </div>
-                </div>
-            `).join('');
+            container.innerHTML = sources.map(source => {
+                const isDrive = source.type === 'GoogleDrivePlugin';
+                const isAvailable = source.available;
+                const statusPill = isAvailable
+                    ? '<span class="source-status-pill connected">● Connected</span>'
+                    : '<span class="source-status-pill disconnected">⊘ Disconnected</span>';
+
+                if (isDrive) {
+                    const lastSync = source.last_sync
+                        ? new Date(source.last_sync).toLocaleString()
+                        : 'Never synced';
+                    const articleCount = source.article_count ?? 0;
+                    const syncStatus = source.sync_status;
+                    const syncStatusBadge = syncStatus === 'success'
+                        ? '<span class="source-sync-badge ok">✓ Success</span>'
+                        : syncStatus === 'partial'
+                            ? '<span class="source-sync-badge warn">⚠ Partial</span>'
+                            : '';
+                    const biDir = source.bidirectional
+                        ? '<span class="source-feature-tag">↔ Bidirectional</span>'
+                        : '<span class="source-feature-tag readonly">→ Read-only</span>';
+
+                    return `
+                        <div class="source-card drive-source">
+                            <div class="source-card-header">
+                                <div class="source-card-icon">🗂️</div>
+                                <div class="source-card-meta">
+                                    <div class="source-card-title">
+                                        <strong>${Utils.escapeHtml(source.id)}</strong>
+                                        ${statusPill}
+                                    </div>
+                                    <div class="source-card-subtitle">Google Drive · Folder: <code>${Utils.escapeHtml(source.folder_id || '—')}</code></div>
+                                </div>
+                            </div>
+                            <div class="source-card-stats">
+                                <div class="source-stat">
+                                    <span class="source-stat-value">${articleCount}</span>
+                                    <span class="source-stat-label">Documents</span>
+                                </div>
+                                <div class="source-stat">
+                                    <span class="source-stat-value" style="font-size:0.75rem;">${Utils.escapeHtml(lastSync)}</span>
+                                    <span class="source-stat-label">Last Sync ${syncStatusBadge}</span>
+                                </div>
+                                <div class="source-stat">
+                                    ${biDir}
+                                </div>
+                            </div>
+                            <div class="source-card-actions">
+                                <button class="btn btn-sm" 
+                                    id="btn-sync-${Utils.escapeHtml(source.id)}"
+                                    onclick="Settings.syncDriveSource('${Utils.escapeHtml(source.id)}')"
+                                    ${isAvailable ? '' : 'disabled'}>
+                                    🔄 Sync Now
+                                </button>
+                            </div>
+                        </div>`;
+                }
+
+                // Source-code source card
+                return `
+                    <div class="source-card">
+                        <div class="source-card-header">
+                            <div class="source-card-icon">📂</div>
+                            <div class="source-card-meta">
+                                <div class="source-card-title">
+                                    <strong>${Utils.escapeHtml(source.id)}</strong>
+                                    ${statusPill}
+                                </div>
+                                <div class="source-card-subtitle">Source Code · ${Utils.escapeHtml(source.path || 'path not set')}</div>
+                            </div>
+                        </div>
+                        <div class="source-card-path-row">
+                            <input type="text" class="form-control" id="src-path-${Utils.escapeHtml(source.id)}"
+                                value="${Utils.escapeHtml(source.path || '')}" placeholder="Local absolute path override">
+                            <button class="btn btn-sm" onclick="Settings.updateSourcePath('${Utils.escapeHtml(source.id)}')">Update Path</button>
+                        </div>
+                    </div>`;
+            }).join('');
         } catch (e) {
             container.innerHTML = '<div class="empty-state">Error loading sources.</div>';
             console.error('Failed to load sources:', e);
+        }
+    },
+
+    async syncDriveSource(sourceId) {
+        const btn = document.getElementById(`btn-sync-${sourceId}`);
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Syncing...';
+        }
+        try {
+            const resp = await API.rescanSources();
+            const result = resp.sync_results?.[sourceId];
+            if (result?.error) {
+                Utils.toast(`Sync failed: ${result.error}`, 'error');
+            } else if (result) {
+                const { new: n = 0, updated: u = 0, deleted: d = 0, failed: f = 0 } = result;
+                Utils.toast(`Synced "${sourceId}": +${n} new · ${u} updated · ${d} removed${f ? ` · ${f} failed` : ''}`, 'success');
+            } else {
+                Utils.toast(`Sync complete for "${sourceId}"`, 'success');
+            }
+            await this.loadSources();
+        } catch (e) {
+            Utils.toast(`Sync failed: ${e.message}`, 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '🔄 Sync Now';
+            }
         }
     },
 
@@ -220,7 +308,18 @@ const Settings = {
 
         try {
             const resp = await API.rescanSources();
-            Utils.toast(`Rescanned successfully. Found ${resp.virtual_articles_discovered} virtual articles.`, 'success');
+            const syncResults = resp.sync_results || {};
+            const driveNames = Object.keys(syncResults);
+            let msg = `Rescanned. Found ${resp.virtual_articles_discovered} virtual articles.`;
+            if (driveNames.length) {
+                const parts = driveNames.map(name => {
+                    const r = syncResults[name];
+                    if (r.error) return `${name}: error`;
+                    return `${name}: +${r.new ?? 0} new, ${r.updated ?? 0} updated`;
+                });
+                msg += ` Drive: ${parts.join(' | ')}`;
+            }
+            Utils.toast(msg, 'success');
             await this.loadSources();
         } catch (e) {
             Utils.toast(`Failed to rescan sources: ${e.message}`, 'error');

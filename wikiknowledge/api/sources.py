@@ -11,6 +11,11 @@ class SourcePathUpdateRequest(BaseModel):
     path: str
 
 
+class ArticleMetadataUpdateRequest(BaseModel):
+    tags: list[str] = []
+    categories: list[str] = []
+
+
 @router.get("/sources")
 async def get_sources(request: Request) -> list[dict[str, Any]]:
     """Get all configured sources and their status."""
@@ -31,32 +36,73 @@ async def update_source_path(request: Request, source_id: str, body: SourcePathU
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.put("/sources/{source_id}/articles/{article_id:path}/metadata")
+async def update_article_metadata(
+    request: Request,
+    source_id: str,
+    article_id: str,
+    body: ArticleMetadataUpdateRequest,
+):
+    """
+    Update tags/categories for a Google Drive virtual article.
+    Changes are persisted locally and pushed to Drive on next sync
+    (only effective when bidirectional=true for the source).
+    """
+    from wikiknowledge.core.plugins.google_drive import GoogleDrivePlugin
+
+    source_manager = request.app.state.source_manager
+    index = request.app.state.index
+
+    plugin = source_manager.plugins.get(source_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail=f"Source '{source_id}' not found")
+    if not isinstance(plugin, GoogleDrivePlugin):
+        raise HTTPException(status_code=400, detail="Metadata updates only supported for Google Drive sources")
+    if not plugin.config.get("bidirectional"):
+        raise HTTPException(status_code=400, detail=f"Source '{source_id}' is not configured as bidirectional")
+
+    try:
+        plugin.update_article_metadata(article_id, body.tags, body.categories)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Article '{article_id}' not found")
+
+    # Update in-memory index so the change is immediately visible
+    meta = index.get_meta(article_id)
+    if meta:
+        from wikiknowledge.storage.models import ArticleMeta
+        updated_meta = ArticleMeta(
+            id=meta.id,
+            title=meta.title,
+            type=meta.type,
+            tags=body.tags,
+            categories=body.categories,
+            created=meta.created,
+            modified=meta.modified,
+        )
+        index._all_meta[article_id] = updated_meta
+
+    return {"status": "ok", "article_id": article_id, "tags": body.tags, "categories": body.categories}
+
+
 @router.post("/sources/rescan")
 async def rescan_sources(request: Request):
-    """Re-initialize sources and rebuild the index."""
+    """Re-initialize sources, run sync on Drive sources, and rebuild the index."""
     source_manager = request.app.state.source_manager
     storage = request.app.state.storage
     index = request.app.state.index
 
-    # Re-initialize the sources
+    # Re-initialize to pick up any config changes
     await source_manager.initialize()
-    virtual_articles = await source_manager.discover_all_articles()
-    virtual_meta = {a.id: a for a in virtual_articles}
-    virtual_links = await source_manager.get_all_links()
 
-    # Merge physical and virtual articles
-    all_meta = dict(storage._meta_cache)
-    all_meta.update(virtual_meta)
-    
-    all_links = storage.get_all_links()
-    all_links.update(virtual_links)
+    # Run sync on all Google Drive plugins (fetches new/changed docs)
+    sync_results = await source_manager.sync_all()
 
     # Rebuild in-memory index
-    index.build(
-        all_meta=all_meta,
-        all_links=all_links,
-        all_resource_meta=dict(storage._resource_meta_cache),
-        all_resource_links=storage.get_all_resource_links(),
-    )
+    from wikiknowledge.core.index import rebuild_full_index
+    virtual_count = await rebuild_full_index(index, storage, source_manager)
 
-    return {"status": "ok", "virtual_articles_discovered": len(virtual_articles)}
+    return {
+        "status": "ok",
+        "virtual_articles_discovered": virtual_count,
+        "sync_results": sync_results,
+    }

@@ -60,7 +60,7 @@ def create_mcp_server(
         Returns the article as YAML frontmatter + markdown body.
         """
         try:
-            if article_id.startswith("src:"):
+            if article_id.startswith("src:") or article_id.startswith("gdrive:"):
                 content = await source_manager.get_article_content(article_id)
                 meta = index._all_meta[article_id]
                 article = Article(meta=meta, content=content)
@@ -189,6 +189,54 @@ def create_mcp_server(
 
         Returns confirmation of the update.
         """
+        if article_id.startswith("src:") or article_id.startswith("gdrive:"):
+            if content is not None or content_patches is not None or title is not None or article_type is not None:
+                return f"Error: Cannot update content, title, or type of virtual article '{article_id}'"
+            
+            if not article_id.startswith("gdrive:"):
+                return f"Error: Metadata updates are only supported for Google Drive articles."
+
+            # Find the Google Drive plugin that owns this article
+            from wikiknowledge.core.plugins.google_drive import GoogleDrivePlugin
+            found_plugin = None
+            for plugin in source_manager.plugins.values():
+                if isinstance(plugin, GoogleDrivePlugin) and plugin.is_available():
+                    if plugin.has_article(article_id):
+                        found_plugin = plugin
+                        break
+            
+            if not found_plugin:
+                return f"Error: Google Drive article '{article_id}' not found in any available source."
+                
+            if not found_plugin.config.get("bidirectional"):
+                return f"Error: Source for '{article_id}' is not configured as bidirectional."
+
+            try:
+                # Need to get current tags/cats if they are not provided
+                current_meta = index.get_meta(article_id)
+                if not current_meta:
+                    return f"Error: Article '{article_id}' not found in index."
+                    
+                new_tags = tags if tags is not None else current_meta.tags
+                new_cats = categories if categories is not None else current_meta.categories
+                
+                found_plugin.update_article_metadata(article_id, new_tags, new_cats)
+                
+                # Update in-memory index immediately
+                updated_meta = ArticleMeta(
+                    id=current_meta.id,
+                    title=current_meta.title,
+                    type=current_meta.type,
+                    tags=new_tags,
+                    categories=new_cats,
+                    created=current_meta.created,
+                    modified=current_meta.modified,
+                )
+                index._all_meta[article_id] = updated_meta
+                return f"Updated metadata for Google Drive article '{article_id}'"
+            except Exception as e:
+                return f"Error updating metadata: {e}"
+
         try:
             existing = await storage.get_article(article_id)
         except KeyError:
@@ -403,19 +451,17 @@ def create_mcp_server(
 
     @mcp.tool()
     async def rebuild_index() -> str:
-        """Rebuild the knowledge index from the storage backend.
+        """Rebuild the knowledge index from the storage backend and plugins.
 
-        This reads all articles and resources from disk, re-parses their
+        This reads all articles and resources from disk and plugins, re-parses their
         frontmatter and links, and reconstructs the in-memory indices
         (tags, categories, backlinks, resource graph edges).
         """
         await storage.initialize()
-        index.build(
-            all_meta=dict(storage._meta_cache),
-            all_links=storage.get_all_links(),
-            all_resource_meta=dict(storage._resource_meta_cache),
-            all_resource_links=storage.get_all_resource_links(),
-        )
+        
+        from wikiknowledge.core.index import rebuild_full_index
+        await rebuild_full_index(index, storage, source_manager)
+        
         return "Knowledge index rebuilt successfully."
 
     # --- Resource tools ---
@@ -568,6 +614,10 @@ def create_mcp_server(
         """Re-initialize all sources and rebuild the knowledge graph index."""
         try:
             await source_manager.initialize()
+
+            # Sync Google Drive sources (fetches new/changed docs)
+            sync_results = await source_manager.sync_all()
+
             virtual_articles = await source_manager.discover_all_articles()
             virtual_meta = {a.id: a for a in virtual_articles}
             virtual_links = await source_manager.get_all_links()
@@ -584,7 +634,12 @@ def create_mcp_server(
                 all_resource_meta=dict(storage._resource_meta_cache),
                 all_resource_links=storage.get_all_resource_links(),
             )
-            return f"Successfully rebuilt index and rescanned sources. Discovered {len(virtual_articles)} virtual articles."
+            synced = ", ".join(f"{s}: {r}" for s, r in sync_results.items()) if sync_results else "none"
+            return (
+                f"Successfully rebuilt index and rescanned sources. "
+                f"Discovered {len(virtual_articles)} virtual articles. "
+                f"Drive sync results: {synced}"
+            )
         except Exception as e:
             return f"Error triggering rescan: {e}"
 

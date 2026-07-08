@@ -115,10 +115,33 @@ const App = {
         this._showView('article');
         this._currentArticleId = articleId;
 
-        // Hide edit/delete buttons for virtual source code articles
-        const isVirtual = articleId.startsWith('src:');
+        // Always hide the drive metadata editor panel when switching articles
+        this._closeDriveMetadataEditor();
+
+        const isDrive = articleId.startsWith('gdrive:');
+        const isSrc = articleId.startsWith('src:');
+        const isVirtual = isDrive || isSrc;
+
+        // Standard Edit/Delete only for local articles
         document.getElementById('btn-edit').style.display = isVirtual ? 'none' : '';
         document.getElementById('btn-delete').style.display = isVirtual ? 'none' : '';
+
+        // "Edit Metadata" only for bidirectional Drive sources
+        const editMetaBtn = document.getElementById('btn-edit-metadata');
+        editMetaBtn.style.display = 'none'; // hidden by default
+        if (isDrive) {
+            // Check if any Drive source is bidirectional (determines if we can edit)
+            try {
+                const sources = await API.getSources();
+                const driveSource = sources.find(s => s.type === 'GoogleDrivePlugin' && s.bidirectional);
+                if (driveSource) {
+                    editMetaBtn.style.display = '';
+                    editMetaBtn.dataset.sourceId = driveSource.id;
+                }
+            } catch (e) {
+                // Silently ignore — button stays hidden
+            }
+        }
 
         // Highlight in sidebar
         this._highlightSidebarItem(articleId);
@@ -290,6 +313,25 @@ const App = {
             window.location.hash = '#/new';
         });
 
+        // Edit Metadata (Google Drive articles only — bidirectional sources)
+        document.getElementById('btn-edit-metadata').addEventListener('click', async () => {
+            if (!this._currentArticleId) return;
+            const editorEl = document.getElementById('drive-metadata-editor');
+            if (!editorEl.classList.contains('hidden')) {
+                // Toggle close if already open
+                this._closeDriveMetadataEditor();
+                return;
+            }
+            const sourceId = document.getElementById('btn-edit-metadata').dataset.sourceId;
+            if (!sourceId) return;
+            try {
+                const article = await API.fetchArticle(this._currentArticleId);
+                this._openDriveMetadataEditor(article, sourceId);
+            } catch (e) {
+                Utils.toast(`Failed to load article: ${e.message}`, 'error');
+            }
+        });
+
         // Edit
         document.getElementById('btn-edit').addEventListener('click', () => {
             if (this._currentArticleId) {
@@ -348,8 +390,14 @@ const App = {
             );
             
             container.innerHTML = sortedArticles.map(a => {
-                const isExternal = a.id.startsWith('src:');
-                const externalIcon = isExternal ? '<span title="External Source" style="margin-right: 4px;">🔌</span>' : '';
+                const isSourceCode = a.id.startsWith('src:');
+                const isDrive = a.id.startsWith('gdrive:');
+                let externalIcon = '';
+                if (isDrive) {
+                    externalIcon = '<span class="source-badge drive" title="Google Drive">Drive</span>';
+                } else if (isSourceCode) {
+                    externalIcon = '<span class="source-badge code" title="Source Code">Code</span>';
+                }
                 return `<div class="sidebar-list-item${this._currentArticleId === a.id ? ' active' : ''}"
                      data-id="${Utils.escapeHtml(a.id)}">
                     <span class="item-icon ${a.type}"></span>
@@ -471,6 +519,95 @@ const App = {
     },
 
     /**
+     * Open the inline metadata editor for a Google Drive article.
+     * @param {Object} article - Full article object
+     * @param {string} sourceId - The source name (from btn-edit-metadata dataset)
+     */
+    _openDriveMetadataEditor(article, sourceId) {
+        const editorEl = document.getElementById('drive-metadata-editor');
+
+        editorEl.innerHTML = `
+            <div class="drive-meta-editor-inner">
+                <div class="drive-meta-editor-title">🏷️ Edit Metadata</div>
+                <div class="drive-meta-field">
+                    <label>Tags</label>
+                    <div id="drive-meta-tags" class="chip-input-container"></div>
+                </div>
+                <div class="drive-meta-field">
+                    <label>Categories</label>
+                    <div id="drive-meta-categories" class="chip-input-container"></div>
+                </div>
+                <div class="drive-meta-actions">
+                    <button id="btn-drive-meta-save" class="btn btn-primary">💾 Save</button>
+                    <button id="btn-drive-meta-cancel" class="btn btn-ghost">Cancel</button>
+                </div>
+            </div>
+        `;
+
+        editorEl.classList.remove('hidden');
+
+        // Initialize ChipInputs
+        const tagInput = new ChipInput(document.getElementById('drive-meta-tags'), {
+            type: 'tag',
+            placeholder: 'Add tag...',
+            fetchSuggestions: async (query) => {
+                try {
+                    const tags = await API.fetchTags();
+                    return tags.map(t => t.name).filter(n => n.toLowerCase().includes(query.toLowerCase()));
+                } catch { return []; }
+            },
+        });
+        tagInput.setChips(article.tags || []);
+
+        const catInput = new ChipInput(document.getElementById('drive-meta-categories'), {
+            type: 'category',
+            placeholder: 'Add category...',
+            fetchSuggestions: async (query) => {
+                try {
+                    const cats = await API.fetchCategories();
+                    return cats.map(c => c.id).filter(id => id.toLowerCase().includes(query.toLowerCase()));
+                } catch { return []; }
+            },
+        });
+        catInput.setChips(article.categories || []);
+
+        // Save handler
+        document.getElementById('btn-drive-meta-save').addEventListener('click', async () => {
+            const tags = tagInput.getChips();
+            const categories = catInput.getChips();
+            const articleId = this._currentArticleId;
+
+            try {
+                await API.updateDriveArticleMetadata(sourceId, articleId, tags, categories);
+                Utils.toast('Metadata saved!', 'success');
+                this._closeDriveMetadataEditor();
+                // Refresh the article view to show updated tags/categories
+                const updated = await API.fetchArticle(articleId);
+                await Viewer.show(updated);
+                // Reload article list to reflect category changes in sidebar
+                await this._loadArticles();
+                this._loadSidebarContent('articles');
+            } catch (e) {
+                Utils.toast(`Save failed: ${e.message}`, 'error');
+            }
+        });
+
+        // Cancel handler
+        document.getElementById('btn-drive-meta-cancel').addEventListener('click', () => {
+            this._closeDriveMetadataEditor();
+        });
+    },
+
+    /**
+     * Close / hide the inline Drive metadata editor.
+     */
+    _closeDriveMetadataEditor() {
+        const editorEl = document.getElementById('drive-metadata-editor');
+        editorEl.classList.add('hidden');
+        editorEl.innerHTML = '';
+    },
+
+    /**
      * Highlight a sidebar item.
      */
     _highlightSidebarItem(articleId) {
@@ -491,7 +628,7 @@ const App = {
                 API.fetchResources().catch(() => []),
             ]);
 
-            const externalCount = articles.filter(a => a.id.startsWith('src:')).length;
+            const externalCount = articles.filter(a => a.id.startsWith('src:') || a.id.startsWith('gdrive:')).length;
 
             document.getElementById('welcome-stats').innerHTML = `
                 <div class="stat-card">

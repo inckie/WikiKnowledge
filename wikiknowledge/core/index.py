@@ -288,3 +288,31 @@ class KnowledgeIndex:
     def get_any_meta(self, node_id: str) -> ArticleMeta | ResourceMeta | None:
         """Get cached metadata for an article or resource by ID."""
         return self._all_meta.get(node_id) or self._all_resource_meta.get(node_id)
+
+async def rebuild_full_index(index: KnowledgeIndex, storage: 'Any', source_manager: 'Any') -> int:
+    """Helper to rebuild the index from physical storage and virtual plugins.
+    
+    This function merges articles from the storage backend with virtual articles
+    provided by plugins, and builds the full in-memory index graph.
+    
+    Returns the number of virtual articles discovered.
+    """
+    virtual_articles = await source_manager.discover_all_articles()
+    virtual_meta = {a.id: a for a in virtual_articles}
+    virtual_links = await source_manager.get_all_links()
+
+    # Merge physical and virtual articles
+    all_meta = dict(storage._meta_cache)
+    all_meta.update(virtual_meta)
+    
+    all_links = storage.get_all_links()
+    all_links.update(virtual_links)
+
+    index.build(
+        all_meta=all_meta,
+        all_links=all_links,
+        all_resource_meta=dict(storage._resource_meta_cache),
+        all_resource_links=storage.get_all_resource_links(),
+    )
+    
+    return len(virtual_articles)

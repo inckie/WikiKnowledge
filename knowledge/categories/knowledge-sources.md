@@ -37,7 +37,7 @@ External sources contribute **virtual articles**. These articles:
 
 ### Forward-Looking Vision
 
-While the initial focus is on the [[source-code-plugin|Source Code Plugin]], the architecture is designed to support:
+The initial plugin implementations include the [[source-code-plugin|Source Code Plugin]] and the [[google-drive-plugin|Google Drive Plugin]]. The architecture is also designed to support:
 - **Remote WikiKnowledge**: Importing articles from another WikiKnowledge instance.
 - **API Documentation**: Parsing OpenAPI specs or GraphQL schemas into the graph.
 - **Database Schema**: Documenting tables and collections automatically.
@@ -53,4 +53,7 @@ Details how source code files can participate in the knowledge graph. Explains t
 
 ### [[source-link-syntax|Source Link Syntax]]
 Documents the extended wiki-link syntax used to reference source code articles. Explains the `[[src:source-name/module-path]]` format, multi-KB `@kb-name` qualifiers, resolution rules, and how disconnected sources are rendered differently from broken links.
+
+### [[google-drive-plugin|Google Drive Plugin]]
+Covers the Google Drive knowledge source plugin: service account authentication, folder configuration, virtual article IDs (`gdrive:<doc-id>`), local caching with delta sync, optional bi-directional tag/category metadata via Drive `appProperties`, markdown export pipeline, and multi-account support.
 <!-- ai:end -->

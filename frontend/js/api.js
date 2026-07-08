@@ -136,5 +136,12 @@ const API = {
         return this._fetch('/sources/rescan', {
             method: 'POST',
         });
-    }
+    },
+
+    async updateDriveArticleMetadata(sourceId, articleId, tags, categories) {
+        return this._fetch(`/sources/${encodeURIComponent(sourceId)}/articles/${encodeURIComponent(articleId)}/metadata`, {
+            method: 'PUT',
+            body: JSON.stringify({ tags, categories }),
+        });
+    },
 };

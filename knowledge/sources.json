@@ -14,6 +14,20 @@
           "include": ["frontend/**/*.js"]
         }
       }
+    },
+    "my-drive": {
+      "type": "google-drive",
+      "description": "Google Drive knowledge folder",
+      "folder_id": "1CF4hdB2reTiplbsV6pPEtGgq9ZBFa4R1",
+      "bidirectional": true,
+      "auto_sync": false,
+      "recursive": true,
+      "include_mime_types": [
+        "application/vnd.google-apps.document"
+      ],
+      "knowledge_bases": {
+        "default": "self"
+      }
     }
   }
 }

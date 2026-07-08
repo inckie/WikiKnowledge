@@ -115,11 +115,13 @@
                 <div class="article-toolbar">
                     <div class="article-breadcrumb" id="article-breadcrumb"></div>
                     <div class="article-actions">
+                        <button id="btn-edit-metadata" class="btn btn-ghost" title="Edit Metadata" style="display:none">🏷️ Edit Metadata</button>
                         <button id="btn-edit" class="btn btn-ghost" title="Edit">✏️ Edit</button>
                         <button id="btn-delete" class="btn btn-ghost btn-danger" title="Delete">🗑️</button>
                     </div>
                 </div>
                 <div class="article-meta" id="article-meta"></div>
+                <div id="drive-metadata-editor" class="drive-metadata-editor hidden"></div>
                 <div class="article-body markdown-body" id="article-body"></div>
                 <div id="category-section" class="category-section"></div>
                 <div class="article-backlinks" id="article-backlinks"></div>
@@ -175,7 +177,7 @@
                             <span class="settings-icon">📚</span>
                             <div>
                                 <h4>Knowledge Sources</h4>
-                                <p class="settings-desc">Manage connected repositories and external source code indexing.</p>
+                                <p class="settings-desc">Manage connected repositories, source code, and Google Drive folders.</p>
                             </div>
                         </div>
                         <div id="sources-container">

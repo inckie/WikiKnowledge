@@ -167,7 +167,7 @@ async def get_article(request: Request, article_id: str):
     storage = request.app.state.storage
     index = request.app.state.index
     try:
-        if article_id.startswith("src:"):
+        if article_id.startswith("src:") or article_id.startswith("gdrive:"):
             content = await request.app.state.source_manager.get_article_content(article_id)
             meta = index.get_meta(article_id)
             if not meta:

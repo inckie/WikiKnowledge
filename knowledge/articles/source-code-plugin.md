@@ -89,3 +89,9 @@ Machine-specific path overrides can be placed in `.settings/sources.json` (which
 
 ## Self-Annotation Example
 WikiKnowledge annotates its own source code as a dogfooding example. Modules like `wikiknowledge/storage/base.py` define their architectural role in the knowledge graph, allowing AI agents and developers to trace from high-level wiki categories directly into the source code modules that implement them.
+
+## See Also
+
+- [[google-drive-plugin|Google Drive Plugin]] — the other built-in knowledge source; connects to Google Drive folders and exports Google Docs as virtual articles
+- [[knowledge-sources|Knowledge Sources]] — the plugin architecture shared by both plugins
+- [[source-link-syntax|Source Link Syntax]] — wiki-link syntax for referencing virtual articles (`[[src:…]]`, `[[gdrive:…]]`)

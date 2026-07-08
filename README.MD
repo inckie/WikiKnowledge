@@ -10,14 +10,16 @@ See [knowledge/articles/overview.md](knowledge/articles/overview.md) for the ove
 TODO:
 
 - [ ] readonly mode
-- [ ] Google Drive article source plugin
+- [/] Google Drive article source plugin
+- [ ] resouces upload in frontend
+- [ ] tool to add inline images in markdown editor (not as resources, but base64 embedded files)
 - [ ] add frontend-looking MCP tools for Chat agent specifically, more data in context (help user to edit articles, suggest new categories or articles, etc, propose/open links).
 - [ ] sections editing (or better block structure)
 - [ ] @mcp.resource support
 - [ ] implement automatic dirty articles update cascading with AI
 - [ ] add MongoDB/SQLite support for storing the knowledge graph
 - [ ] sync, export/import and migrations for DBs
-- [ ] add revision hooks for the Storage abstraction layer, with optional transactions support. Can use git for file system backing. Has parallel access implications.
+- [ ] add revision hooks for the Storage abstraction layer, with optional transactions support. Can use git for file system backing. Has parallel access implications (use workspaces?).
 - [ ] diff-match-patch revision history for SQLite
 - [ ] implement purgeable index cache in `knowledge/.index`
 - [ ] implement authentication

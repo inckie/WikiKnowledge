@@ -10,7 +10,20 @@ dependencies = [
     "python-multipart>=0.0.9",
     "mcp[cli]>=1.0.0",
     "diff-match-patch>=20241021",
+    "google-api-python-client>=2.100.0",
+    "google-auth>=2.23.0",
+    "markdownify>=0.13.0",
 ]
 
 [project.scripts]
 wikiknowledge = "wikiknowledge.api.app:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -55,3 +55,9 @@ Thumbs.db
 .tempmediaStorage/
 mcp_config.json
 *.tmp
+
+# WikiKnowledge KB local cache (Google Drive sync cache)
+knowledge/.index/
+
+# WikiKnowledge KB machine-local settings (credential paths, path overrides)
+knowledge/.settings/

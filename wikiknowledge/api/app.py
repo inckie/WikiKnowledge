@@ -54,24 +54,8 @@ async def lifespan(app: FastAPI):
     
     # Initialize knowledge sources
     await source_manager.initialize()
-    virtual_articles = await source_manager.discover_all_articles()
-    virtual_meta = {a.id: a for a in virtual_articles}
-    virtual_links = await source_manager.get_all_links()
-
-    # Merge physical and virtual articles
-    all_meta = dict(storage._meta_cache)
-    all_meta.update(virtual_meta)
-    
-    all_links = storage.get_all_links()
-    all_links.update(virtual_links)
-
-    # Build in-memory index (articles + resources)
-    index.build(
-        all_meta=all_meta,
-        all_links=all_links,
-        all_resource_meta=dict(storage._resource_meta_cache),
-        all_resource_links=storage.get_all_resource_links(),
-    )
+    from wikiknowledge.core.index import rebuild_full_index
+    await rebuild_full_index(index, storage, source_manager)
 
     # Store on app state for access from other routes
     app.state.storage = storage

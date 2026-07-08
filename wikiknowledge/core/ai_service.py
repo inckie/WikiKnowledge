@@ -150,7 +150,7 @@ class AIService:
         print(f"Verified MCP binding with {len(tools)} tools to remote model.")
         return {"status": "bound", "bound_tools_count": len(tools)}
 
-    async def invoke_remote_model_with_tools(self, prompt: str, mcp_server: Any) -> Dict[str, Any]:
+    async def invoke_remote_model_with_tools(self, prompt: str, mcp_server: Any, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Invoke the remote model with an active MCP tool calling loop.
 
         Allows the remote OpenAI API model to inspect, call, and receive results
@@ -190,7 +190,14 @@ class AIService:
         except Exception as e:
             print(f"Error listing MCP tools: {e}")
 
-        messages = [{"role": "user", "content": prompt}]
+        full_prompt = prompt
+        if context:
+            ctx_str = f"User is currently viewing the '{context.get('current_view', 'unknown')}' page"
+            if context.get('current_article_id'):
+                ctx_str += f" for article ID '{context.get('current_article_id')}'"
+            full_prompt += f"\n\n[System Context: {ctx_str}]"
+
+        messages = [{"role": "user", "content": full_prompt}]
         max_iterations = 10
         start_time = time.time()
 

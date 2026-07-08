@@ -89,8 +89,13 @@ const Chat = {
             // Append thinking placeholder
             const thinkingId = this.appendMessage('assistant', '⏳ Thinking... (Checking tools & generating response)');
 
+            const context = {
+                current_view: App._currentView,
+                current_article_id: App._currentArticleId
+            };
+
             try {
-                const resp = await API.sendAIChat(prompt);
+                const resp = await API.sendAIChat(prompt, context);
                 this.updateMessage(thinkingId, resp.reply || 'No response generated.', resp.stats);
             } catch (e) {
                 this.updateMessage(thinkingId, `❌ Error: ${e.message}`);

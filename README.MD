@@ -9,9 +9,9 @@ See [knowledge/articles/overview.md](knowledge/articles/overview.md) for the ove
 
 TODO:
 
-- [ ] add frontend-looking MCP tools for Chat agent specifically (check current article, help user modify it, suggest new categories or articles, etc.). Probably can be done by sending "context" to backend
 - [ ] readonly mode
 - [ ] Google Drive article source plugin
+- [ ] add frontend-looking MCP tools for Chat agent specifically, more data in context (help user to edit articles, suggest new categories or articles, etc, propose/open links).
 - [ ] sections editing (or better block structure)
 - [ ] @mcp.resource support
 - [ ] implement automatic dirty articles update cascading with AI

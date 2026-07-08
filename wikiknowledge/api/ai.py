@@ -72,6 +72,7 @@ class ChatRequest(BaseModel):
     """Pydantic model for AI chat request."""
 
     prompt: str = Field(..., description="User prompt for the AI model")
+    context: dict = Field(default_factory=dict, description="UI Context")
 
 
 @router.post("/chat")
@@ -83,7 +84,7 @@ async def chat_with_ai(body: ChatRequest, request: Request):
         raise HTTPException(status_code=500, detail="AI Service or MCP Server not initialized.")
 
     try:
-        result = await ai_service.invoke_remote_model_with_tools(body.prompt, mcp_server)
+        result = await ai_service.invoke_remote_model_with_tools(body.prompt, mcp_server, context=body.context)
         if isinstance(result, str):
             return {"reply": result, "stats": None}
         return {"reply": result.get("content", ""), "stats": result.get("stats")}

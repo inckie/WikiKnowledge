@@ -112,10 +112,10 @@ const API = {
         });
     },
 
-    async sendAIChat(prompt) {
+    async sendAIChat(prompt, context = {}) {
         return this._fetch('/ai/chat', {
             method: 'POST',
-            body: JSON.stringify({ prompt }),
+            body: JSON.stringify({ prompt, context }),
         });
     },
 

@@ -2,7 +2,7 @@
 categories: []
 created: '2026-06-19T21:00:00+00:00'
 id: system-architecture
-modified: '2026-07-06T06:00:43.691904+00:00'
+modified: '2026-07-08T02:40:21.050909+00:00'
 tags:
 - architecture
 - overview
@@ -11,9 +11,6 @@ title: System Architecture
 type: category
 ---
 
-# System Architecture
-
-<!-- human:start -->
 WikiKnowledge is a knowledge graph construction system built on three pillars:
 
 1. **Storage** — An abstracted persistence layer that reads and writes markdown articles with YAML frontmatter. The initial implementation uses flat files on disk, but the interface is designed for alternative backends (databases, git-backed stores).
@@ -66,4 +63,7 @@ Documentation of the markdown and wiki-link conventions used across the knowledg
 
 ### [[knowledge-sources|Knowledge Sources]]
 A plugin system that allows external data sources (like source code repositories) to contribute "virtual articles" to the knowledge graph. This prevents knowledge duplication by letting the codebase act as a direct participant in the architecture documentation.
+
+### [[kb-manager|Knowledge Base Manager (kb_manager.py)]]
+A UI manager tool that simplifies the orchestration of multiple WikiKnowledge environments by allowing you to start, stop, and monitor instances with distinct paths and ports via a central configuration file.
 <!-- ai:end -->

@@ -2,7 +2,7 @@
 categories: []
 created: '2026-06-20T02:02:12.540707+00:00'
 id: overview
-modified: '2026-07-06T06:00:45.748359+00:00'
+modified: '2026-07-08T02:44:31.904749+00:00'
 tags:
 - documentation
 title: WikiKnowledge overview
@@ -35,8 +35,8 @@ Without a central architect, a book quickly devolves into a disjointed collectio
 
 In contrast, Wikipedia thrives because it is designed to organize assorted pieces of knowledge rather than a single, linear narrative. It features a robust set of tools specifically built to manage the chaos that arises from having no central architect:
 
-* **Wiki links and "What links here" pages** to map relationships between separate ideas.
-* **Categories** to group related articles together dynamically.
+* **[[wiki-link-syntax|Wiki links]] and "What links here" pages** to map relationships between separate ideas.
+* **[[category-features|Categories]]** to group related articles together dynamically.
 * **Templates** to standardize how information is presented across the site.
 
 While these tools are highly effective at managing a vast, decentralized web of encyclopedia articles, they simply are not enough to build the strict, step-by-step structure required to write a coherent book.
@@ -57,14 +57,14 @@ In contrast, WikiKnowledge adopts **Wikipedia's categorization mechanism**, whic
 - **Many-to-Many Categories:** Articles are not bound to a single folder; an article can belong to multiple categories simultaneously without duplicating content.
 - **Traversable Hierarchy:** Despite being many-to-many, categories form a navigable "tree". Users and AI agents can seamlessly "climb up" the hierarchy from a specific leaf article to its parent category overviews, and further up to macro-level summaries.
 
-Additionally, WikiKnowledge supports **Knowledge Sources**, a plugin system that allows external data (like source code repositories) to act as direct participants in the knowledge graph. Rather than duplicating architectural knowledge from code into wiki articles, developers can use [[source-code-plugin|source code annotations]] to embed metadata directly in their files. These "virtual articles" appear seamlessly in the category tree alongside native articles, ensuring that the codebase and the documentation remain perfectly in sync.
+Additionally, WikiKnowledge supports **[[knowledge-sources|Knowledge Sources]]**, a plugin system that allows external data (like source code repositories) to act as direct participants in the knowledge graph. Rather than duplicating architectural knowledge from code into wiki articles, developers can use [[source-code-plugin|source code annotations]] to embed metadata directly in their files. These "virtual articles" appear seamlessly in the category tree alongside native articles, ensuring that the codebase and the documentation remain perfectly in sync.
 
 Combinations of different categories can also have their own **overview articles**, which are summaries of the combined knowledge of the categories. For example, if there are two categories "Rigid body dynamics" and "Computer simulation", there can be an **overview article** "Rigid body dynamics in computer simulation", which is a summary of the knowledge in both categories and their relation to each other, explaining different approaches to building physics simulation engines.
 
-On the physical level, information can be [[storage-abstraction|stored]] in one of two ways: markdown files and an index file, which can be rebuilt from scratch at any time. Another option is a NoSQL database like MongoDB with categories and external references separated into indexable fields.
+On the physical level, information can be [[storage-abstraction|stored]] in one of two ways: markdown files and an [[in-memory-index|index file]], which can be rebuilt from scratch at any time. Another option is a NoSQL database like MongoDB with categories and external references separated into indexable fields.
 
 A typical update cascade looks like this: a leaf article is updated, which triggers an update of the **overview article** of that category, which triggers an update of the parent **overview article**, and so on, up to the root **overview**. This way, the entire graph is always up to date, and the reader can always get a comprehensive understanding of a topic by reading the **overview articles**, and then dive into the leaf articles for more details if needed.
 
-Rewriting of the **overview articles** is done by AI, which allows to quickly update the entire graph without much manual work, but they can have specially marked sections that are maintained by humans. The human-written part acts as the preface in the textbook framework above, defining the main concepts and the structure of the knowledge, while the AI-written part summarizes the articles with references to go deeper. This way, the human can focus on the "architect" part of the book, while the AI takes care of the "content" layer.
+Rewriting of the **overview articles** is done by AI, which allows to quickly update the entire graph without much manual work, but they can have specially [[human-protected-blocks|marked sections that are maintained by humans]]. The human-written part acts as the preface in the textbook framework above, defining the main concepts and the structure of the knowledge, while the AI-written part summarizes the articles with references to go deeper. This way, the human can focus on the "architect" part of the book, while the AI takes care of the "content" layer.
 
 There is also a visualization of the graph, which allows users to see the structure of the knowledge and navigate through it.

@@ -83,8 +83,10 @@ async def chat_with_ai(body: ChatRequest, request: Request):
         raise HTTPException(status_code=500, detail="AI Service or MCP Server not initialized.")
 
     try:
-        reply = await ai_service.invoke_remote_model_with_tools(body.prompt, mcp_server)
-        return {"reply": reply}
+        result = await ai_service.invoke_remote_model_with_tools(body.prompt, mcp_server)
+        if isinstance(result, str):
+            return {"reply": result, "stats": None}
+        return {"reply": result.get("content", ""), "stats": result.get("stats")}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

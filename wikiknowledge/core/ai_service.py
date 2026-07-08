@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.request
 import urllib.error
 from pathlib import Path
@@ -149,7 +150,7 @@ class AIService:
         print(f"Verified MCP binding with {len(tools)} tools to remote model.")
         return {"status": "bound", "bound_tools_count": len(tools)}
 
-    async def invoke_remote_model_with_tools(self, prompt: str, mcp_server: Any) -> str:
+    async def invoke_remote_model_with_tools(self, prompt: str, mcp_server: Any) -> Dict[str, Any]:
         """Invoke the remote model with an active MCP tool calling loop.
 
         Allows the remote OpenAI API model to inspect, call, and receive results
@@ -191,6 +192,7 @@ class AIService:
 
         messages = [{"role": "user", "content": prompt}]
         max_iterations = 10
+        start_time = time.time()
 
         for _ in range(max_iterations):
             payload = {
@@ -222,7 +224,22 @@ class AIService:
 
             if not tool_calls:
                 # No tool calls requested, return final content
-                return message.get("content") or ""
+                end_time = time.time()
+                elapsed = end_time - start_time
+                usage = resp_data.get("usage", {})
+                prompt_tokens = usage.get("prompt_tokens", 0)
+                completion_tokens = usage.get("completion_tokens", 0)
+                tps = completion_tokens / elapsed if elapsed > 0 else 0
+                
+                return {
+                    "content": message.get("content") or "",
+                    "stats": {
+                        "prompt_tokens": prompt_tokens,
+                        "completion_tokens": completion_tokens,
+                        "time_s": round(elapsed, 2),
+                        "tps": round(tps, 1)
+                    }
+                }
 
             # Model requested tool call(s), append assistant message to history
             messages.append(message)
@@ -247,4 +264,7 @@ class AIService:
                     "content": tool_result,
                 })
 
-        return "Error: Exceeded maximum tool execution iterations."
+        return {
+            "content": "Error: Exceeded maximum tool execution iterations.",
+            "stats": None
+        }

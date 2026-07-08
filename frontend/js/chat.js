@@ -4,11 +4,35 @@
 
 const Chat = {
     _initialized: false,
+    _welcomeText: 'Hello! I am your AI assistant, wired with WikiKnowledge MCP tools. How can I help you today?',
 
-    init() {
+    async init() {
         if (this._initialized) return;
         this._bindEvents();
         this._initialized = true;
+        await this.updateWelcomeMessage();
+    },
+
+    async updateWelcomeMessage() {
+        try {
+            const settings = await API.getAISettings();
+            const provider = settings.provider || 'openai';
+            const providerName = provider === 'antigravity' ? 'Antigravity SDK' : 'OpenAI / Ollama';
+            const modelName = settings.model || (provider === 'antigravity' ? 'gemini-2.5-pro' : 'default model');
+            
+            this._welcomeText = `Hello! I am your AI assistant powered by ${providerName} (${modelName}), wired with WikiKnowledge MCP tools. How can I help you today?`;
+        } catch (e) {
+            console.error("Failed to load AI settings for welcome message", e);
+        }
+        
+        const messagesContainer = document.getElementById('chat-messages');
+        if (messagesContainer && messagesContainer.children.length <= 1) {
+             messagesContainer.innerHTML = `
+                 <div class="chat-message assistant">
+                     <div class="message-content">${Utils.escapeHtml(this._welcomeText)}</div>
+                 </div>
+             `;
+        }
     },
 
     _bindEvents() {
@@ -40,7 +64,7 @@ const Chat = {
                 if (messagesContainer) {
                     messagesContainer.innerHTML = `
                         <div class="chat-message assistant">
-                            <div class="message-content">Hello! I am your AI assistant, wired with WikiKnowledge MCP tools. How can I help you today?</div>
+                            <div class="message-content">${Utils.escapeHtml(this._welcomeText)}</div>
                         </div>
                     `;
                 }
@@ -67,7 +91,7 @@ const Chat = {
 
             try {
                 const resp = await API.sendAIChat(prompt);
-                this.updateMessage(thinkingId, resp.reply || 'No response generated.');
+                this.updateMessage(thinkingId, resp.reply || 'No response generated.', resp.stats);
             } catch (e) {
                 this.updateMessage(thinkingId, `❌ Error: ${e.message}`);
                 Utils.toast('Failed to get AI response', 'error');
@@ -117,13 +141,28 @@ const Chat = {
         return id;
     },
 
-    updateMessage(id, text) {
+    updateMessage(id, text, stats = null) {
         const msgDiv = document.getElementById(id);
         if (!msgDiv) return;
         const contentDiv = msgDiv.querySelector('.message-content');
         if (contentDiv) {
             contentDiv.innerText = text;
         }
+
+        if (stats) {
+            let statsDiv = msgDiv.querySelector('.message-stats');
+            if (!statsDiv) {
+                statsDiv = document.createElement('div');
+                statsDiv.className = 'message-stats';
+                statsDiv.style.fontSize = '0.7em';
+                statsDiv.style.color = 'var(--text-muted, #888)';
+                statsDiv.style.marginTop = '4px';
+                statsDiv.style.textAlign = 'right';
+                msgDiv.appendChild(statsDiv);
+            }
+            statsDiv.innerText = `⏱ ${stats.time_s}s | ⚡ ${stats.tps} t/s | 📝 In: ${stats.prompt_tokens}, Out: ${stats.completion_tokens}`;
+        }
+
         const messagesContainer = document.getElementById('chat-messages');
         if (messagesContainer) {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;

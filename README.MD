@@ -21,5 +21,4 @@ TODO:
 - [ ] diff-match-patch revision history for SQLite
 - [ ] implement purgeable index cache in `knowledge/.index`
 - [ ] implement authentication
-- [ ] provide response techical details in chat when possible (token count, t/s)
 - [ ] multiple knowledge bases on one server (maybe not needed, solved with dashboard)

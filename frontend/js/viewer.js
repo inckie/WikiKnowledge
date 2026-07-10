@@ -195,6 +195,16 @@ const Viewer = {
 
     _renderMeta(article) {
         const parts = [];
+
+        const isSourceCode = article.id && article.id.startsWith('src:');
+        const isDrive = article.id && article.id.startsWith('gdrive:');
+        
+        if (isDrive) {
+            parts.push(`<div class="meta-group"><span class="source-badge drive" title="Google Drive">Drive</span></div><div class="meta-divider"></div>`);
+        } else if (isSourceCode) {
+            parts.push(`<div class="meta-group"><span class="source-badge code" title="Source Code">Code</span></div><div class="meta-divider"></div>`);
+        }
+
         parts.push(`<div class="meta-group"><span class="meta-label">Type</span><span class="chip chip-type">${article.type}</span></div>`);
         if (article.mime_type) {
             parts.push(`<div class="meta-divider"></div><div class="meta-group"><span class="meta-label">MIME Type</span><span class="chip" style="background:var(--bg-tertiary); border:1px solid var(--border-color); padding: 2px 8px; border-radius: 4px; font-size: var(--text-xs);">${Utils.escapeHtml(article.mime_type)}</span></div>`);

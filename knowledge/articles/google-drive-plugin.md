@@ -1,9 +1,9 @@
 ---
 categories:
 - knowledge-sources
-created: '2026-07-08T13:00:00.000000+00:00'
+created: '2026-07-08T13:00:00+00:00'
 id: google-drive-plugin
-modified: '2026-07-08T13:00:00.000000+00:00'
+modified: '2026-07-10T07:15:00.451702+00:00'
 tags:
 - knowledge-sources
 - google-drive
@@ -203,3 +203,4 @@ Each source gets its own cache directory (`knowledge/.index/team-docs/`, `knowle
 - [[source-code-plugin|Source Code Plugin]] — the other built-in knowledge source plugin
 - [[source-link-syntax|Source Link Syntax]] — how to link to virtual articles in wiki text
 - [[knowledge-sources|Knowledge Sources]] — the plugin architecture overview
+- [[gdrive:1AxAubXmVpPNOHFANk_1shZcE_3zKxUQtM5INMLw3404|Google Drive Doc template file]]

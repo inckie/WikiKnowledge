@@ -124,10 +124,23 @@ const Viewer = {
             const exists = this._knownArticles.has(targetId);
             let cssClass = exists ? 'wiki-link' : 'wiki-link missing';
             let icon = '';
-            if (targetId.startsWith('src:')) {
+            
+            const isSrc = targetId.startsWith('src:');
+            const isGDrive = targetId.startsWith('gdrive:');
+            
+            if (isSrc || isGDrive) {
                 cssClass += ' source-link';
-                icon = '<span class="source-icon" title="External Source Code" style="font-size: 0.9em; margin-right: 2px;">🔌</span>';
+                if (!exists) {
+                    icon = '<span class="source-icon disconnected" title="Source Disconnected" style="font-size: 0.9em; margin-right: 2px; color: var(--text-muted);">⊘</span>';
+                    cssClass = cssClass.replace('missing', 'disconnected');
+                    return `<span class="${cssClass}" data-article-id="${Utils.escapeHtml(targetId)}">${icon}${Utils.escapeHtml(display)}</span>`;
+                } else {
+                    const sourceIconStr = isSrc ? '🔌' : '☁️';
+                    const sourceTitle = isSrc ? 'External Source Code' : 'Google Drive Document';
+                    icon = `<span class="source-icon" title="${sourceTitle}" style="font-size: 0.9em; margin-right: 2px;">${sourceIconStr}</span>`;
+                }
             }
+            
             return `<a class="${cssClass}" href="#/article/${encodeURIComponent(targetId)}" data-article-id="${Utils.escapeHtml(targetId)}">${icon}${Utils.escapeHtml(display)}</a>`;
         });
     },

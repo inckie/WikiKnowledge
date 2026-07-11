@@ -878,6 +878,17 @@ body {
     margin-left: 1px;
 }
 
+.wiki-link.disconnected {
+    color: var(--text-muted);
+    border-bottom-color: var(--border-color);
+    cursor: not-allowed;
+}
+
+.wiki-link.disconnected:hover {
+    color: var(--text-muted);
+    border-bottom-color: var(--text-muted);
+}
+
 .wiki-link.file-link {
     border-bottom: 1px solid var(--accent-primary);
     font-weight: 500;

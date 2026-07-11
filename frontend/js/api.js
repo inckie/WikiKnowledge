@@ -92,6 +92,25 @@ const API = {
         return this._fetch(`/resources/${encodeURIComponent(id)}`);
     },
 
+    async uploadResource(formData) {
+        const url = `${this.BASE}/resources`;
+        const resp = await fetch(url, {
+            method: 'POST',
+            body: formData, // No Content-Type header, let browser set multipart/form-data boundary
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+            throw new Error(err.detail || `HTTP ${resp.status}`);
+        }
+        return resp.json();
+    },
+
+    async deleteResource(id) {
+        return this._fetch(`/resources/${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+        });
+    },
+
     // --- AI Integration ---
 
     async getAISettings() {

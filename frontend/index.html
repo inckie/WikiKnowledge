@@ -95,6 +95,9 @@
                 <button id="btn-new-article" class="btn btn-primary btn-full">
                     + New Article
                 </button>
+                <button id="btn-upload-media" class="btn btn-ghost btn-full" style="margin-top: 8px;">
+                    📎 Upload Media
+                </button>
             </div>
         </aside>
 
@@ -231,6 +234,43 @@
                 </div>
             </div>
         </main>
+
+        <!-- Media Upload Modal -->
+        <div id="upload-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 style="margin: 0;">Upload Media Resource</h3>
+                    <button id="btn-close-upload" class="btn-ghost" style="border: none; background: transparent; cursor: pointer; font-size: 1.5rem; line-height: 1; padding: 0;">&times;</button>
+                </div>
+                <div class="modal-body form-group" style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
+                    <div>
+                        <label for="upload-file">File</label>
+                        <input type="file" id="upload-file" class="form-control" required>
+                    </div>
+                    <div>
+                        <label for="upload-id">Resource ID (e.g. image-01, my-pdf)</label>
+                        <input type="text" id="upload-id" class="form-control" placeholder="Unique resource ID" required>
+                    </div>
+                    <div>
+                        <label for="upload-title">Title</label>
+                        <input type="text" id="upload-title" class="form-control" placeholder="Descriptive title" required>
+                    </div>
+                    <div>
+                        <label for="upload-description">Description</label>
+                        <textarea id="upload-description" class="form-control" placeholder="Description for search & AI context" rows="2"></textarea>
+                    </div>
+                    <div>
+                        <label for="upload-tags">Tags (comma separated)</label>
+                        <input type="text" id="upload-tags" class="form-control">
+                    </div>
+                    <div>
+                        <label for="upload-categories">Categories (comma separated)</label>
+                        <input type="text" id="upload-categories" class="form-control">
+                    </div>
+                    <button id="btn-submit-upload" class="btn btn-primary" style="margin-top: 8px;">Upload</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Sidebar overlay for mobile -->
         <div id="sidebar-overlay" class="sidebar-overlay"></div>

@@ -313,6 +313,74 @@ const App = {
             window.location.hash = '#/new';
         });
 
+        // Upload Media
+        const uploadModal = document.getElementById('upload-modal');
+        document.getElementById('btn-upload-media').addEventListener('click', () => {
+            uploadModal.classList.remove('hidden');
+        });
+        
+        document.getElementById('btn-close-upload').addEventListener('click', () => {
+            uploadModal.classList.add('hidden');
+        });
+        
+        document.getElementById('upload-file').addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                const name = file.name;
+                const baseName = name.replace(/\.[^/.]+$/, ""); // Strip extension
+                
+                // Auto-fill ID and Title if empty
+                const idInput = document.getElementById('upload-id');
+                const titleInput = document.getElementById('upload-title');
+                
+                if (!idInput.value) idInput.value = baseName.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+                if (!titleInput.value) titleInput.value = baseName;
+            }
+        });
+        
+        document.getElementById('btn-submit-upload').addEventListener('click', async () => {
+            const fileInput = document.getElementById('upload-file');
+            const idInput = document.getElementById('upload-id');
+            const titleInput = document.getElementById('upload-title');
+            
+            if (!fileInput.files.length) return Utils.toast('Please select a file', 'error');
+            if (!idInput.value) return Utils.toast('Please provide a resource ID', 'error');
+            if (!titleInput.value) return Utils.toast('Please provide a title', 'error');
+            
+            const btn = document.getElementById('btn-submit-upload');
+            btn.disabled = true;
+            btn.textContent = 'Uploading...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                formData.append('resource_id', idInput.value);
+                formData.append('title', titleInput.value);
+                formData.append('description', document.getElementById('upload-description').value);
+                formData.append('tags', document.getElementById('upload-tags').value);
+                formData.append('categories', document.getElementById('upload-categories').value);
+                formData.append('related', '');
+                
+                const result = await API.uploadResource(formData);
+                Utils.toast(`Uploaded successfully! Embed with [[file:${result.id}]]`, 'success');
+                
+                uploadModal.classList.add('hidden');
+                
+                // Reset form
+                fileInput.value = '';
+                idInput.value = '';
+                titleInput.value = '';
+                document.getElementById('upload-description').value = '';
+                document.getElementById('upload-tags').value = '';
+                document.getElementById('upload-categories').value = '';
+            } catch (e) {
+                Utils.toast(`Upload failed: ${e.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Upload';
+            }
+        });
+
         // Edit Metadata (Google Drive articles only — bidirectional sources)
         document.getElementById('btn-edit-metadata').addEventListener('click', async () => {
             if (!this._currentArticleId) return;

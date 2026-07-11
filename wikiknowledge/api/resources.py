@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import mimetypes
+import urllib.parse
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -79,11 +80,12 @@ async def get_resource_file(request: Request, resource_id: str):
             status_code=404, detail=f"Resource '{resource_id}' not found"
         )
 
+    encoded_filename = urllib.parse.quote(resource.meta.filename)
     return Response(
         content=resource.data,
         media_type=resource.meta.mime_type,
         headers={
-            "Content-Disposition": f'inline; filename="{resource.meta.filename}"',
+            "Content-Disposition": f"inline; filename*=utf-8''{encoded_filename}",
         },
     )
 

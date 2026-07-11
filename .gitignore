@@ -61,3 +61,4 @@ knowledge/.index/
 
 # WikiKnowledge KB machine-local settings (credential paths, path overrides)
 knowledge/.settings/
+/config.json

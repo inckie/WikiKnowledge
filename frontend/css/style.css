@@ -774,14 +774,14 @@ body {
     margin: var(--space-3) 0;
 }
 
-.markdown-body a {
+.markdown-body a:not(.btn) {
     color: var(--accent-primary);
     text-decoration: none;
     border-bottom: 1px solid transparent;
     transition: all var(--transition-fast);
 }
 
-.markdown-body a:hover {
+.markdown-body a:not(.btn):hover {
     color: var(--accent-secondary);
     border-bottom-color: var(--accent-secondary);
 }

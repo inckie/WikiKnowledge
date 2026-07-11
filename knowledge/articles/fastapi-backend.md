@@ -1,11 +1,17 @@
 ---
-id: "fastapi-backend"
-title: "FastAPI Backend"
-type: "leaf"
-tags: ["architecture", "api", "fastapi", "python", "rest"]
-categories: ["system-architecture"]
-created: "2026-06-19T21:00:00Z"
-modified: "2026-06-19T21:00:00Z"
+categories:
+- system-architecture
+created: '2026-06-19T21:00:00+00:00'
+id: fastapi-backend
+modified: '2026-07-11T22:38:43.608933+00:00'
+tags:
+- architecture
+- api
+- fastapi
+- python
+- rest
+title: FastAPI Backend
+type: leaf
 ---
 
 # FastAPI Backend
@@ -14,10 +20,8 @@ The WikiKnowledge web interface is powered by a FastAPI application that serves 
 
 ## Architecture
 
-```
-Request → [[src:wikiknowledge/wk/frontend-app|FastAPI Router]] → [[src:wikiknowledge/wk/ai-service|Service Layer]] → [[src:wikiknowledge/wk/storage-contract|Storage Backend]] → Filesystem
+> Request → [[src:wikiknowledge/wk/frontend-app|FastAPI Router]] → [[src:wikiknowledge/wk/ai-service|Service Layer]] → [[src:wikiknowledge/wk/storage-contract|Storage Backend]] → Filesystem
                                          → [[src:wikiknowledge/wk/index-engine|In-Memory Index]]
-```
 
 The API layer is intentionally thin. Route handlers validate input, call into the [[storage-abstraction]] or [[in-memory-index]], and return serialized responses. Business logic (e.g., update cascading, summarization triggers) lives in the service layer.
 

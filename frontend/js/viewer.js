@@ -38,9 +38,21 @@ const Viewer = {
     render(markdown) {
         if (!markdown) return '';
 
+        // Protect code blocks from wiki-link processing
+        const codeBlocks = [];
+        let processed = markdown.replace(/(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`]+`)/g, (match) => {
+            codeBlocks.push(match);
+            return `__WK_CODE_${codeBlocks.length - 1}__`;
+        });
+
         // Pre-process: convert [[file:...]] links first, then [[wiki-links]]
-        let processed = this._processFileLinks(markdown);
+        processed = this._processFileLinks(processed);
         processed = this._processWikiLinks(processed);
+
+        // Restore code blocks
+        processed = processed.replace(/__WK_CODE_(\d+)__/g, (match, index) => {
+            return codeBlocks[parseInt(index, 10)];
+        });
 
         // Render markdown
         let html = marked.parse(processed, {

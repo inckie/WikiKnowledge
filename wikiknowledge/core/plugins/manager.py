@@ -102,16 +102,39 @@ class SourceManager:
                 all_links.update(links)
         return all_links
 
+    def get_google_drive_plugin(self, article_id: str, require_bidirectional: bool = False):
+        """Find the appropriate Google Drive plugin for an article."""
+        from wikiknowledge.core.plugins.google_drive import GoogleDrivePlugin
+        
+        candidates = []
+        for plugin in self.plugins.values():
+            if isinstance(plugin, GoogleDrivePlugin) and plugin.is_available():
+                if plugin.has_article(article_id):
+                    candidates.append(plugin)
+                    
+        if not candidates:
+            return None
+            
+        if require_bidirectional:
+            for plugin in candidates:
+                if plugin.config.get("bidirectional"):
+                    return plugin
+            return None
+            
+        # Prefer bidirectional even if not strictly required
+        for plugin in candidates:
+            if plugin.config.get("bidirectional"):
+                return plugin
+                
+        return candidates[0]
+
     async def get_article_content(self, article_id: str) -> str:
         """Route to the appropriate plugin to get content."""
         if article_id.startswith("gdrive:"):
             # Route to the Google Drive plugin that owns this doc
-            from wikiknowledge.core.plugins.google_drive import GoogleDrivePlugin
-
-            for plugin in self.plugins.values():
-                if isinstance(plugin, GoogleDrivePlugin) and plugin.is_available():
-                    if plugin.has_article(article_id):
-                        return await plugin.get_article_content(article_id)
+            plugin = self.get_google_drive_plugin(article_id)
+            if plugin:
+                return await plugin.get_article_content(article_id)
             raise KeyError(f"Google Drive article '{article_id}' not found in any source")
 
         elif article_id.startswith("src:"):

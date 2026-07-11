@@ -196,20 +196,14 @@ def create_mcp_server(
             if not article_id.startswith("gdrive:"):
                 return f"Error: Metadata updates are only supported for Google Drive articles."
 
-            # Find the Google Drive plugin that owns this article
-            from wikiknowledge.core.plugins.google_drive import GoogleDrivePlugin
-            found_plugin = None
-            for plugin in source_manager.plugins.values():
-                if isinstance(plugin, GoogleDrivePlugin) and plugin.is_available():
-                    if plugin.has_article(article_id):
-                        found_plugin = plugin
-                        break
+            # Check if there is a plugin with the article, preferring bidirectional
+            found_plugin = source_manager.get_google_drive_plugin(article_id, require_bidirectional=True)
             
             if not found_plugin:
+                # Provide a more helpful error if the article exists but isn't bidirectional
+                if source_manager.get_google_drive_plugin(article_id, require_bidirectional=False):
+                    return f"Error: Source for '{article_id}' is not configured as bidirectional."
                 return f"Error: Google Drive article '{article_id}' not found in any available source."
-                
-            if not found_plugin.config.get("bidirectional"):
-                return f"Error: Source for '{article_id}' is not configured as bidirectional."
 
             try:
                 # Need to get current tags/cats if they are not provided

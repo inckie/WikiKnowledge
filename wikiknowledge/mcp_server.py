@@ -583,6 +583,52 @@ def create_mcp_server(
             return f"Error: Failed to save resource '{resource_id}': {e}"
 
     @mcp.tool()
+    async def update_resource(
+        resource_id: str,
+        title: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+        categories: Optional[list[str]] = None,
+        related: Optional[list[str]] = None,
+        description: Optional[str] = None,
+    ) -> str:
+        """Update metadata for an existing media resource.
+        
+        Args:
+            resource_id: Unique ID of the resource to update.
+            title: Human-readable title (optional).
+            tags: List of tags (optional).
+            categories: List of categories (optional).
+            related: List of related article IDs (optional).
+            description: Summary/description of the resource (optional).
+        """
+        try:
+            resource = await storage.get_resource(resource_id)
+        except KeyError:
+            return f"Error: Resource '{resource_id}' not found."
+            
+        meta = resource.meta
+        
+        if title is not None:
+            meta.title = title
+        if tags is not None:
+            meta.tags = tags
+        if categories is not None:
+            meta.categories = categories
+        if related is not None:
+            meta.related = related
+        if description is not None:
+            meta.description = description
+            
+        meta.modified = datetime.now(timezone.utc)
+        
+        try:
+            saved_meta = await storage.save_resource(resource_id, resource.data, meta)
+            index.rebuild_resource(resource_id, saved_meta)
+            return f"Success: Resource '{resource_id}' metadata updated successfully."
+        except Exception as e:
+            return f"Error: Failed to update resource metadata '{resource_id}': {e}"
+
+    @mcp.tool()
     async def delete_resource(resource_id: str) -> str:
         """Delete a media resource and its metadata sidecar from the knowledge base.
 

@@ -111,6 +111,13 @@ const API = {
         });
     },
 
+    async updateResourceMetadata(resourceId, data) {
+        return this._fetch(`/resources/${encodeURIComponent(resourceId)}/metadata`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+
     // --- AI Integration ---
 
     async getAISettings() {

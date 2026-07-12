@@ -25,6 +25,15 @@ class ResourceMoveRequest(BaseModel):
     update_references: bool = True
 
 
+class ResourceMetaUpdateRequest(BaseModel):
+    """Request body for updating resource metadata."""
+    title: Optional[str] = None
+    tags: Optional[list[str]] = None
+    categories: Optional[list[str]] = None
+    related: Optional[list[str]] = None
+    description: Optional[str] = None
+
+
 class ResourceMetaResponse(BaseModel):
     """Resource metadata response."""
     id: str
@@ -101,6 +110,44 @@ async def get_resource_meta(request: Request, resource_id: str):
             status_code=404, detail=f"Resource '{resource_id}' not found"
         )
     return _meta_to_response(meta)
+
+
+@router.put("/resources/{resource_id:path}/metadata", response_model=ResourceMetaResponse)
+async def update_resource_metadata(
+    request: Request, resource_id: str, payload: ResourceMetaUpdateRequest
+):
+    """Update metadata for an existing resource."""
+    storage = request.app.state.storage
+    index = request.app.state.index
+
+    try:
+        resource = await storage.get_resource(resource_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=404, detail=f"Resource '{resource_id}' not found"
+        )
+
+    meta = resource.meta
+    
+    if payload.title is not None:
+        meta.title = payload.title
+    if payload.tags is not None:
+        meta.tags = payload.tags
+    if payload.categories is not None:
+        meta.categories = payload.categories
+    if payload.related is not None:
+        meta.related = payload.related
+    if payload.description is not None:
+        meta.description = payload.description
+        
+    meta.modified = datetime.now(timezone.utc)
+
+    saved_meta = await storage.save_resource(resource_id, resource.data, meta)
+    
+    # Update index
+    index.rebuild_resource(resource_id, saved_meta)
+
+    return _meta_to_response(saved_meta)
 
 
 @router.post("/resources", response_model=ResourceMetaResponse, status_code=201)

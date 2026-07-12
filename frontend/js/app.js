@@ -124,7 +124,9 @@ const App = {
 
         // Standard Edit/Delete only for local articles
         document.getElementById('btn-edit').style.display = isVirtual ? 'none' : '';
-        document.getElementById('btn-delete').style.display = isVirtual ? 'none' : '';
+        const btnDelete = document.getElementById('btn-delete');
+        btnDelete.style.display = isVirtual ? 'none' : '';
+        delete btnDelete.dataset.isResource;
 
         // "Edit Metadata" only for bidirectional Drive sources
         const editMetaBtn = document.getElementById('btn-edit-metadata');
@@ -167,6 +169,16 @@ const App = {
                     }
                 }
             }
+            
+            if (data.type === 'resource') {
+                document.getElementById('btn-edit').style.display = 'none';
+                btnDelete.style.display = '';
+                btnDelete.dataset.isResource = 'true';
+                editMetaBtn.style.display = '';
+                delete editMetaBtn.dataset.sourceId;
+                editMetaBtn.dataset.isResource = 'true';
+            }
+            
             await Viewer.show(data);
             // Reset scroll position of the main content to top AFTER content is loaded
             // and the browser has had a chance to render it.
@@ -381,7 +393,7 @@ const App = {
             }
         });
 
-        // Edit Metadata (Google Drive articles only — bidirectional sources)
+        // Edit Metadata (Google Drive articles only — bidirectional sources OR local resources)
         document.getElementById('btn-edit-metadata').addEventListener('click', async () => {
             if (!this._currentArticleId) return;
             const editorEl = document.getElementById('drive-metadata-editor');
@@ -391,12 +403,20 @@ const App = {
                 return;
             }
             const sourceId = document.getElementById('btn-edit-metadata').dataset.sourceId;
-            if (!sourceId) return;
+            const isResource = document.getElementById('btn-edit-metadata').dataset.isResource === 'true';
+            
+            if (!sourceId && !isResource) return;
             try {
-                const article = await API.fetchArticle(this._currentArticleId);
-                this._openDriveMetadataEditor(article, sourceId);
+                let item;
+                if (isResource) {
+                    item = await API.fetchResource(this._currentArticleId);
+                    item.type = 'resource';
+                } else {
+                    item = await API.fetchArticle(this._currentArticleId);
+                }
+                this._openDriveMetadataEditor(item, sourceId, isResource);
             } catch (e) {
-                Utils.toast(`Failed to load article: ${e.message}`, 'error');
+                Utils.toast(`Failed to load item: ${e.message}`, 'error');
             }
         });
 
@@ -412,9 +432,16 @@ const App = {
             if (!this._currentArticleId) return;
             if (!confirm(`Delete "${this._currentArticleId}"? This cannot be undone.`)) return;
 
+            const isResource = document.getElementById('btn-delete').dataset.isResource === 'true';
+
             try {
-                await API.deleteArticle(this._currentArticleId);
-                Utils.toast('Article deleted', 'success');
+                if (isResource) {
+                    await API.deleteResource(this._currentArticleId);
+                    Utils.toast('Resource deleted', 'success');
+                } else {
+                    await API.deleteArticle(this._currentArticleId);
+                    Utils.toast('Article deleted', 'success');
+                }
                 await this._loadArticles();
                 this._loadSidebarContent('articles');
                 window.location.hash = '#/';
@@ -587,11 +614,12 @@ const App = {
     },
 
     /**
-     * Open the inline metadata editor for a Google Drive article.
-     * @param {Object} article - Full article object
-     * @param {string} sourceId - The source name (from btn-edit-metadata dataset)
+     * Open the inline metadata editor for a Google Drive article or local resource.
+     * @param {Object} article - Full article or resource object
+     * @param {string} sourceId - The source name (from btn-edit-metadata dataset, null if resource)
+     * @param {boolean} isResource - True if editing a local resource
      */
-    _openDriveMetadataEditor(article, sourceId) {
+    _openDriveMetadataEditor(article, sourceId, isResource = false) {
         const editorEl = document.getElementById('drive-metadata-editor');
 
         editorEl.innerHTML = `
@@ -646,11 +674,21 @@ const App = {
             const articleId = this._currentArticleId;
 
             try {
-                await API.updateDriveArticleMetadata(sourceId, articleId, tags, categories);
+                if (isResource) {
+                    await API.updateResourceMetadata(articleId, { tags, categories });
+                } else {
+                    await API.updateDriveArticleMetadata(sourceId, articleId, tags, categories);
+                }
                 Utils.toast('Metadata saved!', 'success');
                 this._closeDriveMetadataEditor();
                 // Refresh the article view to show updated tags/categories
-                const updated = await API.fetchArticle(articleId);
+                let updated;
+                if (isResource) {
+                    updated = await API.fetchResource(articleId);
+                    updated.type = 'resource';
+                } else {
+                    updated = await API.fetchArticle(articleId);
+                }
                 await Viewer.show(updated);
                 // Reload article list to reflect category changes in sidebar
                 await this._loadArticles();

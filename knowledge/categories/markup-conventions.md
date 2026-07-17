@@ -3,7 +3,7 @@ categories:
 - system-architecture
 created: '2026-06-19T21:00:00+00:00'
 id: markup-conventions
-modified: '2026-06-30T05:13:14.230911+00:00'
+modified: '2026-07-17T05:24:33.684175+00:00'
 tags:
 - markup
 - conventions
@@ -35,6 +35,9 @@ Documents the YAML frontmatter format used at the top of every `.md` file. Cover
 
 ### [[wiki-link-syntax|Wiki Link Syntax]]
 Explains the `[[article-id]]` and `[[article-id|Display Text]]` double-bracket syntax for internal links. Covers resolution rules (case-sensitive matching against the `id` field), extraction and indexing (forward links + back links), edge cases (self-links, links in code blocks), and the relationship between wiki links and the knowledge graph.
+
+### [[source-link-syntax|Source Link Syntax]]
+Documents the extended wiki-link syntax used to reference virtual articles from external knowledge sources. Covers source-qualified link prefixes (`src:` and `gdrive:`), link resolution rules, multi-KB `@kb-name` qualifiers, and how disconnected sources degrade gracefully in the UI.
 
 ### [[human-protected-blocks|Human-Protected Blocks]]
 Describes the HTML comment marker system for distinguishing human-written content from AI-generated summaries in category articles. Covers the `<!-- human:start/end -->` and `<!-- ai:start/end -->` syntax, the "safe by default" rule (unmarked content is treated as human), nesting restrictions, and the visual indicators shown in the web UI.

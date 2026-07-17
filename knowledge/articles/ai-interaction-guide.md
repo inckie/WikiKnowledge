@@ -3,7 +3,7 @@ categories:
 - ai-integration
 created: '2026-06-21T10:10:00+00:00'
 id: ai-interaction-guide
-modified: '2026-07-04T17:34:45.390043+00:00'
+modified: '2026-07-17T05:41:01.429548+00:00'
 tags:
 - ai
 - mcp
@@ -84,9 +84,18 @@ When adding new information, your goal is to integrate it cleanly into the exist
 When you need to make partial updates to an existing article, avoid using `save_article` as it requires sending the entire content back, which is inefficient and risks data loss for large articles.
 Instead, use the **`update_article()`** tool.
 
+> [!WARNING]
+> **The Frontmatter Trap:** `get_article()` returns the *entire raw markdown file*, including the YAML frontmatter block at the top. However, when using `save_article()` or `update_article()`, the `content` parameter must be **only the markdown body** (excluding the YAML frontmatter). Do not pass the frontmatter text into the `content` parameter, as it will erroneously embed a metadata block inside the article body. Pass metadata using their dedicated parameters instead (`tags`, `categories`, `title`, etc.).
+
 1.  **Metadata Updates**: You can provide partial metadata (`title`, `tags`, etc.) to update just those fields.
 2.  **Content Updates (diff-match-patch)**: To modify parts of the content, provide a `content_patches` argument formatted as a standard [diff-match-patch](https://github.com/google/diff-match-patch) patch string. This allows for safe, localized text replacements without overwriting the entire file.
 3.  **Full Content Replacement**: If generating patches is too complex or the entire content needs rewriting, you can pass the full markdown text via the `content` argument (which will override `content_patches`).
+
+### Workflow for Moving or Renaming an Article
+
+If an article's ID needs to change (e.g., to better reflect its content or fix a typo), do **not** try to delete and recreate it. Instead, use the **`move_article()`** tool.
+
+This tool is critical because it will automatically find all incoming `[[wiki-links]]` across the entire knowledge base and update them to point to the new ID, preserving the integrity of the graph.
 
 ### Workflow for Managing and Embedding Media Files
 
@@ -169,3 +178,8 @@ Follow this exact process to update a dirty category:
     ```
 
 By following these steps, you contribute to the knowledge base in a structured way, enhancing its value and navigability for all users and AIs.
+
+## Related Guides
+
+*   **[[ai-source-code-annotations|AI Source Code Annotations Guide]]**: If you are writing or modifying source code in a project tracked by WikiKnowledge, read this guide to learn how to add the necessary `wk-` metadata to your docstrings so the code natively acts as a virtual article in the graph.
+*   **[[ai-settings-and-mcp-binding|AI Settings and MCP Binding]]**: Read this if you want to understand how WikiKnowledge's internal web-based AI assistant is wired to the same MCP tools you are using.

@@ -377,11 +377,9 @@ def create_mcp_server(
     async def get_category_status(category_id: str) -> str:
         """Check if a category article's summary is outdated ('dirty').
 
-        A category is dirty if any of its member articles have been modified
-        more recently than the category article itself.
+        A category is dirty if its AI summary block is missing any of its member articles.
 
-        Returns the dirty status, the category's modification time, and the
-        most recent modification time among its members.
+        Returns the dirty status, missing members if any, and the category's modification time.
         """
         # Get category article metadata
         category_meta = index.get_meta(category_id)
@@ -390,7 +388,7 @@ def create_mcp_server(
         if category_meta.type != ArticleType.CATEGORY:
             return f"Error: Article '{category_id}' is not a category."
 
-        # Get members and their modification times
+        # Get members
         member_ids = index.articles_in_category(category_id)
         if not member_ids:
             return (
@@ -398,23 +396,40 @@ def create_mcp_server(
                 f"- Category modified: {category_meta.modified.isoformat()}"
             )
 
-        member_metas = [index.get_meta(mid) for mid in member_ids]
-        member_metas = [m for m in member_metas if m is not None]
-        if not member_metas:
+        # Get category article content
+        try:
+            category_article = await storage.get_article(category_id)
+            content = category_article.content
+        except Exception as e:
+            return f"Error reading category '{category_id}': {e}"
+
+        # Extract AI Block
+        ai_start = content.find("<!-- ai:start -->")
+        ai_end = content.find("<!-- ai:end -->")
+        
+        ai_block = ""
+        if ai_start != -1 and ai_end != -1 and ai_end > ai_start:
+            ai_block = content[ai_start:ai_end]
+            
+        # Check inclusion
+        missing_members = []
+        for mid in sorted(member_ids):
+            if f"[[{mid}]]" not in ai_block and f"[[{mid}|" not in ai_block:
+                missing_members.append(mid)
+                
+        is_dirty = len(missing_members) > 0
+
+        if is_dirty:
+            missing_str = "\n".join([f"- {mid}" for mid in missing_members])
             return (
-                f"Category '{category_id}' is not dirty (it has no valid members).\n"
+                f"Category '{category_id}' is dirty. Missing members in AI summary:\n{missing_str}\n"
                 f"- Category modified: {category_meta.modified.isoformat()}"
             )
-        most_recent_member = max(member_metas, key=lambda m: m.modified)
-
-        # Compare timestamps
-        is_dirty = most_recent_member.modified > category_meta.modified
-
-        return (
-            f"Category '{category_id}' is {'dirty' if is_dirty else 'not dirty'}.\n"
-            f"- Category modified: {category_meta.modified.isoformat()}\n"
-            f"- Most recent member ('{most_recent_member.id}') modified: {most_recent_member.modified.isoformat()}"
-        )
+        else:
+            return (
+                f"Category '{category_id}' is not dirty (all members present in AI summary).\n"
+                f"- Category modified: {category_meta.modified.isoformat()}"
+            )
 
     @mcp.tool()
     async def search(query: str) -> str:

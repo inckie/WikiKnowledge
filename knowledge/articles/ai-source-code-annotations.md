@@ -3,7 +3,7 @@ categories:
 - user-manual
 created: '2026-07-06T08:08:08.414776+00:00'
 id: ai-source-code-annotations
-modified: '2026-07-18T07:04:05.964383+00:00'
+modified: '2026-07-18T07:23:55.710350+00:00'
 tags:
 - ai
 - code-generation
@@ -15,7 +15,7 @@ type: leaf
 
 # AI Source Code Annotations Guide
 
-This guide instructs AI agents on how to correctly annotate source code when writing or modifying code within projects tracked by WikiKnowledge's Source Code Plugin.
+This guide instructs AI agents on how to correctly annotate source code when writing or modifying code within projects tracked by WikiKnowledge's [[source-code-plugin|Source Code Plugin]].
 
 When an AI writes or updates a source code module, it **must** include a rich documentation block in the file's primary docstring or top-level block comment. 
 

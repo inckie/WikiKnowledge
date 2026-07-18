@@ -3,7 +3,7 @@ categories:
 - knowledge-sources
 created: '2026-07-06T05:59:41.059450+00:00'
 id: source-code-plugin
-modified: '2026-07-06T05:59:41.059467+00:00'
+modified: '2026-07-18T07:04:08.027708+00:00'
 tags:
 - knowledge-sources
 - source-code
@@ -16,15 +16,19 @@ type: leaf
 
 # Source Code Plugin
 
-The Source Code Plugin allows developers to embed WikiKnowledge metadata directly into their source code documentation (like Python docstrings or JavaScript JSDoc blocks). 
+The Source Code Plugin allows developers to embed WikiKnowledge articles directly into their source code documentation (like Python docstrings or JavaScript JSDoc blocks). 
 
-This allows the codebase to act as a direct participant in the knowledge graph, without requiring sidecar files or duplicating information in the wiki.
+This allows the codebase to act as a direct participant in the knowledge graph, eliminating data duplication and context-switching.
 
-## What Gets Captured
+## The Three Tiers of AI-Driven Knowledge
 
-The plugin is designed to capture **architectural "forest" knowledge**, not code-level "trees".
-- **Captured**: Module-level architectural descriptions, inter-module relationships, and design rationale.
-- **Not Captured**: Detailed class hierarchies, method signatures, parameter lists, or inheritance trees. (Use dedicated code indexing tools for these).
+In an AI-driven development environment, knowledge is strictly separated into three layers. The Source Code Plugin is critical for handling the final tier:
+
+1. **Human Functional Requirements (The "What")**: The top-level specifications defined by humans in the wiki.
+2. **Implementation Overview (The "Broad Stroke")**: The wiki category overviews detailing how tasks are decomposed using architectural multipliers.
+3. **Source Code Short Articles (The "How")**: The specific interfaces and implementation details. Instead of duplicating this in the wiki, this knowledge lives directly inside the source code as detailed docstring articles (similar to JavaDoc). 
+
+By extracting these short articles directly from the code, AIs don't need to waste thousands of tokens trying to parse function bodies to reverse-engineer the system. They simply read the parsed `wk-` article block.
 
 ## Annotation Conventions
 
@@ -84,14 +88,3 @@ Source code bases are declared in `knowledge/sources.json`. This versioned file 
   }
 }
 ```
-
-Machine-specific path overrides can be placed in `.settings/sources.json` (which is typically gitignored), separating the structural definition of the source from its local path on a developer's machine.
-
-## Self-Annotation Example
-WikiKnowledge annotates its own source code as a dogfooding example. Modules like `wikiknowledge/storage/base.py` define their architectural role in the knowledge graph, allowing AI agents and developers to trace from high-level wiki categories directly into the source code modules that implement them.
-
-## See Also
-
-- [[google-drive-plugin|Google Drive Plugin]] — the other built-in knowledge source; connects to Google Drive folders and exports Google Docs as virtual articles
-- [[knowledge-sources|Knowledge Sources]] — the plugin architecture shared by both plugins
-- [[source-link-syntax|Source Link Syntax]] — wiki-link syntax for referencing virtual articles (`[[src:…]]`, `[[gdrive:…]]`)

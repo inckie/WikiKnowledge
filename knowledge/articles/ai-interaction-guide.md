@@ -3,7 +3,7 @@ categories:
 - user-manual
 created: '2026-06-21T10:10:00+00:00'
 id: ai-interaction-guide
-modified: '2026-07-18T06:32:36.470682+00:00'
+modified: '2026-07-18T07:14:32.215203+00:00'
 tags:
 - ai
 - mcp
@@ -67,6 +67,15 @@ Your primary interface to the knowledge base is through MCP tools. Use them to e
 ## Adding and Updating Knowledge
 
 When adding new information, your goal is to integrate it cleanly into the existing graph.
+
+### Best Practices for AI Agents: The Three Tiers
+
+When adding or updating knowledge, you must adhere strictly to the **Three Tiers of Knowledge**. Never duplicate source code implementations (classes, interfaces, endpoints) into the wiki!
+1. **Human Functional Requirements** (The "What"): Belongs in the Wiki.
+2. **Implementation Overview** (The "Broad Stroke"): Belongs in Wiki Category Overviews.
+3. **Source Code Articles** (The "How"): Belongs embedded directly in the source code.
+
+For detailed instructions on how to document the 3rd tier and properly embed metadata in code, you **MUST** read the [[ai-source-code-annotations|AI Source Code Annotations Guide]] before proceeding.
 
 ### Workflow for Adding a New Leaf Article
 
@@ -184,5 +193,5 @@ By following these steps, you contribute to the knowledge base in a structured w
 
 ## Related Guides
 
-*   **[[ai-source-code-annotations|AI Source Code Annotations Guide]]**: If you are writing or modifying source code in a project tracked by WikiKnowledge, read this guide to learn how to add the necessary `wk-` metadata to your docstrings so the code natively acts as a virtual article in the graph.
-*   **[[ai-settings-and-mcp-binding|AI Settings and MCP Binding]]**: Read this if you want to understand how WikiKnowledge's internal web-based AI assistant is wired to the same MCP tools you are using.
+*   **[[ai-source-code-annotations|AI Source Code Annotations Guide]]**: A detailed guide on how to add `wk-` metadata and embed documentation within source files (Tier 3 knowledge).
+*   **[[ai-settings-and-mcp-binding|AI Settings and Web UI Configuration]]**: Instructions on configuring the AI interface within the WikiKnowledge Web UI.

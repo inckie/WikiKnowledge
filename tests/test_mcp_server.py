@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from wikiknowledge.mcp_server import create_mcp_server
 from wikiknowledge.storage.models import ArticleType, ArticleMeta, Article
@@ -68,69 +68,150 @@ async def test_get_category_status_no_members(mcp, mocks):
 async def test_get_category_status_clean(mcp, mocks):
     storage, index, _, _ = mocks
     
-    meta = ArticleMeta(
+    base_time = datetime.now(timezone.utc)
+    
+    cat_meta = ArticleMeta(
         id="cat",
         title="Cat",
         type=ArticleType.CATEGORY,
+        modified=base_time
     )
-    index.get_meta.return_value = meta
-    index.articles_in_category.return_value = ["member1", "member2"]
+    
+    member_meta = ArticleMeta(
+        id="member1",
+        title="Member 1",
+        type=ArticleType.LEAF,
+        modified=base_time - timedelta(days=1)
+    )
+
+    def mock_get_meta(mid):
+        if mid == "cat": return cat_meta
+        return member_meta
+
+    index.get_meta.side_effect = mock_get_meta
+    index.articles_in_category.return_value = ["member1"]
     
     content = """
     some text
     <!-- ai:start -->
     Summary:
     - [[member1]]
-    - [[member2|some title]]
     <!-- ai:end -->
     """
     
-    article = Article(meta=meta, content=content)
+    article = Article(meta=cat_meta, content=content)
     storage.get_article.return_value = article
 
     result = await call_get_category_status(mcp, "cat")
-    assert "not dirty (all members present in AI summary)" in result
+    assert "not dirty (all members present and timestamps valid)" in result
 
 @pytest.mark.asyncio
-async def test_get_category_status_dirty(mcp, mocks):
+async def test_get_category_status_dirty_by_content(mcp, mocks):
     storage, index, _, _ = mocks
     
-    meta = ArticleMeta(
+    base_time = datetime.now(timezone.utc)
+    
+    cat_meta = ArticleMeta(
         id="cat",
         title="Cat",
         type=ArticleType.CATEGORY,
+        modified=base_time
     )
-    index.get_meta.return_value = meta
-    index.articles_in_category.return_value = ["member1", "member2", "member3"]
+    
+    member_meta = ArticleMeta(
+        id="member1",
+        title="Member 1",
+        type=ArticleType.LEAF,
+        modified=base_time - timedelta(days=1)
+    )
+
+    def mock_get_meta(mid):
+        if mid == "cat": return cat_meta
+        return member_meta
+
+    index.get_meta.side_effect = mock_get_meta
+    index.articles_in_category.return_value = ["member1"]
     
     content = """
     some text
     <!-- ai:start -->
     Summary:
-    - [[member1]]
     <!-- ai:end -->
     """
     
-    article = Article(meta=meta, content=content)
+    article = Article(meta=cat_meta, content=content)
     storage.get_article.return_value = article
 
     result = await call_get_category_status(mcp, "cat")
     assert "is dirty" in result
-    assert "Missing members" in result
-    assert "- member2" in result
-    assert "- member3" in result
-    assert "- member1" not in result
+    assert "Missing members in AI summary" in result
+    assert "- member1" in result
+
+@pytest.mark.asyncio
+async def test_get_category_status_dirty_by_timestamp(mcp, mocks):
+    storage, index, _, _ = mocks
+    
+    base_time = datetime.now(timezone.utc)
+    
+    cat_meta = ArticleMeta(
+        id="cat",
+        title="Cat",
+        type=ArticleType.CATEGORY,
+        modified=base_time
+    )
+    
+    member_meta = ArticleMeta(
+        id="member1",
+        title="Member 1",
+        type=ArticleType.LEAF,
+        modified=base_time + timedelta(days=1)
+    )
+
+    def mock_get_meta(mid):
+        if mid == "cat": return cat_meta
+        return member_meta
+
+    index.get_meta.side_effect = mock_get_meta
+    index.articles_in_category.return_value = ["member1"]
+    
+    content = """
+    some text
+    <!-- ai:start -->
+    Summary:
+    - [[member1]]
+    <!-- ai:end -->
+    """
+    
+    article = Article(meta=cat_meta, content=content)
+    storage.get_article.return_value = article
+
+    result = await call_get_category_status(mcp, "cat")
+    assert "is dirty" in result
+    assert "modified later" in result
 
 @pytest.mark.asyncio
 async def test_get_category_status_missing_ai_block(mcp, mocks):
     storage, index, _, _ = mocks
     
-    meta = ArticleMeta(
+    cat_meta = ArticleMeta(
         id="cat",
         title="Cat",
         type=ArticleType.CATEGORY,
+        modified=datetime.now(timezone.utc)
     )
-    index.get_meta.return_value = meta
+    
+    member_meta = ArticleMeta(
+        id="member1",
+        title="Member 1",
+        type=ArticleType.LEAF,
+        modified=datetime.now(timezone.utc) - timedelta(days=1)
+    )
+
+    def mock_get_meta(mid):
+        if mid == "cat": return cat_meta
+        return member_meta
+        
+    index.get_meta.side_effect = mock_get_meta
     index.articles_in_category.return_value = ["member1"]
     
     # Missing the block entirely
@@ -139,7 +220,7 @@ async def test_get_category_status_missing_ai_block(mcp, mocks):
     [[member1]]
     """
     
-    article = Article(meta=meta, content=content)
+    article = Article(meta=cat_meta, content=content)
     storage.get_article.return_value = article
 
     result = await call_get_category_status(mcp, "cat")

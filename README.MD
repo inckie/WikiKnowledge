@@ -5,7 +5,7 @@
 
 WikiKnowledge is designed to solve the problem of "fragmented" knowledge by building a hierarchical, fractal knowledge graph. Unlike Wikipedia, which can be difficult to follow as a structured educational path, WikiKnowledge uses "overview" articles (category articles) to provide summary-driven pathways through different layers of information. Combination of the hierarchical structure and wiki tools allows users and AIs to easily navigate through the knowledge graph, while also providing a clear overview of the relationships between different topics.
 
-See [knowledge/articles/overview.md](knowledge/articles/overview.md) for the overview of the project.
+See [knowledge/categories/overview.md](knowledge/categories/overview.md) for the overview of the project.
 
 TODO:
 

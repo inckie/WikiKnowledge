@@ -2,14 +2,16 @@
 categories: []
 created: '2026-06-20T02:02:12.540707+00:00'
 id: overview
-modified: '2026-07-17T05:25:08.892649+00:00'
+modified: '2026-07-18T06:32:03.183707+00:00'
 tags:
 - documentation
 - overview
-title: WikiKnowledge overview
-type: leaf
+- purpose
+title: WikiKnowledge Overview
+type: category
 ---
 
+<!-- human:start -->
 # WikiKnowledge Graph Construction and Question Answering System
 
 [[file:wikiknowledge-logo.svg|WikiKnowledge Logo]]
@@ -69,3 +71,12 @@ A typical update cascade looks like this: a leaf article is updated, which trigg
 Rewriting of the **overview articles** is done by AI, which allows to quickly update the entire graph without much manual work, but they can have specially [[human-protected-blocks|marked sections that are maintained by humans]]. The human-written part acts as the preface in the textbook framework above, defining the main concepts and the structure of the knowledge, while the AI-written part summarizes the articles with references to go deeper. This way, the human can focus on the "architect" part of the book, while the AI takes care of the "content" layer.
 
 There is also a visualization of the graph, which allows users to see the structure of the knowledge and navigate through it.
+<!-- human:end -->
+
+<!-- ai:start -->
+### [[user-manual|User & AI Authoring Manual]]
+The definitive guide for humans and AI agents on how to interact with, format, and author content within the WikiKnowledge system (includes MCP settings and markup conventions).
+
+### [[system-architecture|System Architecture]]
+The technical implementation details of WikiKnowledge, covering the backend, index, and knowledge source plugins.
+<!-- ai:end -->

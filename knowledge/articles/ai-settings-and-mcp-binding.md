@@ -1,38 +1,21 @@
 ---
+categories:
+- user-manual
+created: '2026-06-24T04:15:00+00:00'
 id: ai-settings-and-mcp-binding
-title: AI Settings and MCP Binding
+modified: '2026-07-18T06:38:38.691764+00:00'
+tags:
+- ai
+- settings
+- configuration
+- ui
+title: AI Settings and Web UI Configuration
 type: leaf
-tags: ['ai', 'mcp', 'settings', 'openai-api', 'configuration']
-categories: ['ai-integration']
-created: 2026-06-24T04:15:00+00:00
-modified: 2026-06-24T04:15:00+00:00
 ---
 
-# AI Settings and MCP Binding
+# AI Settings and Web UI Configuration
 
-WikiKnowledge features an optional AI integration architecture built upon the OpenAI API protocol. This allows remote AI models (such as those hosted via Ollama, OpenAI, or compatible endpoints) to seamlessly interact with the knowledge graph, assist in generating hierarchical category overviews, and bind directly to the application's embedded Model Context Protocol (MCP) server tools.
-
-## Configuration & Environment Injection
-
-### Storage Location
-To maintain portability while separating configuration from article content, AI settings are stored within a dedicated directory in the knowledge base path:
-```
-knowledge/
-├── .settings/
-│   └── ai_config.json
-├── articles/
-└── categories/
-```
-
-### Startup Lifecycle & Environment Injection
-During application startup (managed by `AIService` within the FastAPI lifespan context), the system inspects `ai_config.json`. If configuration is present and enabled, the settings are automatically injected into `os.environ` similar to command-line arguments.
-
-Key environment variables injected include:
-- `WIKIKNOWLEDGE_AI_URL` / `OPENAI_API_BASE`
-- `WIKIKNOWLEDGE_AI_API_KEY` / `OPENAI_API_KEY`
-- `WIKIKNOWLEDGE_AI_MODEL` / `OPENAI_MODEL`
-
-This enables any underlying service or client library to instantly locate and authenticate against the remote AI model without requiring hardcoded configuration or manual environment setup.
+WikiKnowledge features an optional AI integration architecture built upon the OpenAI API protocol. This allows remote AI models (such as those hosted via Ollama, OpenAI, or compatible endpoints) to seamlessly interact with the knowledge graph and assist in generating hierarchical category overviews.
 
 ## Web UI Settings Page
 
@@ -56,27 +39,19 @@ The WikiKnowledge web interface includes a dedicated **Settings** page accessibl
 ```
 
 ### Dynamic Model Discovery
-When a user enters an OpenAI API Base URL (e.g., `https://ollama.com/v1`) and an API Key, the **Fetch Available Models** button becomes active. Clicking this button triggers a backend request (`POST /api/ai/models`) which establishes a secure connection to the remote endpoint's `/models` route, parses the available models, and populates the selection dropdown in real-time.
+When you enter an OpenAI API Base URL (e.g., `https://ollama.com/v1`) and an API Key, the **Fetch Available Models** button becomes active. Clicking this button triggers a backend request which establishes a secure connection to the remote endpoint, parses the available models, and populates the selection dropdown in real-time.
 
-## Remote MCP Tool Binding & Active Execution Loop
-
-The core objective of the AI integration is to establish an autonomous feedback loop between the remote AI model and the embedded WikiKnowledge MCP server (`wikiknowledge/mcp_server.py`).
-
+### Storage Location
+To maintain portability, these AI settings are automatically saved to a dedicated configuration file within your knowledge base directory:
 ```
-┌──────────────────────┐   tool_calls    ┌──────────────────────┐
-│  Remote OpenAI API   │ ◄─────────────► │ WikiKnowledge MCP    │
-│  (Ollama / OpenAI)   │  tool_results   │ Server (FastMCP)     │
-└──────────────────────┘                 └──────────────────────┘
+knowledge/
+├── .settings/
+│   └── ai_config.json
 ```
-
-### Active Tool Calling Architecture
-Through `AIService.invoke_remote_model_with_tools`, the system implements a fully automated OpenAI API tool execution loop:
-1. **Tool Inspection**: `AIService` extracts the available FastMCP tools (`list_articles`, `get_article`, `search`, `save_article`, etc.) and converts their JSON schemas into OpenAI API function definitions.
-2. **Execution Loop**: When a user prompt is sent to `/api/ai/chat`, the remote model receives the prompt along with the tool definitions. If the model responds with `tool_calls`, `AIService` intercepts them, executes the corresponding FastMCP tools locally in Python, appends the `tool` result messages to the conversation history, and calls the model again until a final text response is produced.
 
 ## Floating AI Chat Window
 
-The WikiKnowledge web interface provides a persistent, floating AI chat assistant accessible via a Floating Action Button (FAB) in the bottom-right corner of the screen.
+Once the settings are configured and enabled, the WikiKnowledge web interface provides a persistent, floating AI chat assistant accessible via a Floating Action Button (FAB) in the bottom-right corner of the screen.
 
 ```
 ┌──────────────────────────────────────────┐

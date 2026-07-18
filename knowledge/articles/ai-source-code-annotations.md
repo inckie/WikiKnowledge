@@ -1,9 +1,9 @@
 ---
 categories:
-- ai-integration
+- user-manual
 created: '2026-07-06T08:08:08.414776+00:00'
 id: ai-source-code-annotations
-modified: '2026-07-06T08:08:08.414810+00:00'
+modified: '2026-07-18T06:32:01.140479+00:00'
 tags:
 - ai
 - code-generation

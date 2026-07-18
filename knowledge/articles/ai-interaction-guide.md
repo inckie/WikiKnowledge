@@ -1,9 +1,9 @@
 ---
 categories:
-- ai-integration
+- user-manual
 created: '2026-06-21T10:10:00+00:00'
 id: ai-interaction-guide
-modified: '2026-07-17T05:41:01.429548+00:00'
+modified: '2026-07-18T06:32:36.470682+00:00'
 tags:
 - ai
 - mcp
@@ -17,6 +17,9 @@ type: leaf
 # AI Interaction Guide for WikiKnowledge
 
 This guide provides essential information for AI agents interacting with a WikiKnowledge base via the Model Context Protocol (MCP).
+
+> [!IMPORTANT]
+> **Foundational Rules**: Before you attempt to format frontmatter, create wiki links, or write category articles, you MUST read the [[markup-conventions]] category. It contains the strict syntax rules required for your edits to be parsed correctly by the system. Do not guess the syntax.
 
 ## System Overview
 

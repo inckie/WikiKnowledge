@@ -1,9 +1,9 @@
 ---
 categories:
-- system-architecture
+- user-manual
 created: '2026-06-19T21:00:00+00:00'
 id: markup-conventions
-modified: '2026-07-17T05:24:33.684175+00:00'
+modified: '2026-07-18T06:31:37.761713+00:00'
 tags:
 - markup
 - conventions

@@ -178,6 +178,8 @@ const Graph = {
                 let text = d.title.length > 20 ? d.title.substring(0, 18) + '…' : d.title;
                 if (d.id && d.id.startsWith('src:')) {
                     text = '🔌 ' + text;
+                } else if (d.id && d.id.startsWith('gdrive:')) {
+                    text = '☁️ ' + text;
                 }
                 return text;
             });
@@ -189,9 +191,16 @@ const Graph = {
             let typeInfo = d.type === 'resource' ? `resource (${d.mime_type || 'unknown'})` : d.type;
             if (d.id && d.id.startsWith('src:')) {
                 typeInfo = 'virtual source module';
+            } else if (d.id && d.id.startsWith('gdrive:')) {
+                typeInfo = 'google drive document';
             }
+            
+            let icon = '';
+            if (d.id && d.id.startsWith('src:')) icon = '🔌 ';
+            else if (d.id && d.id.startsWith('gdrive:')) icon = '☁️ ';
+            
             tooltip.innerHTML = `
-                <div class="tooltip-title">${(d.id && d.id.startsWith('src:') ? '🔌 ' : '') + Utils.escapeHtml(d.title)}</div>
+                <div class="tooltip-title">${icon + Utils.escapeHtml(d.title)}</div>
                 <div class="tooltip-type">${typeInfo} · ${d.linkCount} connections</div>
                 ${d.tags && d.tags.length ? `<div style="margin-top:4px;font-size:11px;color:var(--text-muted);">Tags: ${d.tags.join(', ')}</div>` : ''}
             `;

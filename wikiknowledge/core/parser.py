@@ -1,11 +1,7 @@
 """
 Wiki-link parser
-:wk-id: wk/link-parser
-:wk-tags: python, parser, regex, markdown
-:wk-categories: system-architecture
 
 Wiki-link and content block parser. Extracts [[...]] links and human/AI markers.
-Links to: [[wiki-link-syntax]], [[human-protected-blocks]], [[src:wikiknowledge/wk/index-engine]]
 """
 
 from __future__ import annotations

@@ -1,12 +1,7 @@
 /**
  * WikiKnowledge — Markdown Viewer
  * 
- * @wk-id wk/markdown-viewer
- * @wk-tags javascript, markdown, renderer
- * @wk-categories system-architecture
- *
  * Renders markdown with wiki-link resolution and human/AI block indicators.
- * Links to: [[wiki-link-syntax]], [[human-protected-blocks]], [[src:wikiknowledge/wk/frontend-app]]
  */
 
 const Viewer = {

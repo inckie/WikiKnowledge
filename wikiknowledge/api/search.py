@@ -65,7 +65,19 @@ async def search_articles(request: Request, q: str = ""):
         return []
 
     storage = request.app.state.storage
-    results = await storage.search(q)
+    index = request.app.state.index
+    
+    storage_results = await storage.search(q)
+    index_results = index.search(q)
+    
+    seen = {m.id for m in storage_results}
+    results = list(storage_results)
+    for m in index_results:
+        if m.id not in seen:
+            results.append(m)
+            seen.add(m.id)
+            
+    results.sort(key=lambda m: m.title)
     return [
         SearchResultResponse(
             id=m.id,

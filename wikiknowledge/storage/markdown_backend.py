@@ -1,6 +1,6 @@
-"""
-Markdown Storage Implementation
-:wk-id: wk/markdown-storage
+"""Markdown Storage Backend
+
+:wk-id: markdown-storage
 :wk-tags: python, markdown, filesystem, persistence
 :wk-categories: system-architecture
 

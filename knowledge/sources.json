@@ -8,7 +8,7 @@
       },
       "languages": {
         "python": {
-          "include": ["wikiknowledge/**/*.py"]
+          "include": ["wikiknowledge/**/*.py", "kb_manager.py"]
         },
         "javascript": {
           "include": ["frontend/**/*.js"]

@@ -1,12 +1,7 @@
 /**
  * WikiKnowledge — D3.js Knowledge Graph Visualization
  * 
- * @wk-id wk/graph-visualization
- * @wk-tags javascript, d3, graph, visualization
- * @wk-categories system-architecture
- *
  * D3.js force-directed graph rendering.
- * Links to: [[src:wikiknowledge/wk/graph-builder]], [[src:wikiknowledge/wk/frontend-app]]
  */
 
 const Graph = {

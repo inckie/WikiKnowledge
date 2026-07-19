@@ -1,11 +1,7 @@
 """
 Graph structure for D3.js visualization.
-:wk-id: wk/graph-builder
-:wk-tags: python, graph, visualization, d3
-:wk-categories: system-architecture
 
 D3.js graph data generation. Produces nodes+links for full graph, subgraph, and category tree.
-Links to: [[src:wikiknowledge/wk/index-engine]], [[src:wikiknowledge/wk/graph-visualization]]
 """
 
 from __future__ import annotations

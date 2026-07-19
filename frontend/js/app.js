@@ -1,12 +1,7 @@
 /**
  * WikiKnowledge — Main Application Controller
  * 
- * @wk-id wk/frontend-app
- * @wk-tags javascript, spa, frontend, routing
- * @wk-categories system-architecture
- *
  * SPA controller: hash-based routing, sidebar management, view switching.
- * Links to: [[fastapi-backend]], [[src:wikiknowledge/wk/markdown-viewer]], [[src:wikiknowledge/wk/graph-visualization]]
  */
 
 const App = {

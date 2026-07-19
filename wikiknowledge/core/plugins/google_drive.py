@@ -1,9 +1,5 @@
 """
 Google Drive Knowledge Source Plugin.
-:wk-id: wk/google-drive-plugin
-:wk-tags: google-drive, plugin, knowledge-source, sync, cache
-:wk-categories: knowledge-sources
-
 Connects to one or more Google Drive folders via service account credentials,
 discovers Google Docs, exports their content as markdown, and serves them as
 virtual articles in the knowledge graph. Supports optional bi-directional

@@ -1,11 +1,7 @@
 """
 MCP (Model Context Protocol) server for AI tool access to the knowledge base.
-:wk-id: wk/mcp-interface
-:wk-tags: python, mcp, agents, tools
-:wk-categories: ai-integration
 
 17-tool MCP server factory. Gives AI agents full CRUD + query access to the knowledge base.
-Links to: [[ai-interaction-guide]], [[src:wikiknowledge/wk/index-engine]], [[src:wikiknowledge/wk/markdown-storage]]
 """
 
 from __future__ import annotations
@@ -461,7 +457,18 @@ def create_mcp_server(
 
         Returns matching article IDs and titles.
         """
-        results = await storage.search(query)
+        storage_results = await storage.search(query)
+        index_results = index.search(query)
+        
+        seen = {m.id for m in storage_results}
+        results = list(storage_results)
+        for m in index_results:
+            if m.id not in seen:
+                results.append(m)
+                seen.add(m.id)
+                
+        results.sort(key=lambda m: m.title)
+        
         if not results:
             return f"No results for '{query}'."
 

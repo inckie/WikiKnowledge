@@ -1,16 +1,21 @@
 ---
-id: "wiki-link-syntax"
-title: "Wiki Link Syntax"
-type: "leaf"
-tags: ["markdown", "wiki-links", "syntax", "navigation"]
-categories: ["markup-conventions"]
-created: "2026-06-19T21:00:00Z"
-modified: "2026-06-19T21:00:00Z"
+categories:
+- markup-conventions
+created: '2026-06-19T21:00:00+00:00'
+id: wiki-link-syntax
+modified: '2026-07-19T08:53:49.025019+00:00'
+tags:
+- markdown
+- wiki-links
+- syntax
+- navigation
+title: Wiki Link Syntax
+type: leaf
 ---
 
 # Wiki Link Syntax
 
-WikiKnowledge uses double-bracket syntax (`[[...]]`) for internal links between articles. This is the primary mechanism for connecting knowledge and building the graph structure that powers the [[in-memory-index]] and the graph visualization.
+WikiKnowledge uses double-bracket syntax (`[[...]]`) for internal links between articles. This is the primary mechanism for connecting knowledge and building the graph structure that powers the [[src:wikiknowledge/in-memory-index]] and the graph visualization.
 
 ## Basic Syntax
 
@@ -77,4 +82,4 @@ The "What Links Here" query is one of the most powerful navigation tools in the 
 
 ## Relationship to Graph
 
-Every wiki link becomes an **edge** in the knowledge graph. The [[storage-abstraction]] provides the `get_backlinks()` method, which the [[fastapi-backend]] exposes at `GET /api/articles/{id}/backlinks`. The graph visualization uses these edges to draw connections between nodes.
+Every wiki link becomes an **edge** in the knowledge graph. The [[src:wikiknowledge/storage-abstraction]] provides the `get_backlinks()` method, which the [[src:wikiknowledge/fastapi-backend]] exposes at `GET /api/articles/{id}/backlinks`. The graph visualization uses these edges to draw connections between nodes.

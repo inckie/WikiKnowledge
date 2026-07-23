@@ -148,13 +148,19 @@ class KBManagerApp:
         try:
             # CREATE_NEW_PROCESS_GROUP flag helps prevent Ctrl+C in terminal from killing this process if we run it from a terminal
             creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
+            # On POSIX, start each KB in a new session so killpg only targets that KB process tree.
+            popen_kwargs = {
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+                "cwd": os.path.dirname(os.path.abspath(__file__)),
+                "creationflags": creationflags,
+            }
+            if sys.platform != "win32":
+                popen_kwargs["start_new_session"] = True
             
             process = subprocess.Popen(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                cwd=os.path.dirname(os.path.abspath(__file__)),
-                creationflags=creationflags
+                **popen_kwargs
             )
             self.processes[kb_id] = process
             
@@ -172,7 +178,7 @@ class KBManagerApp:
         if sys.platform == "win32":
             subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True)
         else:
-            # Fallback for non-Windows (though this script is tailored for Windows)
+            # The KB process is started in its own session on POSIX, so this kills only that tree.
             import signal
             try:
                 os.killpg(os.getpgid(pid), signal.SIGKILL)

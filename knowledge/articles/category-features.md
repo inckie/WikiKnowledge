@@ -3,7 +3,7 @@ categories:
 - markup-conventions
 created: '2026-06-22T05:53:27.653623+00:00'
 id: category-features
-modified: '2026-06-24T02:24:51.546553+00:00'
+modified: '2026-07-24T16:08:25.169240+00:00'
 tags:
 - category
 - features
@@ -12,6 +12,7 @@ tags:
 title: Category Features
 type: leaf
 ---
+
 
 # Category Features
 
@@ -30,3 +31,9 @@ AI agents can check this dirty status programmatically via MCP using the `get_ca
 
 ## Backlinks Filtering
 To reduce noise, the "What links here" (backlinks) section for a category article is filtered. Specifically, it excludes any backlinks coming from its own sub-articles. Since sub-articles intrinsically "link" to their parent category by declaring membership, hiding these implicit backlinks focuses the reader's attention on external references pointing to the category.
+
+## Article ID Rule
+
+> [!IMPORTANT]
+> `id` values must be planar slugs and must not contain `/` path separators.
+> Organize hierarchy using `categories` and `tags` instead of path-like IDs.

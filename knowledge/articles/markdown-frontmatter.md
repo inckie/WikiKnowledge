@@ -3,7 +3,7 @@ categories:
 - markup-conventions
 created: '2026-06-19T21:00:00+00:00'
 id: markdown-frontmatter
-modified: '2026-06-20T07:38:14.569244+00:00'
+modified: '2026-07-24T16:08:25.158498+00:00'
 tags:
 - markdown
 - yaml
@@ -13,6 +13,7 @@ tags:
 title: Markdown Frontmatter Convention
 type: leaf
 ---
+
 
 # Markdown Frontmatter Convention
 
@@ -62,3 +63,9 @@ YAML frontmatter was chosen over alternatives (inline metadata, separate sidecar
 2. **Human-readable** — authors can edit metadata in any text editor
 3. **Standard** — widely used in static site generators (Jekyll, Hugo, Eleventy), so tooling already exists
 4. **Parseable** — the `python-frontmatter` library handles edge cases reliably
+
+## Article ID Rule
+
+> [!IMPORTANT]
+> `id` values must be planar slugs and must not contain `/` path separators.
+> Organize hierarchy using `categories` and `tags` instead of path-like IDs.

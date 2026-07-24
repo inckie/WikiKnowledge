@@ -3,7 +3,7 @@ categories:
 - user-manual
 created: '2026-06-21T10:10:00+00:00'
 id: ai-interaction-guide
-modified: '2026-07-18T07:14:32.215203+00:00'
+modified: '2026-07-24T16:08:25.140211+00:00'
 tags:
 - ai
 - mcp
@@ -13,6 +13,7 @@ tags:
 title: AI Interaction Guide for WikiKnowledge
 type: leaf
 ---
+
 
 # AI Interaction Guide for WikiKnowledge
 
@@ -195,3 +196,9 @@ By following these steps, you contribute to the knowledge base in a structured w
 
 *   **[[ai-source-code-annotations|AI Source Code Annotations Guide]]**: A detailed guide on how to add `wk-` metadata and embed documentation within source files (Tier 3 knowledge).
 *   **[[ai-settings-and-mcp-binding|AI Settings and Web UI Configuration]]**: Instructions on configuring the AI interface within the WikiKnowledge Web UI.
+
+## Article ID Rule
+
+> [!IMPORTANT]
+> `id` values must be planar slugs and must not contain `/` path separators.
+> Organize hierarchy using `categories` and `tags` instead of path-like IDs.

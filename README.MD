@@ -10,6 +10,9 @@ See [knowledge/categories/overview.md](knowledge/categories/overview.md) for the
 TODO:
 
 - [ ] readonly mode
+- [ ] .gitignore option for source code plugin
+- [ ] Java/Kotlin parser for source code plugin
+- [ ] read/write locks on parallel requests
 - [ ] tool to add inline images in markdown editor (not as resources, but base64 embedded files)
 - [ ] add frontend-looking MCP tools for Chat agent specifically, more data in context (help user to edit articles, suggest new categories or articles, etc, propose/open links).
 - [ ] sections editing (or better block structure)

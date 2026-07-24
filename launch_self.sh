@@ -1,0 +1,1 @@
+uv run python main.py --port=8001 serve-http

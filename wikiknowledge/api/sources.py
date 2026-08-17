@@ -3,7 +3,10 @@
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
+
+from wikiknowledge.core.plugins.markdown_files import MarkdownFilesPlugin
 
 router = APIRouter(tags=["sources"])
 
@@ -34,6 +37,22 @@ async def update_source_path(request: Request, source_id: str, body: SourcePathU
         raise HTTPException(status_code=404, detail=f"Source '{source_id}' not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/sources/{source_id}/assets/{asset_path:path}")
+async def get_source_asset(request: Request, source_id: str, asset_path: str):
+    """Serve a non-article file (image, diagram, PDF) from a markdown-files source."""
+    source_manager = request.app.state.source_manager
+
+    plugin = source_manager.plugins.get(source_id)
+    if not isinstance(plugin, MarkdownFilesPlugin):
+        raise HTTPException(status_code=404, detail=f"Source '{source_id}' has no assets")
+
+    resolved = plugin.resolve_asset(asset_path)
+    if resolved is None:
+        raise HTTPException(status_code=404, detail=f"Asset '{asset_path}' not found")
+
+    return FileResponse(resolved)
 
 
 @router.put("/sources/{source_id}/articles/{article_id:path}/metadata")

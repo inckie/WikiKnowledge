@@ -7,6 +7,7 @@
 const App = {
     _articles: [],
     _resources: [],
+    _sources: [],
     _currentView: 'welcome',
     _currentArticleId: null,
 
@@ -16,9 +17,10 @@ const App = {
     async init() {
         console.log('WikiKnowledge initializing...');
 
-        // Initialize Theme & Mobile Navigation
+        // Initialize Theme & Mobile Navigation & Resizer
         this._initTheme();
         this._initMobileSidebar();
+        this._initSidebarResizer();
 
         // Load initial data
         await this._loadArticles();
@@ -43,18 +45,21 @@ const App = {
      */
     async _loadArticles() {
         try {
-            const [articles, resources] = await Promise.all([
+            const [articles, resources, sources] = await Promise.all([
                 API.fetchArticles(),
                 API.fetchResources().catch(() => []),
+                API.getSources().catch(() => []),
             ]);
             this._articles = articles;
             this._resources = resources;
+            this._sources = sources || [];
             Viewer.setKnownArticles(this._articles);
             Viewer.setKnownResources(this._resources);
         } catch (e) {
             console.error('Failed to load articles:', e);
             this._articles = [];
             this._resources = [];
+            this._sources = [];
         }
     },
 
@@ -282,12 +287,20 @@ const App = {
                 if (!results.length) {
                     resultsEl.innerHTML = '<div class="search-result-item" style="color:var(--text-muted)">No results</div>';
                 } else {
-                    resultsEl.innerHTML = results.map(r =>
-                        `<div class="search-result-item" data-id="${Utils.escapeHtml(r.id)}">
+                    resultsEl.innerHTML = results.map(r => {
+                        const sourceInfo = Utils.getSourceInfo(r, this._sources);
+                        const sourceBadge = sourceInfo.type !== 'native' ?
+                            `<span class="source-badge ${sourceInfo.badgeClass}" title="${sourceInfo.label}">${sourceInfo.badgeText}</span>` : '';
+                        const tagChips = r.tags && r.tags.length ?
+                            `<div class="search-item-tags">${r.tags.map(t => `<span class="mini-tag">#${Utils.escapeHtml(t)}</span>`).join('')}</div>` : '';
+
+                        return `<div class="search-result-item" data-id="${Utils.escapeHtml(r.id)}">
                             <span class="type-badge ${r.type}">${r.type}</span>
-                            ${Utils.escapeHtml(r.title)}
-                        </div>`
-                    ).join('');
+                            ${sourceBadge}
+                            <span class="search-result-title">${Utils.escapeHtml(r.title)}</span>
+                            ${tagChips}
+                        </div>`;
+                    }).join('');
 
                     resultsEl.querySelectorAll('.search-result-item[data-id]').forEach(el => {
                         el.addEventListener('click', () => {
@@ -480,18 +493,29 @@ const App = {
             );
             
             container.innerHTML = sortedArticles.map(a => {
-                const isSourceCode = a.id.startsWith('src:');
-                const isDrive = a.id.startsWith('gdrive:');
-                let externalIcon = '';
-                if (isDrive) {
-                    externalIcon = '<span class="source-badge drive" title="Google Drive">Drive</span>';
-                } else if (isSourceCode) {
-                    externalIcon = '<span class="source-badge code" title="Source Code">Code</span>';
+                const sourceInfo = Utils.getSourceInfo(a, this._sources);
+                let sourceBadge = '';
+                if (sourceInfo.type !== 'native') {
+                    sourceBadge = `<span class="source-badge ${sourceInfo.badgeClass}" title="${sourceInfo.label}">${sourceInfo.badgeText}</span>`;
                 }
+
+                let tagChips = '';
+                if (a.tags && a.tags.length) {
+                    tagChips = `<div class="sidebar-item-tags">${a.tags.slice(0, 3).map(t => `<span class="mini-tag" title="Tag: ${Utils.escapeHtml(t)}" onclick="event.stopPropagation(); App.filterByTag('${Utils.escapeHtml(t)}')">#${Utils.escapeHtml(t)}</span>`).join('')}${a.tags.length > 3 ? `<span class="mini-tag more">+${a.tags.length - 3}</span>` : ''}</div>`;
+                }
+
+                const fullTitle = Utils.escapeHtml(a.title || a.id);
+
                 return `<div class="sidebar-list-item${this._currentArticleId === a.id ? ' active' : ''}"
-                     data-id="${Utils.escapeHtml(a.id)}">
+                     data-id="${Utils.escapeHtml(a.id)}" title="${fullTitle}">
                     <span class="item-icon ${a.type}"></span>
-                    <span class="item-title">${externalIcon}${Utils.escapeHtml(a.title)}</span>
+                    <div class="item-main">
+                        <div class="item-title">${fullTitle}</div>
+                        <div class="item-sub">
+                            ${sourceBadge}
+                            ${tagChips}
+                        </div>
+                    </div>
                 </div>`;
             }).join('');
 
@@ -833,6 +857,55 @@ const App = {
         const overlay = document.getElementById('sidebar-overlay');
         if (sidebar) sidebar.classList.remove('open');
         if (overlay) overlay.classList.remove('active');
+    },
+
+    /**
+     * Initialize drag-to-resize sidebar panel functionality.
+     */
+    _initSidebarResizer() {
+        const sidebar = document.getElementById('sidebar');
+        const resizer = document.getElementById('sidebar-resizer');
+        if (!sidebar || !resizer) return;
+
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 0;
+
+        // Restore saved width from localStorage
+        const savedWidth = localStorage.getItem('sidebarWidth');
+        if (savedWidth) {
+            const widthNum = parseInt(savedWidth, 10);
+            if (!isNaN(widthNum) && widthNum >= 220 && widthNum <= 700) {
+                document.documentElement.style.setProperty('--sidebar-width', `${widthNum}px`);
+            }
+        }
+
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startX = e.clientX;
+            startWidth = sidebar.getBoundingClientRect().width;
+            resizer.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const deltaX = e.clientX - startX;
+            const newWidth = Math.min(Math.max(startWidth + deltaX, 220), 700);
+            document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (!isResizing) return;
+            isResizing = false;
+            resizer.classList.remove('resizing');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+
+            const currentWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'), 10) || sidebar.getBoundingClientRect().width;
+            localStorage.setItem('sidebarWidth', currentWidth);
+        });
     },
 };
 

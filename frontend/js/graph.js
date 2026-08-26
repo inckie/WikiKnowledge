@@ -176,10 +176,10 @@ const Graph = {
             .attr('dy', d => sizeScale(d.linkCount) + 14)
             .text(d => {
                 let text = d.title.length > 20 ? d.title.substring(0, 18) + '…' : d.title;
-                if (d.id && d.id.startsWith('src:')) {
-                    text = '🔌 ' + text;
-                } else if (d.id && d.id.startsWith('gdrive:')) {
-                    text = '☁️ ' + text;
+                const sourcesList = (window.App && window.App._sources) ? window.App._sources : [];
+                const sourceInfo = Utils.getSourceInfo(d, sourcesList);
+                if (sourceInfo.type !== 'native') {
+                    text = sourceInfo.icon + ' ' + text;
                 }
                 return text;
             });
@@ -188,21 +188,17 @@ const Graph = {
         const tooltip = document.getElementById('graph-tooltip');
 
         node.on('mouseover', (event, d) => {
-            let typeInfo = d.type === 'resource' ? `resource (${d.mime_type || 'unknown'})` : d.type;
-            if (d.id && d.id.startsWith('src:')) {
-                typeInfo = 'virtual source module';
-            } else if (d.id && d.id.startsWith('gdrive:')) {
-                typeInfo = 'google drive document';
-            }
-            
-            let icon = '';
-            if (d.id && d.id.startsWith('src:')) icon = '🔌 ';
-            else if (d.id && d.id.startsWith('gdrive:')) icon = '☁️ ';
+            const sourcesList = (window.App && window.App._sources) ? window.App._sources : [];
+            const sourceInfo = Utils.getSourceInfo(d, sourcesList);
+
+            let typeInfo = d.type === 'resource' ? `resource (${d.mime_type || 'unknown'})` : (sourceInfo.type !== 'native' ? sourceInfo.label : d.type);
+            const icon = sourceInfo.type !== 'native' ? sourceInfo.icon + ' ' : '';
+            const tagList = d.tags && d.tags.length ? d.tags.map(t => `#${t}`).join(' ') : '';
             
             tooltip.innerHTML = `
                 <div class="tooltip-title">${icon + Utils.escapeHtml(d.title)}</div>
-                <div class="tooltip-type">${typeInfo} · ${d.linkCount} connections</div>
-                ${d.tags && d.tags.length ? `<div style="margin-top:4px;font-size:11px;color:var(--text-muted);">Tags: ${d.tags.join(', ')}</div>` : ''}
+                <div class="tooltip-type">${Utils.escapeHtml(typeInfo)} · ${d.linkCount} connections</div>
+                ${tagList ? `<div style="margin-top:4px;font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(tagList)}</div>` : ''}
             `;
             tooltip.style.left = `${event.pageX + 15}px`;
             tooltip.style.top = `${event.pageY - 10}px`;

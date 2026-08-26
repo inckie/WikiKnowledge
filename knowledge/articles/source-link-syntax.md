@@ -33,8 +33,8 @@ To link to a virtual article provided by an external knowledge source, use a sou
 ### Resolution Rules
 
 1. **`src:` prefix**: 
-   - `source-name` maps to a local source code repository configured in `knowledge/sources.json` (e.g., `wk`).
-   - `module-path` is the developer-chosen ID defined in the source file's metadata (e.g., `storage-contract`).
+   - `source-name` maps to a local source configured in `knowledge/sources.json` (e.g., `wk`).
+   - `module-path` is the article ID within that source. For the [[source-code-plugin|Source Code Plugin]] it is the developer-chosen ID from the file's metadata (e.g., `storage-contract`); for the [[markdown-files-plugin|Markdown Files Plugin]] it is the dash-concatenated relative file path (e.g., `tutorial-auth-login`).
 2. **`gdrive:` prefix**:
    - `google-doc-id` is the globally unique Google Docs ID. This ID is stable across source renames. If multiple connected Google Drive sources contain the same shared doc, the first registered source wins.
 3. If the source is connected, the link resolves normally and displays a small source-specific icon (e.g., a plug 🔌 for source code, or a cloud ☁️ for Google Drive).

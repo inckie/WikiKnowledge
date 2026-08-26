@@ -90,4 +90,86 @@ const Utils = {
             setTimeout(() => toast.remove(), 300);
         }, 3000);
     },
+
+    /**
+     * Determine source type, badge styling, label, and icon for an article or article ID.
+     */
+    getSourceInfo(articleOrId, sourcesList = []) {
+        const article = typeof articleOrId === 'object' && articleOrId !== null ? articleOrId : { id: String(articleOrId || '') };
+        const id = article.id || '';
+        const tags = Array.isArray(article.tags) ? article.tags : [];
+
+        if (id.startsWith('gdrive:')) {
+            return {
+                type: 'drive',
+                badgeClass: 'drive',
+                badgeText: 'Drive',
+                icon: '☁️',
+                label: 'Google Drive Document'
+            };
+        }
+
+        if (id.startsWith('src:')) {
+            const sourceId = id.slice(4).split('/')[0];
+            const matchingSource = (sourcesList || []).find(s => s.id === sourceId);
+
+            if (matchingSource) {
+                if (matchingSource.type === 'MarkdownFilesPlugin') {
+                    return {
+                        type: 'markdown',
+                        badgeClass: 'markdown',
+                        badgeText: 'Markdown',
+                        icon: '📄',
+                        label: 'Markdown Document'
+                    };
+                }
+                if (matchingSource.type === 'SourceCodePlugin') {
+                    return {
+                        type: 'code',
+                        badgeClass: 'code',
+                        badgeText: 'Code',
+                        icon: '💻',
+                        label: 'Source Code'
+                    };
+                }
+            }
+
+            // Fallback heuristics based on tags/id
+            const tagsLower = tags.map(t => String(t).toLowerCase());
+            if (tagsLower.includes('markdown') || tagsLower.includes('md') || id.includes('/guides') || id.includes('/docs')) {
+                return {
+                    type: 'markdown',
+                    badgeClass: 'markdown',
+                    badgeText: 'Markdown',
+                    icon: '📄',
+                    label: 'Markdown Document'
+                };
+            }
+            if (tagsLower.includes('python') || tagsLower.includes('javascript') || tagsLower.includes('code') || tagsLower.includes('rst') || tagsLower.includes('jsdoc')) {
+                return {
+                    type: 'code',
+                    badgeClass: 'code',
+                    badgeText: 'Code',
+                    icon: '💻',
+                    label: 'Source Code'
+                };
+            }
+
+            return {
+                type: 'source',
+                badgeClass: 'source',
+                badgeText: 'Source',
+                icon: '🔌',
+                label: 'External Source'
+            };
+        }
+
+        return {
+            type: 'native',
+            badgeClass: 'native',
+            badgeText: 'Wiki',
+            icon: article.type === 'category' ? '📁' : '📄',
+            label: 'Wiki Article'
+        };
+    },
 };

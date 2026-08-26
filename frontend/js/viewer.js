@@ -216,13 +216,11 @@ const Viewer = {
     _renderMeta(article) {
         const parts = [];
 
-        const isSourceCode = article.id && article.id.startsWith('src:');
-        const isDrive = article.id && article.id.startsWith('gdrive:');
-        
-        if (isDrive) {
-            parts.push(`<div class="meta-group"><span class="source-badge drive" title="Google Drive">Drive</span></div><div class="meta-divider"></div>`);
-        } else if (isSourceCode) {
-            parts.push(`<div class="meta-group"><span class="source-badge code" title="Source Code">Code</span></div><div class="meta-divider"></div>`);
+        const sourcesList = (window.App && window.App._sources) ? window.App._sources : [];
+        const sourceInfo = Utils.getSourceInfo(article, sourcesList);
+
+        if (sourceInfo.type !== 'native') {
+            parts.push(`<div class="meta-group"><span class="source-badge ${sourceInfo.badgeClass}" title="${sourceInfo.label}">${sourceInfo.badgeText}</span></div><div class="meta-divider"></div>`);
         }
 
         parts.push(`<div class="meta-group"><span class="meta-label">Type</span><span class="chip chip-type">${article.type}</span></div>`);
@@ -324,16 +322,24 @@ const Viewer = {
             `<span class="dirty-indicator" title="This category might be outdated. One or more of its articles have been modified more recently than this overview.">⚠️</span>` :
             '';
 
+        const sourcesList = (window.App && window.App._sources) ? window.App._sources : [];
         const subArticles = (article.sub_articles || []).map(sub => {
             const unmentionedClass = sub.is_unmentioned ? 'unmentioned' : '';
             const iconClass = sub.type === 'category' ? 'item-icon category' : 'item-icon';
             const newerIcon = sub.is_newer ? `<span class="newer-indicator" title="Modified more recently than the category article" style="margin-left: 6px; font-size: 0.9em; cursor: help;">✨</span>` : '';
-            const isExternal = sub.id.startsWith('src:');
-            const externalIcon = isExternal ? '<span title="External Source" style="margin-right: 4px; text-decoration: none; display: inline-block;">🔌</span>' : '';
+            
+            const sourceInfo = Utils.getSourceInfo(sub, sourcesList);
+            const sourceBadge = sourceInfo.type !== 'native' ?
+                `<span class="source-badge ${sourceInfo.badgeClass}" title="${sourceInfo.label}">${sourceInfo.badgeText}</span>` : '';
+            const tagChips = sub.tags && sub.tags.length ?
+                `<span class="sub-article-tags">${sub.tags.slice(0, 3).map(t => `<span class="mini-tag">#${Utils.escapeHtml(t)}</span>`).join('')}</span>` : '';
+
             return `
                 <div class="sub-article-item ${unmentionedClass}">
                     <span class="${iconClass}"></span>
-                    <a href="#/article/${encodeURIComponent(sub.id)}">${externalIcon}${Utils.escapeHtml(sub.title)}</a>
+                    ${sourceBadge}
+                    <a href="#/article/${encodeURIComponent(sub.id)}">${Utils.escapeHtml(sub.title)}</a>
+                    ${tagChips}
                     ${newerIcon}
                 </div>
             `;

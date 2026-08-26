@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from wikiknowledge.core.plugins.base import KnowledgeSourcePlugin
+from wikiknowledge.core.plugins.markdown_files import MarkdownFilesPlugin
 from wikiknowledge.core.plugins.source_code import SourceCodePlugin
 from wikiknowledge.storage.models import ArticleMeta, WikiLink
 
@@ -55,9 +56,12 @@ class SourceManager:
             plugin_type = decl.get("type")
             source_settings = settings.get(source_name, {})
 
-            if plugin_type == "source-code":
-                plugin = SourceCodePlugin(source_name, kb_alias)
-                
+            if plugin_type in ("source-code", "markdown-files"):
+                if plugin_type == "source-code":
+                    plugin = SourceCodePlugin(source_name, kb_alias)
+                else:
+                    plugin = MarkdownFilesPlugin(source_name, kb_alias)
+
                 # Resolve path
                 actual_path = source_settings.get("path")
                 if not actual_path and decl.get("default_path"):

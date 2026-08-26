@@ -19,11 +19,13 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
     PY_WK_ID_RE = re.compile(r":wk-id:\s*([^\n]+)")
     PY_WK_TAGS_RE = re.compile(r":wk-tags:\s*([^\n]+)")
     PY_WK_CAT_RE = re.compile(r":wk-categories:\s*([^\n]+)")
+    PY_WK_TITLE_RE = re.compile(r":wk-title:\s*([^\n]+)")
 
-    # JavaScript JSDoc-style tags
+    # JSDoc / JavaDoc / KDoc-style tags
     JS_WK_ID_RE = re.compile(r"@wk-id\s+([^\n]+)")
     JS_WK_TAGS_RE = re.compile(r"@wk-tags\s+([^\n]+)")
     JS_WK_CAT_RE = re.compile(r"@wk-categories\s+([^\n]+)")
+    JS_WK_TITLE_RE = re.compile(r"@wk-title\s+([^\n]+)")
 
     def __init__(self, source_name: str, kb_name: str = "default"):
         self.source_name = source_name
@@ -63,16 +65,14 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
             includes = settings.get("include", [])
             excludes = settings.get("exclude", [])
             
-            # Simple globbing, could be improved to handle complex excludes
+            # Simple globbing, handles includes and excludes
             files_to_check = set()
             for inc in includes:
-                # Use recursive glob
                 matches = self.root_path.glob(inc)
                 for m in matches:
                     if m.is_file():
                         files_to_check.add(m)
                         
-            # Naive exclude processing
             for exc in excludes:
                 exc_matches = set(self.root_path.glob(exc))
                 files_to_check -= exc_matches
@@ -98,20 +98,26 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
         if not content:
             return
 
-        if lang == "python":
+        lang_lower = lang.lower()
+        if lang_lower == "python":
             self._parse_python(content, file_path)
-        elif lang == "javascript":
+        elif lang_lower in ("javascript", "typescript", "js", "ts"):
             self._parse_javascript(content, file_path)
+        elif lang_lower in ("java", "kotlin", "kt"):
+            self._parse_java_kotlin(content, file_path)
 
     def _parse_python(self, content: str, file_path: Path) -> None:
-        # Very simple docstring extraction (first """ block)
-        docstring_match = re.search(r'^(\s*)"""(.*?)"""', content, re.DOTALL | re.MULTILINE)
-        if not docstring_match:
+        docstring_matches = re.finditer(r'^(\s*)"""(.*?)"""', content, re.DOTALL | re.MULTILINE)
+        docstring = None
+        for match in docstring_matches:
+            candidate = match.group(2)
+            if self.PY_WK_ID_RE.search(candidate):
+                docstring = candidate
+                break
+
+        if not docstring:
             return
             
-        docstring = docstring_match.group(2)
-        
-        # Check for wk-id
         id_match = self.PY_WK_ID_RE.search(docstring)
         if not id_match:
             return
@@ -119,9 +125,13 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
         module_path = id_match.group(1).strip()
         article_id = f"src:{self.source_name}/{module_path}"
         
-        # Title is the first line of the docstring (ignoring empty lines)
-        lines = [l.strip() for l in docstring.split("\n")]
-        title = next((l for l in lines if l), module_path)
+        # Title is overridden by :wk-title: or is the first non-empty line
+        title_match = self.PY_WK_TITLE_RE.search(docstring)
+        if title_match:
+            title = title_match.group(1).strip()
+        else:
+            lines = [l.strip() for l in docstring.split("\n")]
+            title = next((l for l in lines if l and not l.startswith(":")), module_path)
         
         # Extract tags and categories
         tags = []
@@ -142,6 +152,7 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
         clean_content = self.PY_WK_ID_RE.sub("", docstring)
         clean_content = self.PY_WK_TAGS_RE.sub("", clean_content)
         clean_content = self.PY_WK_CAT_RE.sub("", clean_content)
+        clean_content = self.PY_WK_TITLE_RE.sub("", clean_content)
         
         meta = ArticleMeta(
             id=article_id,
@@ -167,42 +178,55 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
         self._links[article_id] = extract_wiki_links(article_id, clean_content)
 
     def _parse_javascript(self, content: str, file_path: Path) -> None:
-        # Simple JSDoc block extraction
-        jsdoc_match = re.search(r'/\*\*(.*?)\*/', content, re.DOTALL)
-        if not jsdoc_match:
+        self._parse_jsdoc_style(content, file_path)
+
+    def _parse_java_kotlin(self, content: str, file_path: Path) -> None:
+        self._parse_jsdoc_style(content, file_path)
+
+    def _parse_jsdoc_style(self, content: str, file_path: Path) -> None:
+        doc_matches = re.finditer(r'/\*\*(.*?)\*/', content, re.DOTALL)
+        docblock = None
+        for match in doc_matches:
+            candidate = match.group(1)
+            if self.JS_WK_ID_RE.search(candidate):
+                docblock = candidate
+                break
+
+        if not docblock:
             return
             
-        jsdoc = jsdoc_match.group(1)
-        
-        # Check for wk-id
-        id_match = self.JS_WK_ID_RE.search(jsdoc)
+        id_match = self.JS_WK_ID_RE.search(docblock)
         if not id_match:
             return
             
         module_path = id_match.group(1).strip()
         article_id = f"src:{self.source_name}/{module_path}"
         
-        # Clean JSDoc lines (remove * prefix)
+        # Clean JSDoc / Javadoc lines (remove * prefix)
         lines = []
-        for line in jsdoc.split("\n"):
+        for line in docblock.split("\n"):
             line = line.strip()
             if line.startswith("*"):
                 line = line[1:].strip()
             lines.append(line)
             
-        clean_jsdoc = "\n".join(lines)
+        clean_doc = "\n".join(lines)
         
-        # Title is the first line
-        title = next((l for l in lines if l), module_path)
+        # Title is overridden by @wk-title or is the first line
+        title_match = self.JS_WK_TITLE_RE.search(clean_doc)
+        if title_match:
+            title = title_match.group(1).strip()
+        else:
+            title = next((l for l in lines if l and not l.startswith("@")), module_path)
         
         # Extract tags and categories
         tags = []
-        tags_match = self.JS_WK_TAGS_RE.search(clean_jsdoc)
+        tags_match = self.JS_WK_TAGS_RE.search(clean_doc)
         if tags_match:
             tags = [t.strip() for t in tags_match.group(1).split(",") if t.strip()]
             
         categories = []
-        cat_match = self.JS_WK_CAT_RE.search(clean_jsdoc)
+        cat_match = self.JS_WK_CAT_RE.search(clean_doc)
         if cat_match:
             categories = [c.strip() for c in cat_match.group(1).split(",") if c.strip()]
             
@@ -211,9 +235,10 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
         modified = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)
         
         # Remove metadata tags
-        final_content = self.JS_WK_ID_RE.sub("", clean_jsdoc)
+        final_content = self.JS_WK_ID_RE.sub("", clean_doc)
         final_content = self.JS_WK_TAGS_RE.sub("", final_content)
         final_content = self.JS_WK_CAT_RE.sub("", final_content)
+        final_content = self.JS_WK_TITLE_RE.sub("", final_content)
         
         meta = ArticleMeta(
             id=article_id,

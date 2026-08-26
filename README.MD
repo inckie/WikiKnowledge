@@ -11,7 +11,6 @@ TODO:
 
 - [ ] readonly mode
 - [ ] .gitignore option for source code plugin
-- [ ] Java/Kotlin parser for source code plugin
 - [ ] resource bundles
 - [ ] read/write locks on parallel requests
 - [ ] tool to add inline images in markdown editor (not as resources, but base64 embedded files)

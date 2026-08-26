@@ -145,7 +145,7 @@ const Utils = {
                     label: 'Markdown Document'
                 };
             }
-            if (tagsLower.includes('python') || tagsLower.includes('javascript') || tagsLower.includes('code') || tagsLower.includes('rst') || tagsLower.includes('jsdoc')) {
+            if (tagsLower.includes('python') || tagsLower.includes('javascript') || tagsLower.includes('code') || tagsLower.includes('rst') || tagsLower.includes('jsdoc') || tagsLower.includes('java') || tagsLower.includes('kotlin')) {
                 return {
                     type: 'code',
                     badgeClass: 'code',

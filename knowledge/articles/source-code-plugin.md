@@ -48,7 +48,7 @@ The indexing engine that makes the [[storage-abstraction]] queryable.
 """
 ```
 
-### JavaScript
+### JavaScript / TypeScript
 Use file-level JSDoc blocks with `@wk-*` tags:
 
 ```javascript
@@ -60,6 +60,21 @@ Use file-level JSDoc blocks with `@wk-*` tags:
  * @wk-categories system-architecture
  *
  * Coordinates views like [[markdown-viewer]].
+ */
+```
+
+### Java / Kotlin
+Use file-level or module-level Javadoc / KDoc blocks with `@wk-*` tags:
+
+```java
+/**
+ * Authentication Manager Service.
+ *
+ * @wk-id auth/manager
+ * @wk-tags java, auth, security
+ * @wk-categories security-layer
+ *
+ * Handles authentication tokens and SSO integration.
  */
 ```
 
@@ -82,6 +97,14 @@ Source code bases are declared in `knowledge/sources.json`. This versioned file 
         "javascript": {
           "include": ["frontend/js/**/*.js"],
           "exclude": []
+        },
+        "java": {
+          "include": ["src/main/java/**/*.java"],
+          "exclude": ["**/test/**"]
+        },
+        "kotlin": {
+          "include": ["src/main/kotlin/**/*.kt"],
+          "exclude": ["**/test/**"]
         }
       }
     }

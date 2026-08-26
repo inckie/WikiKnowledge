@@ -57,6 +57,21 @@ Use JSDoc `@` tags in the file-level `/** ... */` block comment:
  */
 ```
 
+### Java / Kotlin (`.java`, `.kt`)
+Use Javadoc / KDoc `@` tags in the file-level or top-level `/** ... */` block comment:
+```java
+/**
+ * Authentication Manager Service.
+ * 
+ * @wk-id source_name/module-name
+ * @wk-tags java, security, auth, example
+ * @wk-categories system-architecture
+ *
+ * Handles authentication tokens and user session validation.
+ * Links to: [[wiki-link-target]]
+ */
+```
+
 ## Required Fields
 1. **`wk-id`**: A unique ID scoped to the project source name (e.g., `wk/my-module`).
 2. **`wk-tags`**: A comma-separated list of tags.

@@ -3,7 +3,7 @@ categories:
 - knowledge-sources
 created: '2026-07-08T13:00:00+00:00'
 id: google-drive-plugin
-modified: '2026-07-10T07:15:00.451702+00:00'
+modified: '2026-08-28T12:49:13.648048+00:00'
 tags:
 - knowledge-sources
 - google-drive
@@ -23,10 +23,20 @@ This complements the [[source-code-plugin|Source Code Plugin]] — where the sou
 ## What Gets Captured
 
 - **Google Docs** (`application/vnd.google-apps.document`) within the configured folder tree
+- **Google Folders** (`application/vnd.google-apps.folder`) are mirrored as category articles
 - Content is exported as markdown (with HTML + `markdownify` fallback for complex formatting)
 - Optional **tags and categories** stored as Google Drive `properties` (`wk_tags`, `wk_categories`), readable and writable by WikiKnowledge when `bidirectional` mode is enabled
 
 Other file types (Sheets, PDFs, images) are ignored in v1. Non-Docs files will be supported in a future release via the `include_mime_types` config field.
+
+## Folders as Categories
+
+When the `folders_as_categories` config is `true` (the default), Google Drive folders are treated as Category articles (`ArticleType.CATEGORY`). This builds a hierarchical knowledge graph mirroring the Drive folder structure.
+
+1. **Hierarchy Linking**: Any document or folder inside a parent folder automatically gets the parent folder's ID (`gdrive:<parent-id>`) added to its `categories` list. Top-level files and folders (including the root entry point folder itself) inherit the `categories` defined in the plugin configuration for the source.
+2. **Index Documents**: If a folder contains a document named `index`, `readme`, `_index`, `_category_`, or matching the folder's name exactly (case-insensitive), that document is "consumed" as the index document for the folder. The folder's content will be populated with the contents of this index document.
+3. **Virtual Generation**: If a folder lacks an index document, the plugin dynamically generates a `# Contents` list containing wiki-links to all of its immediate child articles.
+4. **Bidirectional Routing**: When `bidirectional: true` is enabled, updating the categories or tags of a folder article will push those `appProperties` directly to the underlying Google Doc acting as the index document (if one exists).
 
 ## Configuration
 
@@ -98,13 +108,13 @@ The plugin requests only the minimum required OAuth scope:
 
 ## Virtual Article IDs
 
-Google Drive articles use the `gdrive:` ID prefix. The Google Doc ID is used directly, making article IDs **globally stable** regardless of document renames, folder moves, or source name changes:
+Google Drive articles use the `gdrive:` ID prefix. The Google Doc or Folder ID is used directly, making article IDs **globally stable** regardless of document renames, folder moves, or source name changes:
 
 ```
 gdrive:1AxAubXmVpPNOHFANk_1shZcE_3zKxUQtM5INMLw3404
 ```
 
-This differs from the [[source-code-plugin|Source Code Plugin]] which uses `src:<source-name>/<path>`. Because Google Doc IDs are already globally unique, there is no need to namespace them by source name.
+This differs from the [[source-code-plugin|Source Code Plugin]] which uses `src:<source-name>/<path>`. Because Google IDs are already globally unique, there is no need to namespace them by source name.
 
 ## Local Cache
 

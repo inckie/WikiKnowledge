@@ -174,14 +174,23 @@ The Google Doc ID is globally unique and stable across renames/moves. If two sou
 
 | WikiKnowledge field | Google Drive source |
 |---------------------|---------------------|
-| `id` | `gdrive:<doc-id>` |
-| `title` | Document title from Drive API |
-| `type` | Always `ArticleType.LEAF` |
+| `id` | `gdrive:<doc-id>` or `gdrive:<folder-id>` |
+| `title` | Document/Folder title from Drive API |
+| `type` | `ArticleType.CATEGORY` for folders, `ArticleType.LEAF` for documents |
 | `tags` | From `appProperties.wk_tags` (comma-separated) if bidirectional; empty otherwise |
-| `categories` | From `appProperties.wk_categories` (comma-separated) if bidirectional; empty otherwise |
+| `categories` | Derived from parent folder hierarchy (`gdrive:<parent-id>`) AND `appProperties.wk_categories` if bidirectional |
 | `created` | `createdTime` from Drive API |
 | `modified` | `modifiedTime` from Drive API |
-| `content` | Exported markdown + footer with Drive link |
+| `content` | Exported markdown, custom index document, or dynamically generated folder contents |
+
+## Folders as Categories
+
+When the `folders_as_categories` config is `true` (the default), Google Drive folders are treated as Category articles (`ArticleType.CATEGORY`). This builds a hierarchical knowledge graph mirroring the Drive folder structure.
+
+1. **Hierarchy Linking**: Any document or folder inside a parent folder automatically gets the parent folder's ID (`gdrive:<parent-id>`) added to its `categories` list. Top-level files and folders (including the root entry point folder itself) inherit the `categories` defined in the plugin configuration for the source.
+2. **Index Documents**: If a folder contains a document named `index`, `readme`, `_index`, `_category_`, or matching the folder's name exactly (case-insensitive), that document is "consumed" as the index document for the folder. The folder's content will be populated with the contents of this index document.
+3. **Virtual Generation**: If a folder lacks an index document, the plugin dynamically generates a `# Contents` list containing wiki-links to all of its immediate child articles.
+4. **Bidirectional Routing**: When `bidirectional: true` is enabled, updating the categories or tags of a folder article will push those `appProperties` directly to the underlying Google Doc acting as the index document (if one exists).
 
 ## Bi-Directional Metadata Flow
 

@@ -44,6 +44,8 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
     optional bidirectional metadata via Google Drive appProperties.
     """
 
+    INDEX_NAMES = ("index", "readme", "_index", "_category_")
+
     def __init__(self, source_name: str, kb_name: str = "default", kb_dir: Optional[Path] = None):
         self.source_name = source_name
         self.kb_name = kb_name
@@ -165,6 +167,7 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
             "include_mime_types", [GOOGLE_DOC_MIME]
         )
         bidirectional = self.config.get("bidirectional", False)
+        folders_as_categories = self.config.get("folders_as_categories", True)
 
         logger.info("[%s] Starting sync from folder '%s'.", self.source_name, folder_id)
 
@@ -173,6 +176,20 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
         try:
             # List all remote files
             remote_files = self._list_folder_recursive(folder_id, "", recursive, include_mime_types)
+            
+            if folders_as_categories:
+                # Also fetch the root folder itself to act as the entry point category
+                try:
+                    root_info = self._drive_service.files().get(
+                        fileId=folder_id,
+                        fields="id, name, mimeType, modifiedTime, createdTime, webViewLink, appProperties, properties"
+                    ).execute()
+                    root_info["_path"] = ""
+                    if root_info.get("mimeType") == GOOGLE_FOLDER_MIME:
+                        remote_files.insert(0, root_info)
+                except Exception as exc:
+                    logger.warning("[%s] Failed to fetch root folder metadata: %s", self.source_name, exc)
+                    
         except Exception as exc:
             logger.error("[%s] Failed to list folder: %s", self.source_name, exc)
             return {"error": str(exc)}
@@ -181,13 +198,69 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
         manifest = self._read_manifest()
         cached_entries: dict[str, dict] = manifest.get("articles", {})
 
+        # Map folder paths to folder IDs
+        folder_path_to_id = {}
+        if folders_as_categories:
+            for f in remote_files:
+                if f.get("mimeType") == GOOGLE_FOLDER_MIME:
+                    folder_path_to_id[f.get("_path", "")] = f["id"]
+
+        # Identify index docs
+        index_doc_for_folder = {}
+        if folders_as_categories:
+            # Find the root folder's name if it exists in remote_files
+            root_name = ""
+            for f in remote_files:
+                if f["id"] == folder_id:
+                    root_name = f.get("name", "")
+                    break
+
+            docs = [f for f in remote_files if f.get("mimeType") != GOOGLE_FOLDER_MIME]
+            for f in docs:
+                _path = f.get("_path", "")
+                if "/" not in _path:
+                    parent_path = ""
+                    name = _path
+                    parent_name = root_name
+                else:
+                    parent_path, name = _path.rsplit("/", 1)
+                    parent_name = parent_path.split("/")[-1]
+                    
+                parent_id = folder_path_to_id.get(parent_path)
+                if not parent_id:
+                    continue
+                
+                name_lower = name.lower()
+                is_index = False
+                if name_lower in GoogleDrivePlugin.INDEX_NAMES:
+                    is_index = True
+                elif parent_name and name_lower == parent_name.lower():
+                    is_index = True
+                
+                if is_index:
+                    index_doc_for_folder[parent_id] = f
+            
+            # Remove index docs from regular processing
+            index_doc_ids = {f["id"] for f in index_doc_for_folder.values()}
+            remote_files = [f for f in remote_files if f["id"] not in index_doc_ids]
+
         remote_ids = {f["id"] for f in remote_files}
 
         # Process remote files: new and updated
         for file_info in remote_files:
             doc_id = file_info["id"]
             article_id = f"gdrive:{doc_id}"
-            drive_modified = file_info.get("modifiedTime", "")
+            mime_type = file_info.get("mimeType", GOOGLE_DOC_MIME)
+            is_folder = mime_type == GOOGLE_FOLDER_MIME
+            
+            index_doc = index_doc_for_folder.get(doc_id) if is_folder else None
+            
+            if index_doc:
+                drive_modified = index_doc.get("modifiedTime", "")
+                created_str = index_doc.get("createdTime", "")
+            else:
+                drive_modified = file_info.get("modifiedTime", "")
+                created_str = file_info.get("createdTime", "")
 
             cached = cached_entries.get(doc_id)
             if cached and cached.get("drive_modified") == drive_modified:
@@ -197,23 +270,59 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                 continue
 
             # New or modified — export from Drive
-            try:
-                content = self._export_doc(
-                    doc_id=doc_id,
-                    title=file_info.get("name", doc_id),
-                    web_view_link=file_info.get("webViewLink", ""),
-                )
-            except Exception as exc:
-                logger.warning("[%s] Failed to export doc '%s': %s", self.source_name, doc_id, exc)
-                stats["failed"] += 1
-                continue
+            content = ""
+            if index_doc:
+                try:
+                    content = self._export_doc(
+                        doc_id=index_doc["id"],
+                        title=file_info.get("name", doc_id),
+                        web_view_link=index_doc.get("webViewLink", ""),
+                    )
+                except Exception as exc:
+                    logger.warning("[%s] Failed to export index doc '%s': %s", self.source_name, index_doc["id"], exc)
+                    stats["failed"] += 1
+                    continue
+            elif not is_folder:
+                try:
+                    content = self._export_doc(
+                        doc_id=doc_id,
+                        title=file_info.get("name", doc_id),
+                        web_view_link=file_info.get("webViewLink", ""),
+                    )
+                except Exception as exc:
+                    logger.warning("[%s] Failed to export doc '%s': %s", self.source_name, doc_id, exc)
+                    stats["failed"] += 1
+                    continue
+            else:
+                # Pure virtual folder, content will be generated dynamically
+                content = f"# {file_info.get('name', doc_id)}\n"
 
             # Read properties for bidirectional metadata (fallback to appProperties for legacy)
             tags: list[str] = []
             categories: list[str] = []
+            
+            _path = file_info.get("_path", "")
+            if "/" in _path:
+                parent_path = _path.rsplit("/", 1)[0]
+                parent_id = folder_path_to_id.get(parent_path)
+                if parent_id:
+                    categories.append(f"gdrive:{parent_id}")
+            else:
+                # Top-level items inherit the root folder
+                root_id = self.config.get("folder_id")
+                if doc_id != root_id and root_id:
+                    categories.append(f"gdrive:{root_id}")
+                else:
+                    # The root folder itself inherits the source's root categories
+                    for rc in self.config.get("categories", []):
+                        if rc not in categories:
+                            categories.append(rc)
+            
+            target_info = index_doc if index_doc else file_info
+
             if bidirectional:
-                props = file_info.get("properties", {}) or {}
-                app_props = file_info.get("appProperties", {}) or {}
+                props = target_info.get("properties", {}) or {}
+                app_props = target_info.get("appProperties", {}) or {}
                 
                 raw_tags = props.get("wk_tags")
                 if raw_tags is None:
@@ -223,27 +332,24 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                 if raw_cats is None:
                     raw_cats = app_props.get("wk_categories", "")
                     
-                tags = [t.strip() for t in raw_tags.split(",") if t.strip()]
-                categories = [c.strip() for c in raw_cats.split(",") if c.strip()]
+                tags.extend([t.strip() for t in raw_tags.split(",") if t.strip() and t.strip() not in tags])
+                categories.extend([c.strip() for c in raw_cats.split(",") if c.strip() and c.strip() not in categories])
 
             # Build metadata
-            created_str = file_info.get("createdTime", "")
-            modified_str = drive_modified
-
             try:
                 created = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
             except (ValueError, AttributeError):
                 created = datetime.now(timezone.utc)
 
             try:
-                modified = datetime.fromisoformat(modified_str.replace("Z", "+00:00"))
+                modified = datetime.fromisoformat(drive_modified.replace("Z", "+00:00"))
             except (ValueError, AttributeError):
                 modified = datetime.now(timezone.utc)
 
             meta = ArticleMeta(
                 id=article_id,
                 title=file_info.get("name", doc_id),
-                type=ArticleType.LEAF,
+                type=ArticleType.CATEGORY if is_folder else ArticleType.LEAF,
                 tags=tags,
                 categories=categories,
                 created=created,
@@ -251,9 +357,10 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
             )
 
             # Save to disk cache
-            cache_file = self._cache_dir / "articles" / f"{doc_id}.md"
-            cache_file.parent.mkdir(parents=True, exist_ok=True)
-            cache_file.write_text(content, encoding="utf-8")
+            if content:
+                cache_file = self._cache_dir / "articles" / f"{doc_id}.md"
+                cache_file.parent.mkdir(parents=True, exist_ok=True)
+                cache_file.write_text(content, encoding="utf-8")
 
             # Update in-memory state
             self._articles_meta[article_id] = meta
@@ -266,13 +373,14 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                 "drive_modified": drive_modified,
                 "cached_at": datetime.now(timezone.utc).isoformat(),
                 "drive_created": created_str,
-                "mime_type": file_info.get("mimeType", GOOGLE_DOC_MIME),
-                "drive_path": file_info.get("_path", ""),
+                "mime_type": mime_type,
+                "drive_path": _path,
                 "web_view_link": file_info.get("webViewLink", ""),
                 "tags": tags,
                 "categories": categories,
                 "metadata_dirty": False,
                 "size_bytes": len(content.encode("utf-8")),
+                "index_doc_id": index_doc["id"] if index_doc else None,
             }
 
             if cached:
@@ -308,6 +416,8 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
             "articles": cached_entries,
         }
         self._write_manifest(new_manifest)
+
+        self._append_category_contents()
 
         logger.info(
             "[%s] Sync complete — new:%d updated:%d deleted:%d failed:%d unchanged:%d",
@@ -346,12 +456,16 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
         bidirectional = self.config.get("bidirectional", False)
         pushed = False
 
+        manifest = self._read_manifest()
+        entry = manifest.get("articles", {}).get(doc_id, {})
+        target_doc_id = entry.get("index_doc_id") or doc_id
+
         if bidirectional and self._available and self._drive_service:
             tags_str = ",".join(tags)
             cats_str = ",".join(categories)
             try:
                 self._drive_service.files().update(
-                    fileId=doc_id,
+                    fileId=target_doc_id,
                     body={
                         "properties": {
                             "wk_tags": tags_str[:124],
@@ -361,12 +475,11 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                     fields="id,properties",
                 ).execute()
                 pushed = True
-                logger.info("[%s] Immediately pushed metadata for doc '%s'.", self.source_name, doc_id)
+                logger.info("[%s] Immediately pushed metadata for doc '%s'.", self.source_name, target_doc_id)
             except Exception as exc:
-                logger.error("[%s] Failed to push metadata immediately for doc '%s': %s", self.source_name, doc_id, exc)
+                logger.error("[%s] Failed to push metadata immediately for doc '%s': %s", self.source_name, target_doc_id, exc)
 
         # Update in manifest
-        manifest = self._read_manifest()
         if doc_id in manifest.get("articles", {}):
             manifest["articles"][doc_id]["tags"] = tags
             manifest["articles"][doc_id]["categories"] = categories
@@ -400,9 +513,10 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                     self.source_name, doc_id,
                 )
 
+            target_doc_id = entry.get("index_doc_id") or doc_id
             try:
                 self._drive_service.files().update(
-                    fileId=doc_id,
+                    fileId=target_doc_id,
                     body={
                         "properties": {
                             "wk_tags": tags_str[:124],
@@ -413,12 +527,12 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                 ).execute()
                 entry["metadata_dirty"] = False
                 logger.info(
-                    "[%s] Pushed metadata for doc '%s'.", self.source_name, doc_id
+                    "[%s] Pushed metadata for doc '%s'.", self.source_name, target_doc_id
                 )
             except Exception as exc:
                 logger.error(
                     "[%s] Failed to push metadata for doc '%s': %s",
-                    self.source_name, doc_id, exc,
+                    self.source_name, target_doc_id, exc,
                 )
 
     # ------------------------------------------------------------------
@@ -493,6 +607,9 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                 if mime == GOOGLE_FOLDER_MIME:
                     if recursive:
                         subfolders.append((file_info["id"], file_path))
+                    if self.config.get("folders_as_categories", True):
+                        file_info["_path"] = file_path
+                        results.append(file_info)
                 elif mime in include_mime_types:
                     file_info["_path"] = file_path
                     results.append(file_info)
@@ -650,10 +767,11 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
             except (ValueError, AttributeError):
                 modified = datetime.now(timezone.utc)
 
+            is_folder = entry.get("mime_type") == GOOGLE_FOLDER_MIME
             meta = ArticleMeta(
                 id=article_id,
                 title=entry.get("title", doc_id),
-                type=ArticleType.LEAF,
+                type=ArticleType.CATEGORY if is_folder else ArticleType.LEAF,
                 tags=entry.get("tags", []),
                 categories=entry.get("categories", []),
                 created=created,
@@ -674,6 +792,14 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                         "[%s] Failed to read cached article '%s': %s",
                         self.source_name, doc_id, exc,
                     )
+            elif entry.get("mime_type") == GOOGLE_FOLDER_MIME and not entry.get("index_doc_id"):
+                # Pure virtual folder, generated content
+                content = f"# {meta.title}\n"
+                self._articles_content[article_id] = content
+                self._links[article_id] = []
+                loaded += 1
+
+        self._append_category_contents()
 
         logger.info("[%s] Loaded %d articles from cache.", self.source_name, loaded)
         return loaded > 0
@@ -701,10 +827,11 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
         except (ValueError, AttributeError):
             modified = datetime.now(timezone.utc)
 
+        is_folder = entry.get("mime_type") == GOOGLE_FOLDER_MIME
         meta = ArticleMeta(
             id=article_id,
             title=entry.get("title", doc_id),
-            type=ArticleType.LEAF,
+            type=ArticleType.CATEGORY if is_folder else ArticleType.LEAF,
             tags=entry.get("tags", []),
             categories=entry.get("categories", []),
             created=created,
@@ -723,3 +850,43 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                     "[%s] Failed to read cached article '%s': %s",
                     self.source_name, doc_id, exc,
                 )
+        elif entry.get("mime_type") == GOOGLE_FOLDER_MIME and not entry.get("index_doc_id"):
+            content = f"# {meta.title}\n"
+            self._articles_content[article_id] = content
+            self._links[article_id] = []
+
+    def _append_category_contents(self) -> None:
+        """Add a generated contents list to every folder category that lacks an index doc."""
+        if not self.config.get("folders_as_categories", True):
+            return
+
+        manifest = self._read_manifest()
+        entries = manifest.get("articles", {})
+        
+        # Build children map: parent_id -> list of (child_title, child_id)
+        children_map = {}
+        for child_id, meta in self._articles_meta.items():
+            for cat in meta.categories:
+                if cat.startswith("gdrive:"):
+                    children_map.setdefault(cat, []).append((meta.title, child_id))
+                    
+        for doc_id, entry in entries.items():
+            if entry.get("mime_type") != GOOGLE_FOLDER_MIME:
+                continue
+            
+            # If it has an index doc, we don't append contents
+            if entry.get("index_doc_id"):
+                continue
+                
+            article_id = f"gdrive:{doc_id}"
+            if article_id not in self._articles_content:
+                continue
+                
+            children = children_map.get(article_id, [])
+            if not children:
+                continue
+                
+            lines = ["", "## Contents", ""]
+            lines += [f"- [[{cid}|{title}]]" for title, cid in sorted(children)]
+            content = self._articles_content[article_id]
+            self._articles_content[article_id] = content.rstrip() + "\n" + "\n".join(lines) + "\n"

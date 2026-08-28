@@ -17,6 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from wikiknowledge.core.plugins.google_drive import GoogleDrivePlugin
+from wikiknowledge.storage.models import ArticleType
 
 
 # ---------------------------------------------------------------------------
@@ -30,6 +31,7 @@ def _make_drive_file(
     created: str = "2026-01-01T00:00:00.000Z",
     mime: str = "application/vnd.google-apps.document",
     app_props: dict | None = None,
+    path: str | None = None,
 ) -> dict:
     return {
         "id": doc_id,
@@ -39,7 +41,7 @@ def _make_drive_file(
         "createdTime": created,
         "webViewLink": f"https://docs.google.com/document/d/{doc_id}/edit",
         "appProperties": app_props or {},
-        "_path": name,
+        "_path": path if path is not None else name,
     }
 
 
@@ -259,6 +261,7 @@ class TestListFolderRecursive:
 
     def test_excludes_folders_when_not_recursive(self, tmp_path: Path):
         plugin = _make_plugin(tmp_path)
+        plugin.config["folders_as_categories"] = False
         folder = _make_drive_file("subfolder-1", "Subfolder", mime="application/vnd.google-apps.folder")
         doc = _make_drive_file("doc-001", "Doc One")
         plugin._drive_service.files.return_value.list.return_value.execute.return_value = (
@@ -334,6 +337,49 @@ class TestSync:
         # Check cache file written
         cache_file = plugin._cache_dir / "articles" / "doc-001.md"
         assert cache_file.exists()
+
+    async def test_sync_folder_without_index_doc_creates_virtual_category(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        plugin.config["recursive"] = False
+        folder = _make_drive_file("folder-001", "My Folder", mime="application/vnd.google-apps.folder")
+        
+        plugin._drive_service.files.return_value.list.return_value.execute.return_value = {
+            "files": [folder]
+        }
+        
+        stats = await plugin.sync()
+        
+        assert stats["new"] == 1
+        assert "gdrive:folder-001" in plugin._articles_meta
+        assert plugin._articles_meta["gdrive:folder-001"].type == ArticleType.CATEGORY
+        assert plugin._articles_content["gdrive:folder-001"].startswith("# My Folder")
+        assert (plugin._cache_dir / "articles" / "folder-001.md").exists()
+
+    async def test_sync_folder_with_index_doc_consumes_index(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        folder = _make_drive_file("folder-001", "My Folder", mime="application/vnd.google-apps.folder")
+        folder["_path"] = "My Folder"
+        doc = _make_drive_file("doc-index", "index", path="My Folder/index")
+        doc["_path"] = "My Folder/index"
+        
+        # Bypass Drive API for list so we can inject exact _path values
+        plugin._list_folder_recursive = MagicMock(return_value=[folder, doc])
+        
+        plugin._drive_service.files.return_value.export.return_value.execute.return_value = (
+            b"# Custom Index Content\n\nThis is long enough to pass validation check for length."
+        )
+        
+        stats = await plugin.sync()
+        
+        # Should only process 1 new article (the folder category), doc is absorbed
+        assert stats["new"] == 1
+        
+        assert "gdrive:folder-001" in plugin._articles_meta
+        assert plugin._articles_content["gdrive:folder-001"].startswith("# My Folder\n# Custom Index Content")
+        assert "gdrive:doc-index" not in plugin._articles_meta
+        
+        manifest = plugin._read_manifest()
+        assert manifest["articles"]["folder-001"]["index_doc_id"] == "doc-index"
 
     async def test_sync_unchanged_doc_skipped(self, tmp_path: Path):
         plugin = _make_plugin(tmp_path)
@@ -504,6 +550,29 @@ class TestBidirectionalMetadata:
         manifest = plugin._read_manifest()
         assert manifest["articles"]["doc-001"]["metadata_dirty"] is True
         assert manifest["articles"]["doc-001"]["tags"] == ["new-tag"]
+
+    async def test_update_metadata_on_folder_with_index_updates_index_doc(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        plugin.config["bidirectional"] = True
+        
+        plugin._cache_dir.mkdir(parents=True)
+        plugin._write_manifest({
+            "articles": {
+                "folder-001": {
+                    "title": "My Folder",
+                    "mime_type": "application/vnd.google-apps.folder",
+                    "index_doc_id": "doc-index",
+                }
+            }
+        })
+        plugin._articles_meta["gdrive:folder-001"] = MagicMock(id="gdrive:folder-001", title="My Folder", type=ArticleType.CATEGORY, created=datetime.now(), modified=datetime.now())
+        
+        plugin.update_article_metadata("gdrive:folder-001", tags=["tag1"], categories=["cat1"])
+        
+        # Verify it called drive.update with the INDEX doc id, not the folder id
+        plugin._drive_service.files.return_value.update.assert_called_once()
+        args, kwargs = plugin._drive_service.files.return_value.update.call_args
+        assert kwargs["fileId"] == "doc-index"
 
     async def test_update_metadata_raises_for_unknown_article(self, tmp_path: Path):
         plugin = _make_plugin(tmp_path)

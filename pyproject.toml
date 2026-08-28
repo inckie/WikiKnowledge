@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-wikiknowledge = "wikiknowledge.api.app:main"
+wikiknowledge = "wikiknowledge.cli:main"
 
 [dependency-groups]
 dev = [

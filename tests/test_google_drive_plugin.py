@@ -451,7 +451,8 @@ class TestSync:
         assert stats["updated"] == 1
         assert stats["new"] == 0
 
-    async def test_sync_returns_error_on_api_failure(self, tmp_path: Path):
+    @patch("wikiknowledge.core.plugins.google_drive.time.sleep")
+    async def test_sync_returns_error_on_api_failure(self, mock_sleep, tmp_path: Path):
         plugin = _make_plugin(tmp_path)
         plugin._drive_service.files.return_value.list.return_value.execute.side_effect = (
             Exception("API rate limit exceeded")
@@ -468,7 +469,7 @@ class TestSync:
 class TestBidirectionalMetadata:
     async def test_update_article_metadata_sets_dirty(self, tmp_path: Path):
         plugin = _make_plugin(tmp_path)
-        plugin.config["bidirectional"] = True
+        plugin.config["bidirectional"] = False
 
         # Pre-populate article
         plugin._cache_dir.mkdir(parents=True)

@@ -11,7 +11,6 @@ TODO:
 
 - [ ] readonly mode
 - [ ] resource bundles
-- [ ] download resources as plain text for plain text mime types (now it's always base64)
 - [ ] read/write locks on parallel requests
 - [ ] tool to add inline images in markdown editor (not as resources, but base64 embedded files)
 - [ ] add frontend-looking MCP tools for Chat agent specifically, more data in context (help user to edit articles, suggest new categories or articles, etc, propose/open links).

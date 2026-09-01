@@ -535,7 +535,29 @@ def create_mcp_server(
 
         # Include content for resources
         if resource.data:
-            if meta.mime_type.startswith(("text/", "image/svg")):
+            text_prefixes = (
+                "text/",
+                "message/",
+                "image/svg",
+                "application/json",
+                "application/javascript",
+                "application/xml",
+                "application/yaml",
+                "application/x-yaml",
+                "application/x-sh",
+                "application/x-python",
+                "application/sql",
+                "application/graphql",
+                "application/toml",
+                "application/x-toml",
+                "application/x-httpd-php",
+                "application/x-ruby",
+                "application/x-perl",
+                "application/x-tex",
+                "application/x-latex",
+                "application/ld+json",
+            )
+            if meta.mime_type.startswith(text_prefixes):
                 try:
                     text_content = resource.data.decode("utf-8")
                     result += f"\n--- content ---\n{text_content}"

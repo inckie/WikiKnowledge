@@ -3,7 +3,7 @@ categories:
 - knowledge-sources
 created: '2026-07-06T05:59:41.059450+00:00'
 id: source-code-plugin
-modified: '2026-07-18T07:04:08.027708+00:00'
+modified: '2026-09-01T11:32:59.319957+00:00'
 tags:
 - knowledge-sources
 - source-code
@@ -89,6 +89,7 @@ Source code bases are declared in `knowledge/sources.json`. This versioned file 
       "type": "source-code",
       "default_path": "../",
       "description": "WikiKnowledge's own source code",
+      "respect_gitignore": true,
       "languages": {
         "python": {
           "include": ["wikiknowledge/**/*.py"],
@@ -111,3 +112,5 @@ Source code bases are declared in `knowledge/sources.json`. This versioned file 
   }
 }
 ```
+
+Setting `"respect_gitignore": true` will automatically filter out any source files that are ignored by your `.gitignore` files, supporting both root and subdirectory `.gitignore` files.

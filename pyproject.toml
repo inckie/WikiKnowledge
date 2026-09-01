@@ -13,6 +13,7 @@ dependencies = [
     "google-api-python-client>=2.100.0",
     "google-auth>=2.23.0",
     "markdownify>=0.13.0",
+    "pathspec>=1.1.1",
 ]
 
 [project.scripts]

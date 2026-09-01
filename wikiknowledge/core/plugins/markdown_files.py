@@ -188,6 +188,16 @@ class MarkdownFilesPlugin(KnowledgeSourcePlugin):
 
         for pattern in self._exclude:
             matched -= {p.resolve() for p in self.root_path.glob(pattern)}
+            
+        respect_gitignore = self.config.get("respect_gitignore", False)
+        if respect_gitignore:
+            from wikiknowledge.core.plugins.base import is_path_ignored
+            gitignore_cache = {}
+            filtered_files = set()
+            for file_path in matched:
+                if not is_path_ignored(file_path, self.root_path, gitignore_cache):
+                    filtered_files.add(file_path)
+            matched = filtered_files
 
         return sorted(matched)
 

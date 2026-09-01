@@ -6,6 +6,7 @@
       "knowledge_bases": {
         "default": "self"
       },
+      "respect_gitignore": true,
       "languages": {
         "python": {
           "include": ["wikiknowledge/**/*.py", "kb_manager.py"]

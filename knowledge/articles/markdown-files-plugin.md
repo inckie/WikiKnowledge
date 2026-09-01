@@ -1,9 +1,9 @@
 ---
 categories:
 - knowledge-sources
-created: '2026-08-17T00:00:00.000000+00:00'
+created: '2026-08-17T00:00:00+00:00'
 id: markdown-files-plugin
-modified: '2026-08-17T00:00:00.000000+00:00'
+modified: '2026-09-01T11:33:14.596348+00:00'
 tags:
 - knowledge-sources
 - markdown
@@ -87,6 +87,7 @@ Declared in `knowledge/sources.json` with `"type": "markdown-files"`. The path r
       "knowledge_bases": { "default": "self" },
       "include": ["./**/*.md", "./**/*.mdx"],
       "exclude": ["./**/node_modules/**", "./**/.docusaurus/**"],
+      "respect_gitignore": true,
       "tags": ["documentation"]
     }
   }
@@ -97,6 +98,7 @@ Declared in `knowledge/sources.json` with `"type": "markdown-files"`. The path r
 |-------|---------|---------|
 | `include` | `["**/*.md"]` | Whitelist glob patterns, relative to the source root |
 | `exclude` | `[]` | Blacklist glob patterns, applied after `include` |
+| `respect_gitignore` | `false` | Whether to automatically ignore files matched by `.gitignore` in the source root or subdirectories |
 | `folders_as_categories` | `true` | Set to `false` for a flat import |
 | `categories` | `[]` | KB categories the top level of the tree is attached to |
 | `tags` | `[]` | Tags added to every imported article |

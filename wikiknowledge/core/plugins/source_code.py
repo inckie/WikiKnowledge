@@ -77,6 +77,16 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
                 exc_matches = set(self.root_path.glob(exc))
                 files_to_check -= exc_matches
                 
+            respect_gitignore = self.config.get("respect_gitignore", False)
+            if respect_gitignore:
+                from wikiknowledge.core.plugins.base import is_path_ignored
+                gitignore_cache = {}
+                filtered_files = set()
+                for file_path in files_to_check:
+                    if not is_path_ignored(file_path, self.root_path, gitignore_cache):
+                        filtered_files.add(file_path)
+                files_to_check = filtered_files
+                
             for file_path in files_to_check:
                 try:
                     self._parse_file(file_path, lang)

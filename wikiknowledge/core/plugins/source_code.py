@@ -180,6 +180,14 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
             lines[0] = f"# {lines[0].strip()}"
             
         clean_content = '\n'.join(lines)
+        # Rewrite [[src:target]] to [[src:{self.source_name}/target]]
+        # This allows source code to link to other files in the same codebase using [[src:module-path]]
+        # without needing to hardcode the KB configuration name (source_name).
+        clean_content = re.sub(
+            r"\[\[src:([^/\]|]+)(\|[^\]]+)?\]\]",
+            lambda m: f"[[src:{self.source_name}/{m.group(1)}{m.group(2) or ''}]]",
+            clean_content
+        )
         rel_path = file_path.relative_to(self.root_path.parent).as_posix() if self.root_path.parent in file_path.parents else file_path.name
         clean_content += f"\n\n---\n🔌 **Source File**: <a href=\"file:///{file_path.resolve().as_posix()}\">{rel_path}</a>"
 
@@ -266,6 +274,14 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
             lines[0] = f"# {lines[0].strip()}"
             
         final_content = '\n'.join(lines)
+        # Rewrite [[src:target]] to [[src:{self.source_name}/target]]
+        # This allows source code to link to other files in the same codebase using [[src:module-path]]
+        # without needing to hardcode the KB configuration name (source_name).
+        final_content = re.sub(
+            r"\[\[src:([^/\]|]+)(\|[^\]]+)?\]\]",
+            lambda m: f"[[src:{self.source_name}/{m.group(1)}{m.group(2) or ''}]]",
+            final_content
+        )
         rel_path = file_path.relative_to(self.root_path.parent).as_posix() if self.root_path.parent in file_path.parents else file_path.name
         final_content += f"\n\n---\n🔌 **Source File**: <a href=\"file:///{file_path.resolve().as_posix()}\">{rel_path}</a>"
 

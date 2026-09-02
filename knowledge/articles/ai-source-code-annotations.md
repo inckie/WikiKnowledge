@@ -31,14 +31,14 @@ Use RST-style field lists in the module-level `"""` docstring:
 """
 In-memory knowledge index for fast lookups.
 
-:wk-id: source_name/module-name
+:wk-id: module-name
 :wk-tags: python, tagging, example
 :wk-categories: system-architecture
 
 This module implements the graph traversal logic using an adjacency list. 
 It favors memory efficiency by storing node references rather than deep copies.
 ...
-Links to: [[wiki-link-target]], [[src:wikiknowledge/wk/other-module]]
+Links to: [[wiki-link-target]], [[src:other-module]]
 """
 ```
 
@@ -48,7 +48,7 @@ Use JSDoc `@` tags in the file-level `/** ... */` block comment:
 /**
  * Main Application Controller.
  * 
- * @wk-id source_name/module-name
+ * @wk-id module-name
  * @wk-tags javascript, frontend, example
  * @wk-categories system-architecture
  *
@@ -63,7 +63,7 @@ Use Javadoc / KDoc `@` tags in the file-level or top-level `/** ... */` block co
 /**
  * Authentication Manager Service.
  * 
- * @wk-id source_name/module-name
+ * @wk-id module-name
  * @wk-tags java, security, auth, example
  * @wk-categories system-architecture
  *
@@ -73,7 +73,7 @@ Use Javadoc / KDoc `@` tags in the file-level or top-level `/** ... */` block co
 ```
 
 ## Required Fields
-1. **`wk-id`**: A unique ID scoped to the project source name (e.g., `wk/my-module`).
+1. **`wk-id`**: A unique ID for the module (e.g., `my-module`). The source name prefix is automatically injected by the WikiKnowledge parser, so source code never needs to hardcode its KB configuration name.
 2. **`wk-tags`**: A comma-separated list of tags.
 3. **`wk-categories`**: A comma-separated list of categories the virtual article belongs to (e.g., `system-architecture`).
 

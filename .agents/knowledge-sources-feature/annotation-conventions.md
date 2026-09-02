@@ -19,7 +19,7 @@ Use the **module-level docstring** (the first string literal in the file). WikiK
 ```python
 """Short title of this module.
 
-:wk-id: source-name/module-path
+:wk-id: module-path
 :wk-tags: tag1, tag2, tag3
 :wk-categories: category-id-1, category-id-2
 
@@ -27,7 +27,7 @@ Architectural description of what this module does, how it fits
 into the broader system, and why it exists.
 
 Can contain [[wiki-links]] to other articles and
-[[src:source-name/other-module]] links to other source modules.
+[[src:other-module]] links to other source modules.
 
 Can use full markdown formatting including headers, lists,
 code blocks, etc. — same as wiki article content.
@@ -39,13 +39,13 @@ code blocks, etc. — same as wiki article content.
 ```python
 """In-memory knowledge index for fast lookups.
 
-:wk-id: wk/index-engine
+:wk-id: index-engine
 :wk-tags: architecture, index, search, graph
 :wk-categories: system-architecture
 
 The indexing engine that makes the [[storage-abstraction|storage layer]]
 queryable without touching the filesystem. On startup, it ingests all
-article metadata and wiki links from [[src:wk/markdown-storage]], then
+article metadata and wiki links from [[src:markdown-storage]], then
 builds four inverted indices:
 
 - **Forward links**: article → outgoing wiki links
@@ -57,8 +57,8 @@ The index supports both full rebuilds (on startup) and incremental
 single-article updates (on save/delete), keeping the system responsive
 during editing without requiring a restart.
 
-The [[src:wk/graph-builder]] consumes this index to produce the D3.js
-visualization data, and the [[src:wk/mcp-interface]] exposes index
+The [[src:graph-builder]] consumes this index to produce the D3.js
+visualization data, and the [[src:mcp-interface]] exposes index
 queries as MCP tools for AI agents.
 """
 ```
@@ -90,13 +90,13 @@ Use the **file-level JSDoc block** (first `/** ... */` comment in the file). Wik
 /**
  * Short title of this module.
  *
- * @wk-id source-name/module-path
+ * @wk-id module-path
  * @wk-tags tag1, tag2, tag3
  * @wk-categories category-id-1, category-id-2
  *
  * Architectural description of what this module does.
  *
- * Can contain [[wiki-links]] and [[src:source-name/module]] links.
+ * Can contain [[wiki-links]] and [[src:module]] links.
  */
 ```
 
@@ -106,7 +106,7 @@ Use the **file-level JSDoc block** (first `/** ... */` comment in the file). Wik
 /**
  * WikiKnowledge — Main Application Controller.
  *
- * @wk-id wk/frontend-app
+ * @wk-id frontend-app
  * @wk-tags frontend, routing, spa, controller
  * @wk-categories system-architecture
  *
@@ -114,14 +114,14 @@ Use the **file-level JSDoc block** (first `/** ... */` comment in the file). Wik
  * modules. Manages hash-based routing (#view/article-id, #edit/article-id,
  * #graph), sidebar article list, and view transitions.
  *
- * Consumes the REST API served by [[src:wk/api-app]] via the Api
- * module ([[src:wk/frontend-api]]).
+ * Consumes the REST API served by [[src:api-app]] via the Api
+ * module ([[src:frontend-api]]).
  *
  * Coordinates three main views:
- * - **Viewer** ([[src:wk/markdown-viewer]]): renders articles with
+ * - **Viewer** ([[src:markdown-viewer]]): renders articles with
  *   live wiki-link resolution
- * - **Editor** ([[src:wk/frontend-editor]]): split-pane markdown editing
- * - **Graph** ([[src:wk/graph-visualization]]): D3.js knowledge graph
+ * - **Editor** ([[src:frontend-editor]]): split-pane markdown editing
+ * - **Graph** ([[src:graph-visualization]]): D3.js knowledge graph
  */
 ```
 
@@ -152,7 +152,7 @@ The pattern extends naturally:
 /**
  * Module Title.
  *
- * @wk-id source/module-path
+ * @wk-id module-path
  * @wk-tags tag1, tag2
  * @wk-categories category-id
  *
@@ -165,7 +165,7 @@ package com.example.mymodule;
 ```rust
 //! Module Title.
 //!
-//! :wk-id: source/module-path
+//! :wk-id: module-path
 //! :wk-tags: tag1, tag2
 //! :wk-categories: category-id
 //!
@@ -176,7 +176,7 @@ package com.example.mymodule;
 ```go
 // Package mypackage provides...
 //
-// :wk-id: source/module-path
+// :wk-id: module-path
 // :wk-tags: tag1, tag2
 // :wk-categories: category-id
 //
@@ -190,7 +190,7 @@ package mypackage
 /// Module Title.
 /// </summary>
 /// <remarks>
-/// <wk-id>source/module-path</wk-id>
+/// <wk-id>module-path</wk-id>
 /// <wk-tags>tag1, tag2</wk-tags>
 /// <wk-categories>category-id</wk-categories>
 ///
@@ -206,22 +206,24 @@ Each language would have its own parser in the source-code plugin, but all produ
 
 | Field | Required | Format | Description |
 |-------|----------|--------|-------------|
-| `wk-id` | Yes | `source-name/module-path` | Unique article ID. Source name must match config. |
+| `wk-id` | Yes | `module-path` | Unique module ID. The source name is automatically prepended by the parser. |
 | `wk-tags` | No | Comma-separated | Tags for indexing. Merged with any source-level default tags. |
 | `wk-categories` | No | Comma-separated article IDs | Category memberships. Can reference both wiki and source articles. Use `@kb-name` suffix for multi-KB targets. |
 | `wk-title` | No | Free text | Override title (default: first line of docstring). |
 
 ## ID Format
 
-Article IDs for source-code articles follow the pattern: `source-name/module-path`
+Article IDs for source-code articles follow the pattern: `src:source-name/module-path`
 
-- `source-name` matches the key in the sources configuration (e.g., `wk`)
+- `source-name` matches the key in the sources configuration (e.g., `wk`). It is automatically prepended by the parser — source code only declares `module-path`.
 - `module-path` is a developer-chosen slug (e.g., `index-engine`, `storage-contract`)
 - The full ID used in wiki links and the index is `src:source-name/module-path`
 
 This namespacing prevents collisions between:
 - Different sources that might have similar module names
 - Source articles and native wiki articles
+
+Within source code annotations, use relative links (`[[src:other-module]]`) to reference sibling modules in the same source. The parser auto-qualifies them with the correct source name. Use fully qualified links (`[[src:source-name/module]]`) only in wiki articles or when linking across sources.
 
 ## Multi-KB Annotations
 
@@ -234,7 +236,7 @@ If a source is connected to only one KB, everything works without qualification:
 ```python
 """Auth Service.
 
-:wk-id: myapp/auth-service
+:wk-id: auth-service
 :wk-categories: system-architecture
 
 Implements authentication. See [[security-overview]] for the design.
@@ -250,7 +252,7 @@ When connected to multiple KBs, unqualified references resolve against the **def
 ```python
 """Auth Service.
 
-:wk-id: myapp/auth-service
+:wk-id: auth-service
 :wk-categories: system-architecture, api-endpoints@api-docs
 
 Implements authentication per the spec in [[auth-spec@api-docs]].

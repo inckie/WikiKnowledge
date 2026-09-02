@@ -30,6 +30,9 @@ To link to a virtual article provided by an external knowledge source, use a sou
 [[gdrive:google-doc-id|Display Text]]
 ```
 
+### Relative Source Links
+When writing wiki links *inside* a source code file to reference another file in the *same* source codebase, you can omit the `source-name/` portion (e.g., `[[src:module-path]]`). The WikiKnowledge parser automatically prepends the correct source name during indexing, ensuring the source code remains completely decoupled from the KB's connection configuration.
+
 ### Resolution Rules
 
 1. **`src:` prefix**: 

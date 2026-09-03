@@ -78,6 +78,25 @@ Use file-level or module-level Javadoc / KDoc blocks with `@wk-*` tags:
  */
 ```
 
+### Swift
+Swift documents with `///` line runs far more often than with `/** */` blocks, so both are
+accepted. Directives use the `@wk-*` form, matching DocC:
+
+```swift
+/// The loaded bar, drawn.
+///
+/// @wk-id design/barbell-view
+/// @wk-tags swift, design-system
+/// @wk-categories ios-client
+///
+/// The one component worth porting pixel for pixel. See [[plate-math]].
+public struct BarbellView: View {}
+```
+
+A `///` run is rewritten into the block form and parsed by the same code that handles
+Javadoc, so the two Swift styles cannot drift apart. Separator rules written as `////` are
+decoration rather than documentation and are skipped.
+
 ## Configuration
 
 Source code bases are declared in `knowledge/sources.json`. This versioned file specifies the source name, plugin type, and language-specific include/exclude patterns:

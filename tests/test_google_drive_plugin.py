@@ -513,11 +513,9 @@ class TestSync:
 # ---------------------------------------------------------------------------
 
 class TestBidirectionalMetadata:
-    async def test_update_article_metadata_sets_dirty(self, tmp_path: Path):
-        plugin = _make_plugin(tmp_path)
-        plugin.config["bidirectional"] = False
-
-        # Pre-populate article
+    @staticmethod
+    def _prepare(plugin) -> None:
+        """Give the plugin one cached article to update."""
         plugin._cache_dir.mkdir(parents=True)
         plugin._write_manifest({
             "articles": {
@@ -540,16 +538,56 @@ class TestBidirectionalMetadata:
         (plugin._cache_dir / "articles" / "doc-001.md").write_text("# Doc", encoding="utf-8")
         plugin._load_cache()
 
+    async def test_update_metadata_applies_the_new_values_in_memory(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        plugin.config["bidirectional"] = True
+        self._prepare(plugin)
+
         plugin.update_article_metadata("gdrive:doc-001", tags=["new-tag"], categories=["cat-a"])
 
-        # Metadata updated in memory
         assert plugin._articles_meta["gdrive:doc-001"].tags == ["new-tag"]
         assert plugin._articles_meta["gdrive:doc-001"].categories == ["cat-a"]
 
-        # Manifest dirty flag set
-        manifest = plugin._read_manifest()
-        assert manifest["articles"]["doc-001"]["metadata_dirty"] is True
-        assert manifest["articles"]["doc-001"]["tags"] == ["new-tag"]
+    async def test_update_metadata_writes_the_new_values_to_the_manifest(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        plugin.config["bidirectional"] = True
+        self._prepare(plugin)
+
+        plugin.update_article_metadata("gdrive:doc-001", tags=["new-tag"], categories=["cat-a"])
+
+        entry = plugin._read_manifest()["articles"]["doc-001"]
+        assert entry["tags"] == ["new-tag"]
+        assert entry["categories"] == ["cat-a"]
+
+    async def test_metadata_pushed_immediately_is_not_left_dirty(self, tmp_path: Path):
+        """A successful immediate push leaves nothing for the next sync to send."""
+        plugin = _make_plugin(tmp_path)
+        plugin.config["bidirectional"] = True
+        self._prepare(plugin)
+
+        plugin.update_article_metadata("gdrive:doc-001", tags=["new-tag"], categories=["cat-a"])
+
+        assert plugin._read_manifest()["articles"]["doc-001"]["metadata_dirty"] is False
+
+    async def test_metadata_stays_dirty_when_the_immediate_push_fails(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        plugin.config["bidirectional"] = True
+        plugin._drive_service.files().update().execute.side_effect = RuntimeError("drive down")
+        self._prepare(plugin)
+
+        plugin.update_article_metadata("gdrive:doc-001", tags=["new-tag"], categories=["cat-a"])
+
+        assert plugin._read_manifest()["articles"]["doc-001"]["metadata_dirty"] is True
+
+    async def test_metadata_stays_dirty_when_bidirectional_sync_is_off(self, tmp_path: Path):
+        """With no immediate push, the change is queued for the next sync."""
+        plugin = _make_plugin(tmp_path)
+        plugin.config["bidirectional"] = False
+        self._prepare(plugin)
+
+        plugin.update_article_metadata("gdrive:doc-001", tags=["new-tag"], categories=["cat-a"])
+
+        assert plugin._read_manifest()["articles"]["doc-001"]["metadata_dirty"] is True
 
     async def test_update_metadata_on_folder_with_index_updates_index_doc(self, tmp_path: Path):
         plugin = _make_plugin(tmp_path)

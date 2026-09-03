@@ -115,6 +115,7 @@ The auto-generated OpenAPI documentation is available at `/docs` (Swagger UI) an
 
 from __future__ import annotations
 
+import argparse
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -139,8 +140,41 @@ from wikiknowledge.storage.markdown_backend import MarkdownStorageBackend
 
 # Resolve paths relative to the project root
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-env_kb_dir = os.environ.get("WIKIKNOWLEDGE_KB_DIR")
-KNOWLEDGE_DIR = Path(env_kb_dir) if env_kb_dir else PROJECT_ROOT / "knowledge"
+
+
+def _kb_dir_from_argv(argv: list[str] | None = None) -> str | None:
+    """Read --kb-dir straight from the command line.
+
+    `add_help=False` keeps this from hijacking `-h` in whatever process happens
+    to import this module.
+    """
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--kb-dir")
+    known, _ = parser.parse_known_args(argv)
+    return known.kb_dir
+
+
+def resolve_knowledge_dir() -> Path:
+    """Decide which knowledge base this process serves, at import time.
+
+    This has to happen here rather than in main(): run.py imports main from this
+    module, so by the time main() runs, everything below has already been built
+    against KNOWLEDGE_DIR. Setting the environment variable in main() only ever
+    appeared to work because uvicorn's reloader re-imports the module in a child
+    process that inherits the environment — with --no-reload there is no child,
+    and --kb-dir was silently ignored.
+    """
+    kb_dir = os.environ.get("WIKIKNOWLEDGE_KB_DIR")
+    if not kb_dir:
+        from_argv = _kb_dir_from_argv()
+        if from_argv:
+            kb_dir = os.path.abspath(from_argv)
+            # Exported so a reload child, whose argv differs, agrees with us.
+            os.environ["WIKIKNOWLEDGE_KB_DIR"] = kb_dir
+    return Path(kb_dir) if kb_dir else PROJECT_ROOT / "knowledge"
+
+
+KNOWLEDGE_DIR = resolve_knowledge_dir()
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 
 # Create shared instances that will be initialized in the lifespan
@@ -224,12 +258,12 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-def main():
-    """Run the server (entry point for pyproject.toml scripts)."""
-    import argparse
-    import os
-    import uvicorn
+def parse_server_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse the server command line.
 
+    Unknown arguments are ignored so the legacy `main.py --port=8001 serve-http`
+    invocation keeps working.
+    """
     parser = argparse.ArgumentParser(description="Run WikiKnowledge server.")
     parser.add_argument(
         "--kb-dir",
@@ -242,15 +276,28 @@ def main():
         default=8000,
         help="Port to run the server on",
     )
-    args, _ = parser.parse_known_args()
-
-    if args.kb_dir:
-        os.environ["WIKIKNOWLEDGE_KB_DIR"] = os.path.abspath(args.kb_dir)
-
-    uvicorn.run(
-        "wikiknowledge.api.app:app",
-        host="0.0.0.0",
-        port=args.port,
-        reload=True,
-        reload_dirs=[str(PROJECT_ROOT / "wikiknowledge")],
+    parser.add_argument(
+        "--no-reload",
+        dest="reload",
+        action="store_false",
+        help=(
+            "Disable auto-reload. Used for background instances, where reloading on "
+            "a source edit would drop live MCP connections."
+        ),
     )
+    parser.set_defaults(reload=True)
+    args, _ = parser.parse_known_args(argv)
+    return args
+
+
+def main():
+    """Run the server (entry point for pyproject.toml scripts)."""
+    import uvicorn
+
+    args = parse_server_args()  # --kb-dir was already applied at import time
+
+    options = {"host": "0.0.0.0", "port": args.port, "reload": args.reload}
+    if args.reload:
+        options["reload_dirs"] = [str(PROJECT_ROOT / "wikiknowledge")]
+
+    uvicorn.run("wikiknowledge.api.app:app", **options)

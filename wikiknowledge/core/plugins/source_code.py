@@ -1,4 +1,8 @@
-"""Source Code Plugin for parsing :wk-*: and @wk-* annotations from source files."""
+"""Source Code Plugin for parsing :wk-*: and @wk-* annotations from source files.
+
+Languages: Python (`:wk-*:` in docstrings), JavaScript/TypeScript, Java/Kotlin and
+Swift (`@wk-*` in doc comments). Swift additionally accepts `///` line runs.
+"""
 
 import glob
 import os
@@ -26,6 +30,14 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
     JS_WK_TAGS_RE = re.compile(r"@wk-tags\s+([^\n]+)")
     JS_WK_CAT_RE = re.compile(r"@wk-categories\s+([^\n]+)")
     JS_WK_TITLE_RE = re.compile(r"@wk-title\s+([^\n]+)")
+
+    # A run of Swift line documentation. `(?!/)` keeps `////` rules and other
+    # separator art out — they are decoration, not documentation.
+    SWIFT_DOC_RUN_RE = re.compile(r"(?:^[ \t]*///(?!/)[^\n]*\n?)+", re.MULTILINE)
+
+    # Stripping a directive removes its text but not its newline. Left alone,
+    # a four-directive header opens a hole under the title.
+    BLANK_RUN_RE = re.compile(r"\n{3,}")
 
     def __init__(self, source_name: str, kb_name: str = "default"):
         self.source_name = source_name
@@ -115,6 +127,8 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
             self._parse_javascript(content, file_path)
         elif lang_lower in ("java", "kotlin", "kt"):
             self._parse_java_kotlin(content, file_path)
+        elif lang_lower == "swift":
+            self._parse_swift(content, file_path)
 
     def _parse_python(self, content: str, file_path: Path) -> None:
         docstring_matches = re.finditer(r'^(\s*)"""(.*?)"""', content, re.DOTALL | re.MULTILINE)
@@ -163,6 +177,7 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
         clean_content = self.PY_WK_TAGS_RE.sub("", clean_content)
         clean_content = self.PY_WK_CAT_RE.sub("", clean_content)
         clean_content = self.PY_WK_TITLE_RE.sub("", clean_content)
+        clean_content = self.BLANK_RUN_RE.sub("\n\n", clean_content)
         
         meta = ArticleMeta(
             id=article_id,
@@ -200,6 +215,30 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
 
     def _parse_java_kotlin(self, content: str, file_path: Path) -> None:
         self._parse_jsdoc_style(content, file_path)
+
+    def _parse_swift(self, content: str, file_path: Path) -> None:
+        """Swift documents with `///` runs far more often than with `/** */` blocks.
+
+        Rather than repeat the directive extraction for a third comment style, a
+        `///` run is rewritten into the block form and handed to the shared
+        Javadoc-style parser. Both Swift styles and every other language then
+        stay on one implementation.
+        """
+        self._parse_jsdoc_style(self._swift_runs_as_doc_blocks(content), file_path)
+
+    @classmethod
+    def _swift_runs_as_doc_blocks(cls, content: str) -> str:
+        """Rewrite each run of `///` lines as an equivalent `/** */` block."""
+
+        def rewrite(match: re.Match) -> str:
+            body = "\n".join(
+                line.strip()[3:].strip()
+                for line in match.group(0).splitlines()
+                if line.strip()
+            )
+            return f"/**\n{body}\n*/\n"
+
+        return cls.SWIFT_DOC_RUN_RE.sub(rewrite, content)
 
     def _parse_jsdoc_style(self, content: str, file_path: Path) -> None:
         doc_matches = re.finditer(r'/\*\*(.*?)\*/', content, re.DOTALL)
@@ -257,6 +296,7 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
         final_content = self.JS_WK_TAGS_RE.sub("", final_content)
         final_content = self.JS_WK_CAT_RE.sub("", final_content)
         final_content = self.JS_WK_TITLE_RE.sub("", final_content)
+        final_content = self.BLANK_RUN_RE.sub("\n\n", final_content)
         
         meta = ArticleMeta(
             id=article_id,

@@ -1,5 +1,6 @@
 """
-Unit tests for SourceCodePlugin with Python, JavaScript, TypeScript, Java, and Kotlin support.
+Unit tests for SourceCodePlugin with Python, JavaScript, TypeScript, Java, Kotlin
+and Swift support.
 
 Run with: uv run pytest tests/test_source_code_plugin.py -v
 """
@@ -96,6 +97,44 @@ def src_root(tmp_path: Path) -> Path:
     (java_dir / "Utils.java").write_text(
         'package com.example;\n\n'
         'public class Utils {}\n',
+        encoding="utf-8",
+    )
+
+    # Swift files. Swift documents with `///` runs, not `/** */` blocks.
+    swift_dir = root / "src" / "swift"
+    swift_dir.mkdir(parents=True)
+    (swift_dir / "RestTimer.swift").write_text(
+        'import Foundation\n\n'
+        '// MARK: ─────────────────────────────────────\n'
+        '//// a separator, not documentation\n\n'
+        '/// The rest between sets, counted down.\n'
+        '///\n'
+        '/// @wk-id timers/rest\n'
+        '/// @wk-tags swift, timer\n'
+        '/// @wk-categories client-layer\n'
+        '///\n'
+        '/// The clock the Lock Screen shows. See [[activity-attributes]].\n'
+        'public struct RestTimer {}\n',
+        encoding="utf-8",
+    )
+    (swift_dir / "Palette.swift").write_text(
+        'import SwiftUI\n\n'
+        '/**\n'
+        ' * The palette, carried over unchanged.\n'
+        ' *\n'
+        ' * @wk-id design/palette\n'
+        ' * @wk-tags swift, design\n'
+        ' * @wk-categories client-layer\n'
+        ' * @wk-title Colour Palette\n'
+        ' */\n'
+        'public extension Color {}\n',
+        encoding="utf-8",
+    )
+    (swift_dir / "Untagged.swift").write_text(
+        '/// A well documented type that opts out of the knowledge graph.\n'
+        '///\n'
+        '/// Plenty of prose, no directives.\n'
+        'public struct Untagged {}\n',
         encoding="utf-8",
     )
 
@@ -200,3 +239,75 @@ async def test_missing_path_unavailable(tmp_path: Path):
     await plugin.initialize({"path": str(tmp_path / "non_existent")})
     assert plugin.is_available() is False
     assert await plugin.discover_articles() == []
+
+
+@pytest.mark.asyncio
+async def test_swift_line_doc_comments_become_articles(src_root: Path):
+    plugin = await _build_plugin(src_root, {"swift": {"include": ["src/swift/**/*.swift"]}})
+
+    meta = plugin._articles_meta["src:myproject/timers/rest"]
+    assert meta.title == "The rest between sets, counted down."
+    assert meta.tags == ["swift", "timer"]
+    assert meta.categories == ["client-layer"]
+
+
+@pytest.mark.asyncio
+async def test_swift_block_doc_comments_also_work(src_root: Path):
+    plugin = await _build_plugin(src_root, {"swift": {"include": ["src/swift/**/*.swift"]}})
+
+    meta = plugin._articles_meta["src:myproject/design/palette"]
+    assert meta.title == "Colour Palette"
+
+
+@pytest.mark.asyncio
+async def test_swift_file_without_directives_is_not_an_article(src_root: Path):
+    plugin = await _build_plugin(src_root, {"swift": {"include": ["src/swift/**/*.swift"]}})
+
+    assert not [i for i in plugin._articles_meta if "untagged" in i.lower()]
+
+
+@pytest.mark.asyncio
+async def test_swift_separators_do_not_hide_the_real_doc_comment(src_root: Path):
+    """`// MARK:` rules and //// separators sit above the doc comment in real files."""
+    plugin = await _build_plugin(src_root, {"swift": {"include": ["src/swift/**/*.swift"]}})
+
+    content = plugin._articles_content["src:myproject/timers/rest"]
+    assert "separator, not documentation" not in content
+    assert "The clock the Lock Screen shows" in content
+
+
+@pytest.mark.asyncio
+async def test_swift_wiki_links_are_extracted(src_root: Path):
+    plugin = await _build_plugin(src_root, {"swift": {"include": ["src/swift/**/*.swift"]}})
+
+    targets = [l.target_id for l in plugin._links["src:myproject/timers/rest"]]
+    assert "activity-attributes" in targets
+
+
+@pytest.mark.asyncio
+async def test_swift_directives_are_stripped_from_the_body(src_root: Path):
+    plugin = await _build_plugin(src_root, {"swift": {"include": ["src/swift/**/*.swift"]}})
+
+    content = plugin._articles_content["src:myproject/timers/rest"]
+    assert "@wk-id" not in content and "@wk-tags" not in content
+
+
+@pytest.mark.asyncio
+async def test_stripped_directives_leave_no_gap_in_the_body(src_root: Path):
+    """Each removed @wk- line used to leave its blank line behind, stacking up
+    into a hole between the title and the first paragraph."""
+    plugin = await _build_plugin(
+        src_root,
+        {
+            "python": {"include": ["src/py/**/*.py"]},
+            "java": {"include": ["src/java/**/*.java"]},
+            "swift": {"include": ["src/swift/**/*.swift"]},
+        },
+    )
+
+    for article_id in (
+        "src:myproject/backend/py-service",
+        "src:myproject/auth/manager",
+        "src:myproject/timers/rest",
+    ):
+        assert "\n\n\n" not in plugin._articles_content[article_id], article_id

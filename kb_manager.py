@@ -56,6 +56,7 @@ import subprocess
 import threading
 import os
 import sys
+import webbrowser
 
 CONFIG_FILE = "config.json"
 
@@ -97,6 +98,9 @@ class KBManagerApp:
             toggle_btn = ttk.Button(ctrl_frame, text="Start", command=lambda k_id=kb_id: self.toggle_kb(k_id))
             toggle_btn.pack(side=tk.LEFT, padx=5)
             
+            open_btn = ttk.Button(ctrl_frame, text="Open", command=lambda k_id=kb_id: self.open_in_browser(k_id), state='disabled')
+            open_btn.pack(side=tk.LEFT, padx=5)
+            
             status_lbl = ttk.Label(ctrl_frame, text="Status: Stopped")
             status_lbl.pack(side=tk.LEFT, padx=10)
             
@@ -109,6 +113,7 @@ class KBManagerApp:
             
             self.tabs[kb_id] = {
                 'toggle_btn': toggle_btn,
+                'open_btn': open_btn,
                 'status_lbl': status_lbl,
                 'log_area': log_area
             }
@@ -198,9 +203,15 @@ class KBManagerApp:
         if is_running:
             tab['toggle_btn'].config(text="Stop")
             tab['status_lbl'].config(text="Status: Running")
+            tab['open_btn'].config(state='normal')
         else:
             tab['toggle_btn'].config(text="Start")
             tab['status_lbl'].config(text="Status: Stopped")
+            tab['open_btn'].config(state='disabled')
+
+    def open_in_browser(self, kb_id):
+        port = self.kbs[kb_id]['port']
+        webbrowser.open(f"http://127.0.0.1:{port}")
 
     def on_close(self):
         for kb_id, process in self.processes.items():

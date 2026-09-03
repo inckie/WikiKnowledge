@@ -3,7 +3,7 @@ categories:
 - overview
 created: '2026-06-19T21:00:00+00:00'
 id: system-architecture
-modified: '2026-07-18T06:38:45.257088+00:00'
+modified: '2026-09-03T11:01:06.098281+00:00'
 tags:
 - architecture
 - overview
@@ -34,6 +34,7 @@ flowchart TD
     SourceMgr --> Plugins{Plugins}
     Plugins --> SourceCode[Source Code Plugin]
     Plugins --> GDrive[Google Drive Plugin]
+    Plugins --> Markdown[Markdown Files Plugin]
 ```
 <!-- human:end -->
 

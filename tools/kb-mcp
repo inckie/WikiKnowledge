@@ -1,0 +1,14 @@
+#!/bin/sh
+# Launch kb_mcp without requiring an activated environment or a particular
+# working directory. Prefers the project venv; falls back to uv, then python3.
+set -e
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
+
+if [ -x "$ROOT/.venv/bin/python" ]; then
+    exec "$ROOT/.venv/bin/python" -m wikiknowledge.tools.kb_mcp "$@"
+elif command -v uv >/dev/null 2>&1; then
+    exec uv run --project "$ROOT" python -m wikiknowledge.tools.kb_mcp "$@"
+else
+    exec python3 -m wikiknowledge.tools.kb_mcp "$@"
+fi

@@ -372,15 +372,22 @@ def ensure(
     return base_url(kb.port)
 
 
-def _signal_group(pid: int, sig: int) -> None:
-    """Signal a whole process group, tolerating a group that is already empty.
+def _signal_group(leader_pid: int, sig: int) -> None:
+    """Signal the process group an instance was launched into.
 
-    BSD reports an empty group as EPERM rather than ESRCH, so both have to be
-    accepted here. Callers must not read a delivered signal as success — they
-    confirm the outcome by checking that the port was released.
+    The group id is the launched pid itself: `_launch` uses
+    `start_new_session=True`, which makes that process a session and group
+    leader. Looking the group up with `getpgid` instead would work only while
+    the leader is alive — and it is the first to go. `uv` hands off to the
+    server and exits, so by the time an escalation is due, `getpgid` raises and
+    the signal reaches nobody while the server is still holding the port.
+
+    An already-empty group is not an error. BSD reports it as EPERM rather than
+    ESRCH, so both are accepted, and callers must not read a delivered signal as
+    success — they confirm the outcome by checking that the port was released.
     """
     with contextlib.suppress(ProcessLookupError, PermissionError):
-        os.killpg(os.getpgid(pid), sig)
+        os.killpg(leader_pid, sig)
 
 
 def _wait_until_gone(state: InstanceState, timeout: float) -> bool:

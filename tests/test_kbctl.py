@@ -468,3 +468,29 @@ def test_a_second_reaper_is_scheduled_once_the_first_has_finished(tmp_path):
         runtime.record_reaper("Scratch", pid=DEAD_PID)
 
         assert runtime.reaper_alive("Scratch") is False
+
+
+def test_signalling_a_group_still_reaches_it_after_its_leader_has_exited(tmp_path):
+    """The recorded pid is the launcher, and the launcher exits first — `uv` hands
+    off to the server and goes. What has to be killed is what it left behind, in
+    the same group, and looking the group up from a pid that is already gone
+    finds nothing."""
+    leader = subprocess.Popen(
+        ["sh", "-c", "sleep 600 & echo $!; exit 0"],
+        stdout=subprocess.PIPE, text=True, start_new_session=True,
+    )
+    survivor = int(leader.stdout.readline())
+    leader.wait()
+
+    try:
+        assert os.getpgid(survivor) == leader.pid, "survivor left the group; test is wrong"
+
+        kbctl._signal_group(leader.pid, signal.SIGKILL)
+
+        deadline = time.monotonic() + 5
+        while _pid_is_alive(survivor) and time.monotonic() < deadline:
+            time.sleep(0.1)
+        assert not _pid_is_alive(survivor), "the signal never reached the group"
+    finally:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(survivor, signal.SIGKILL)

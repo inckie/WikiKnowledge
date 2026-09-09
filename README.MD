@@ -9,7 +9,6 @@ See [knowledge/categories/overview.md](knowledge/categories/overview.md) for the
 
 TODO:
 
-- [ ] anchors on headers and floating ToC
 - [ ] readonly mode
 - [ ] resource bundles
 - [ ] read/write locks on parallel requests

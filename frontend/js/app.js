@@ -67,15 +67,35 @@ const App = {
      * Hash-based router.
      */
     _route() {
-        const hashContent = (window.location.hash || '#/').substring(2); // Remove '#/'
+        const fullHash = window.location.hash || '#/';
+        let hashContent = fullHash.startsWith('#/') ? fullHash.substring(2) : (fullHash.startsWith('#') ? fullHash.substring(1) : fullHash);
+        
+        let anchor = '';
+        const secondHashIndex = hashContent.indexOf('#');
+        if (secondHashIndex !== -1) {
+            anchor = hashContent.substring(secondHashIndex + 1);
+            hashContent = hashContent.substring(0, secondHashIndex);
+        }
+        
         const [path, queryString] = hashContent.split('?');
+        if (!anchor && queryString) {
+            const urlParams = new URLSearchParams(queryString);
+            anchor = urlParams.get('anchor') || urlParams.get('h') || '';
+        }
         
         const pathSegments = path.split('/');
         const route = pathSegments[0] || '';
         const param = pathSegments.slice(1).join('/');
 
         if (route === 'article' && param) {
-            this._showArticle(decodeURIComponent(param));
+            const articleId = decodeURIComponent(param);
+            if (this._currentView === 'article' && this._currentArticleId === articleId) {
+                if (anchor) {
+                    Viewer.scrollToAnchor(anchor);
+                }
+                return;
+            }
+            this._showArticle(articleId, anchor);
         } else if (route === 'edit' && param) {
             this._showEditor(decodeURIComponent(param));
         } else if (route === 'new') {
@@ -100,6 +120,11 @@ const App = {
         if (el) el.classList.add('active');
         this._currentView = viewName;
 
+        if (viewName !== 'article') {
+            const tocEl = document.getElementById('article-toc');
+            if (tocEl) tocEl.classList.add('hidden');
+        }
+
         if (viewName !== 'settings') {
             document.querySelectorAll('.theme-toggle-btn[title="AI Settings"]').forEach(b => b.classList.remove('active'));
         }
@@ -111,7 +136,7 @@ const App = {
     /**
      * Display an article.
      */
-    async _showArticle(articleId) {
+    async _showArticle(articleId, targetAnchor = null) {
         this._showView('article');
         this._currentArticleId = articleId;
 
@@ -181,11 +206,16 @@ const App = {
             
             await Viewer.show(data);
             // Reset scroll position of the main content to top AFTER content is loaded
-            // and the browser has had a chance to render it.
+            // or scroll to the target anchor if one was specified.
             requestAnimationFrame(() => {
-                const mainContent = document.getElementById('main-content');
-                if (mainContent) {
-                    mainContent.scrollTo(0, 0);
+                if (targetAnchor) {
+                    Viewer.scrollToAnchor(targetAnchor);
+                    setTimeout(() => Viewer.scrollToAnchor(targetAnchor), 150);
+                } else {
+                    const mainContent = document.getElementById('main-content');
+                    if (mainContent) {
+                        mainContent.scrollTo(0, 0);
+                    }
                 }
             });
         } catch (e) {

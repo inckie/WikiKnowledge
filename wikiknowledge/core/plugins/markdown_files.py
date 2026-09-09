@@ -12,7 +12,9 @@ links are rewritten into [[wiki-links]] on serving, since WikiKnowledge has a fl
 
 from __future__ import annotations
 
+import logging
 import re
+import time
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, quote
@@ -22,6 +24,8 @@ import frontmatter
 from wikiknowledge.core.parser import extract_wiki_links
 from wikiknowledge.core.plugins.base import KnowledgeSourcePlugin
 from wikiknowledge.storage.models import ArticleMeta, ArticleType, WikiLink
+
+logger = logging.getLogger(__name__)
 
 # [text](target) and ![alt](target "title")
 MD_LINK_RE = re.compile(r"(!?)\[([^\]]*)\]\(\s*<?([^)<>\s]+)>?(\s+\"[^\"]*\"|\s+'[^']*')?\s*\)")
@@ -102,6 +106,7 @@ class MarkdownFilesPlugin(KnowledgeSourcePlugin):
         if not self.is_available():
             return []
 
+        t0 = time.perf_counter()
         self._articles_meta.clear()
         self._articles_content.clear()
         self._links.clear()
@@ -109,6 +114,11 @@ class MarkdownFilesPlugin(KnowledgeSourcePlugin):
 
         files = self._collect_files()
         if not files:
+            duration = time.perf_counter() - t0
+            logger.info(
+                "[markdown-files:%s] No files found in %.3fs (path: %s)",
+                self.source_name, duration, self.root_path,
+            )
             return []
 
         folders = self._collect_folders(files)
@@ -129,9 +139,9 @@ class MarkdownFilesPlugin(KnowledgeSourcePlugin):
 
             article_id = self._file_article_id(file_path)
             if article_id in claimed:
-                print(
-                    f"Markdown source '{self.source_name}': ID collision '{article_id}' "
-                    f"between {claimed[article_id]} and {file_path}"
+                logger.warning(
+                    "Markdown source '%s': ID collision '%s' between %s and %s",
+                    self.source_name, article_id, claimed[article_id], file_path,
                 )
                 suffix = 2
                 while f"{article_id}-{suffix}" in claimed:
@@ -149,12 +159,18 @@ class MarkdownFilesPlugin(KnowledgeSourcePlugin):
             try:
                 self._parse_file(file_path, is_category=file_path in index_files)
             except Exception as exc:
-                print(f"Error parsing {file_path}: {exc}")
+                logger.warning("Error parsing %s: %s", file_path, exc)
 
         self._append_category_contents(folders)
 
         for article_id, content in self._articles_content.items():
             self._links[article_id] = extract_wiki_links(article_id, content)
+
+        duration = time.perf_counter() - t0
+        logger.info(
+            "[markdown-files:%s] Scanned %d files in %d folders, discovered %d articles in %.3fs (path: %s)",
+            self.source_name, len(files), len(folders), len(self._articles_meta), duration, self.root_path,
+        )
 
         return list(self._articles_meta.values())
 

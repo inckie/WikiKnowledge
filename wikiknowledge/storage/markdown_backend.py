@@ -9,6 +9,7 @@ The MarkdownStorageBackend implements the StorageBackend contract using the loca
 
 from __future__ import annotations
 
+import logging
 import mimetypes
 import os
 import shutil
@@ -17,6 +18,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 import frontmatter
 import yaml
@@ -82,7 +85,7 @@ class MarkdownStorageBackend(StorageBackend):
                     links = extract_wiki_links(article.meta.id, article.content)
                     self._links_cache[article.meta.id] = links
                 except Exception as e:
-                    print(f"Warning: Failed to parse {md_file}: {e}")
+                    logger.warning("Failed to parse %s: %s", md_file, e)
 
         # Scan media resources (.meta sidecar files)
         if self.media_dir.exists():
@@ -91,14 +94,15 @@ class MarkdownStorageBackend(StorageBackend):
                     resource_meta = self._read_resource_meta(meta_file)
                     self._resource_meta_cache[resource_meta.id] = resource_meta
                 except Exception as e:
-                    print(f"Warning: Failed to parse resource meta {meta_file}: {e}")
+                    logger.warning("Failed to parse resource meta %s: %s", meta_file, e)
 
         elapsed_time = time.perf_counter() - start_time
-        print(
-            f"Loaded {len(self._meta_cache)} articles "
-            f"({sum(len(v) for v in self._links_cache.values())} wiki links), "
-            f"{len(self._resource_meta_cache)} resources "
-            f"(took {elapsed_time:.3f}s)"
+        logger.info(
+            "Loaded %d articles (%d wiki links), %d resources (took %.3fs)",
+            len(self._meta_cache),
+            sum(len(v) for v in self._links_cache.values()),
+            len(self._resource_meta_cache),
+            elapsed_time,
         )
 
     # --- CRUD ---

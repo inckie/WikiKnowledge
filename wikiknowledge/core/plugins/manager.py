@@ -1,6 +1,8 @@
 """SourceManager for handling Knowledge Source plugins and config."""
 
 import json
+import logging
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -8,6 +10,8 @@ from wikiknowledge.core.plugins.base import KnowledgeSourcePlugin
 from wikiknowledge.core.plugins.markdown_files import MarkdownFilesPlugin
 from wikiknowledge.core.plugins.source_code import SourceCodePlugin
 from wikiknowledge.storage.models import ArticleMeta, WikiLink
+
+logger = logging.getLogger(__name__)
 
 
 class SourceManager:
@@ -21,6 +25,7 @@ class SourceManager:
 
     async def initialize(self) -> None:
         """Load configurations and initialize all plugins."""
+        t_init_start = time.perf_counter()
         self.plugins.clear()
         
         if not self.sources_file.exists():
@@ -30,7 +35,7 @@ class SourceManager:
             with open(self.sources_file, "r", encoding="utf-8") as f:
                 declarations = json.load(f).get("sources", {})
         except Exception as e:
-            print(f"Error reading {self.sources_file}: {e}")
+            logger.error("Error reading %s: %s", self.sources_file, e)
             return
             
         settings = {}
@@ -39,7 +44,7 @@ class SourceManager:
                 with open(self.settings_file, "r", encoding="utf-8") as f:
                     settings = json.load(f)
             except Exception as e:
-                print(f"Error reading {self.settings_file}: {e}")
+                logger.error("Error reading %s: %s", self.settings_file, e)
 
         for source_name, decl in declarations.items():
             # Check if this source connects to the current KB
@@ -55,6 +60,7 @@ class SourceManager:
                 
             plugin_type = decl.get("type")
             source_settings = settings.get(source_name, {})
+            p_start = time.perf_counter()
 
             if plugin_type in ("source-code", "markdown-files"):
                 if plugin_type == "source-code":
@@ -86,7 +92,24 @@ class SourceManager:
                 self.plugins[source_name] = plugin
 
             else:
-                print(f"Unknown plugin type '{plugin_type}' for source '{source_name}'")
+                logger.warning("Unknown plugin type '%s' for source '%s'", plugin_type, source_name)
+                continue
+
+            p_duration = time.perf_counter() - p_start
+            if plugin.is_available():
+                plugin_path = getattr(plugin, "root_path", decl.get("folder_id", ""))
+                logger.info(
+                    "[sources] Initialized source '%s' (%s, path: %s) in %.3fs",
+                    source_name, plugin_type, plugin_path, p_duration,
+                )
+            else:
+                logger.warning(
+                    "[sources] Source '%s' (%s) is unavailable (checked in %.3fs)",
+                    source_name, plugin_type, p_duration,
+                )
+
+        total_init = time.perf_counter() - t_init_start
+        logger.info("[sources] %d source(s) initialized in %.3fs", len(self.plugins), total_init)
 
     async def discover_all_articles(self) -> list[ArticleMeta]:
         """Aggregate discover_articles from all available plugins."""
@@ -168,13 +191,24 @@ class SourceManager:
         from wikiknowledge.core.plugins.google_drive import GoogleDrivePlugin
 
         results = {}
-        for source_name, plugin in self.plugins.items():
-            if isinstance(plugin, GoogleDrivePlugin) and plugin.is_available():
-                try:
-                    stats = await plugin.sync()
-                    results[source_name] = stats
-                except Exception as exc:
-                    results[source_name] = {"error": str(exc)}
+        sync_start = time.perf_counter()
+        syncable = [s for s, p in self.plugins.items() if isinstance(p, GoogleDrivePlugin) and p.is_available()]
+        
+        for source_name in syncable:
+            plugin = self.plugins[source_name]
+            t0 = time.perf_counter()
+            try:
+                stats = await plugin.sync()
+                results[source_name] = stats
+            except Exception as exc:
+                duration = time.perf_counter() - t0
+                results[source_name] = {"error": str(exc), "duration_seconds": round(duration, 3)}
+                logger.error("[sources] Sync for '%s' failed after %.3fs: %s", source_name, duration, exc)
+
+        if syncable:
+            total_sync = time.perf_counter() - sync_start
+            logger.info("[sources] Finished syncing %d source(s) in %.3fs", len(syncable), total_sync)
+
         return results
 
     def get_status(self) -> list[dict]:

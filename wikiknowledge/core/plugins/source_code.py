@@ -5,8 +5,10 @@ Swift (`@wk-*` in doc comments). Swift additionally accepts `///` line runs.
 """
 
 import glob
+import logging
 import os
 import re
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -14,6 +16,8 @@ from typing import Optional
 from wikiknowledge.core.parser import extract_wiki_links
 from wikiknowledge.core.plugins.base import KnowledgeSourcePlugin
 from wikiknowledge.storage.models import ArticleMeta, ArticleType, WikiLink
+
+logger = logging.getLogger(__name__)
 
 
 class SourceCodePlugin(KnowledgeSourcePlugin):
@@ -67,11 +71,13 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
         if not self.is_available():
             return []
             
+        t0 = time.perf_counter()
         self._articles_meta.clear()
         self._articles_content.clear()
         self._links.clear()
 
         languages = self.config.get("languages", {})
+        total_scanned_files = 0
         
         for lang, settings in languages.items():
             includes = settings.get("include", [])
@@ -99,11 +105,18 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
                         filtered_files.add(file_path)
                 files_to_check = filtered_files
                 
+            total_scanned_files += len(files_to_check)
             for file_path in files_to_check:
                 try:
                     self._parse_file(file_path, lang)
                 except Exception as e:
-                    print(f"Error parsing {file_path}: {e}")
+                    logger.warning("Error parsing %s: %s", file_path, e)
+
+        duration = time.perf_counter() - t0
+        logger.info(
+            "[source-code:%s] Scanned %d files, discovered %d articles in %.3fs (path: %s)",
+            self.source_name, total_scanned_files, len(self._articles_meta), duration, self.root_path,
+        )
 
         return list(self._articles_meta.values())
 

@@ -115,9 +115,13 @@ The auto-generated OpenAPI documentation is available at `/docs` (Swagger UI) an
 
 from __future__ import annotations
 
+import logging
 import os
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -155,13 +159,23 @@ ai_service = AIService(KNOWLEDGE_DIR)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: initialize storage and index on startup."""
+    startup_start = time.perf_counter()
+    logger.info("Initializing WikiKnowledge...")
+
     # Initialize storage backend
+    t_storage_start = time.perf_counter()
     await storage.initialize()
+    storage_time = time.perf_counter() - t_storage_start
     
     # Initialize knowledge sources
+    t_sources_start = time.perf_counter()
     await source_manager.initialize()
+    sources_time = time.perf_counter() - t_sources_start
+
+    t_index_start = time.perf_counter()
     from wikiknowledge.core.index import rebuild_full_index
     await rebuild_full_index(index, storage, source_manager)
+    index_time = time.perf_counter() - t_index_start
 
     # Store on app state for access from other routes
     app.state.storage = storage
@@ -173,7 +187,11 @@ async def lifespan(app: FastAPI):
 
     # Inject AI configuration into environment on launch
     ai_service.inject_environment()
-    print("Storage, index, graph, and AI service initialized.")
+    total_startup = time.perf_counter() - startup_start
+    logger.info(
+        "WikiKnowledge startup complete in %.3fs (storage: %.3fs, sources init: %.3fs, index: %.3fs)",
+        total_startup, storage_time, sources_time, index_time,
+    )
 
     yield
 

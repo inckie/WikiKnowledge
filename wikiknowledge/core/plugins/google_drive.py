@@ -139,7 +139,14 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
 
     async def discover_articles(self) -> list[ArticleMeta]:
         """Return articles from local cache (no API calls)."""
-        return list(self._articles_meta.values())
+        t0 = time.perf_counter()
+        articles = list(self._articles_meta.values())
+        duration = time.perf_counter() - t0
+        logger.info(
+            "[%s] Loaded %d articles from cache in %.3fs",
+            self.source_name, len(articles), duration,
+        )
+        return articles
 
     async def get_article_content(self, article_id: str) -> str:
         """Return cached markdown content for a virtual article."""
@@ -185,6 +192,7 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
 
         logger.info("[%s] Starting sync from folder '%s'.", self.source_name, folder_id)
 
+        sync_start = time.perf_counter()
         stats = {"new": 0, "updated": 0, "deleted": 0, "failed": 0, "unchanged": 0}
 
         try:
@@ -206,8 +214,9 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                     logger.warning("[%s] Failed to fetch root folder metadata: %s", self.source_name, exc)
                     
         except Exception as exc:
-            logger.error("[%s] Failed to list folder: %s", self.source_name, exc)
-            return {"error": str(exc)}
+            sync_duration = time.perf_counter() - sync_start
+            logger.error("[%s] Google Drive sync failed after %.3fs: %s", self.source_name, sync_duration, exc)
+            return {"error": str(exc), "duration_seconds": round(sync_duration, 3)}
 
         # Load existing manifest for delta comparison
         manifest = self._read_manifest()
@@ -539,9 +548,12 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
 
         self._append_category_contents()
 
+        sync_duration = time.perf_counter() - sync_start
+        stats["duration_seconds"] = round(sync_duration, 3)
+
         logger.info(
-            "[%s] Sync complete — new:%d updated:%d deleted:%d failed:%d unchanged:%d",
-            self.source_name, stats["new"], stats["updated"],
+            "[%s] Google Drive sync completed in %.3fs (new: %d, updated: %d, deleted: %d, failed: %d, unchanged: %d)",
+            self.source_name, sync_duration, stats["new"], stats["updated"],
             stats["deleted"], stats["failed"], stats["unchanged"],
         )
         return stats

@@ -267,10 +267,12 @@ const Settings = {
             const resp = await API.rescanSources();
             const result = resp.sync_results?.[sourceId];
             if (result?.error) {
-                Utils.toast(`Sync failed: ${result.error}`, 'error');
+                const dur = result.duration_seconds !== undefined ? ` (${result.duration_seconds}s)` : '';
+                Utils.toast(`Sync failed${dur}: ${result.error}`, 'error');
             } else if (result) {
-                const { new: n = 0, updated: u = 0, deleted: d = 0, failed: f = 0 } = result;
-                Utils.toast(`Synced "${sourceId}": +${n} new · ${u} updated · ${d} removed${f ? ` · ${f} failed` : ''}`, 'success');
+                const { new: n = 0, updated: u = 0, deleted: d = 0, failed: f = 0, duration_seconds: dur } = result;
+                const durStr = dur !== undefined ? ` in ${dur}s` : '';
+                Utils.toast(`Synced "${sourceId}"${durStr}: +${n} new · ${u} updated · ${d} removed${f ? ` · ${f} failed` : ''}`, 'success');
             } else {
                 Utils.toast(`Sync complete for "${sourceId}"`, 'success');
             }
@@ -310,12 +312,14 @@ const Settings = {
             const resp = await API.rescanSources();
             const syncResults = resp.sync_results || {};
             const driveNames = Object.keys(syncResults);
-            let msg = `Rescanned. Found ${resp.virtual_articles_discovered} virtual articles.`;
+            const durStr = resp.duration_seconds !== undefined ? ` in ${resp.duration_seconds}s` : '';
+            let msg = `Rescanned${durStr}. Found ${resp.virtual_articles_discovered} virtual articles.`;
             if (driveNames.length) {
                 const parts = driveNames.map(name => {
                     const r = syncResults[name];
-                    if (r.error) return `${name}: error`;
-                    return `${name}: +${r.new ?? 0} new, ${r.updated ?? 0} updated`;
+                    const rDur = r.duration_seconds !== undefined ? ` (${r.duration_seconds}s)` : '';
+                    if (r.error) return `${name}: error${rDur}`;
+                    return `${name}: +${r.new ?? 0} new, ${r.updated ?? 0} updated${rDur}`;
                 });
                 msg += ` Drive: ${parts.join(' | ')}`;
             }

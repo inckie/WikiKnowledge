@@ -38,12 +38,15 @@ Through `AIService.invoke_remote_model_with_tools`, the system implements a full
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 import urllib.request
 import urllib.error
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class AIService:
@@ -75,7 +78,7 @@ class AIService:
                 data = json.load(f)
                 defaults.update(data)
         except Exception as e:
-            print(f"Error reading AI config: {e}")
+            logger.error("Error reading AI config: %s", e)
 
         return defaults
 
@@ -96,7 +99,7 @@ class AIService:
             with open(self.config_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"Error saving AI config: {e}")
+            logger.error("Error saving AI config: %s", e)
             raise RuntimeError(f"Failed to save AI settings: {e}")
 
         # Inject settings into environment immediately upon saving
@@ -129,7 +132,7 @@ class AIService:
             os.environ["WIKIKNOWLEDGE_AI_MODEL"] = model
             os.environ["OPENAI_MODEL"] = model
 
-        print(f"AI integration enabled. Environment configured for URL: {url}")
+        logger.info("AI integration enabled. Environment configured for URL: %s", url)
         return True
 
     def fetch_available_models(self, url: str, api_key: str) -> List[str]:
@@ -175,7 +178,7 @@ class AIService:
             raise RuntimeError("AI Integration is not enabled in settings.")
 
         tools = await mcp_server.list_tools()
-        print(f"Verified MCP binding with {len(tools)} tools to remote model.")
+        logger.info("Verified MCP binding with %d tools to remote model.", len(tools))
         return {"status": "bound", "bound_tools_count": len(tools)}
 
     async def invoke_remote_model_with_tools(self, prompt: str, mcp_server: Any, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -216,7 +219,7 @@ class AIService:
                     },
                 })
         except Exception as e:
-            print(f"Error listing MCP tools: {e}")
+            logger.error("Error listing MCP tools: %s", e)
 
         full_prompt = prompt
         if context:

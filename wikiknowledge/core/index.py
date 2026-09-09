@@ -103,10 +103,13 @@ This is served by the [[src:wikiknowledge/fastapi-backend|fastapi-backend]] at `
 
 from __future__ import annotations
 
+import logging
 import time
 
 from wikiknowledge.core.parser import extract_wiki_links
 from wikiknowledge.storage.models import ArticleMeta, ResourceMeta, WikiLink
+
+logger = logging.getLogger(__name__)
 
 
 class KnowledgeIndex:
@@ -188,12 +191,9 @@ class KnowledgeIndex:
         orphans = self.get_orphans()
         broken = self.get_broken_links()
         elapsed_time = time.perf_counter() - start_time
-        print(
-            f"Index built: {len(all_meta)} articles, "
-            f"{len(self._all_resource_meta)} resources, "
-            f"{total_links} links, "
-            f"{len(orphans)} orphans, {len(broken)} broken links "
-            f"(took {elapsed_time:.3f}s)"
+        logger.info(
+            "Index built: %d articles, %d resources, %d links, %d orphans, %d broken links (took %.3fs)",
+            len(all_meta), len(self._all_resource_meta), total_links, len(orphans), len(broken), elapsed_time,
         )
 
     def search(self, query: str) -> list[ArticleMeta]:
@@ -404,7 +404,11 @@ async def rebuild_full_index(index: KnowledgeIndex, storage: 'Any', source_manag
     
     Returns the number of virtual articles discovered.
     """
+    rebuild_start = time.perf_counter()
+    t0 = time.perf_counter()
     virtual_articles = await source_manager.discover_all_articles()
+    discover_duration = time.perf_counter() - t0
+
     virtual_meta = {a.id: a for a in virtual_articles}
     virtual_links = await source_manager.get_all_links()
 
@@ -420,6 +424,12 @@ async def rebuild_full_index(index: KnowledgeIndex, storage: 'Any', source_manag
         all_links=all_links,
         all_resource_meta=dict(storage._resource_meta_cache),
         all_resource_links=storage.get_all_resource_links(),
+    )
+    
+    total_rebuild = time.perf_counter() - rebuild_start
+    logger.info(
+        "Full index rebuild completed in %.3fs (%d virtual articles discovered in %.3fs, %d total articles indexed)",
+        total_rebuild, len(virtual_articles), discover_duration, len(all_meta),
     )
     
     return len(virtual_articles)

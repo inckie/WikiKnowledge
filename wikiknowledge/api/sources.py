@@ -1,5 +1,7 @@
 """Knowledge Sources Configuration API endpoints."""
 
+import logging
+import time
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -7,6 +9,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from wikiknowledge.core.plugins.markdown_files import MarkdownFilesPlugin
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["sources"])
 
@@ -106,22 +110,44 @@ async def update_article_metadata(
 @router.post("/sources/rescan")
 async def rescan_sources(request: Request):
     """Re-initialize sources, run sync on Drive sources, and rebuild the index."""
+    rescan_start = time.perf_counter()
+    logger.info("[sources/rescan] Starting sources rescan...")
+
     source_manager = request.app.state.source_manager
     storage = request.app.state.storage
     index = request.app.state.index
 
     # Re-initialize to pick up any config changes
+    t0 = time.perf_counter()
     await source_manager.initialize()
+    init_duration = time.perf_counter() - t0
 
     # Run sync on all Google Drive plugins (fetches new/changed docs)
+    t0 = time.perf_counter()
     sync_results = await source_manager.sync_all()
+    sync_duration = time.perf_counter() - t0
 
     # Rebuild in-memory index
+    t0 = time.perf_counter()
     from wikiknowledge.core.index import rebuild_full_index
     virtual_count = await rebuild_full_index(index, storage, source_manager)
+    rebuild_duration = time.perf_counter() - t0
+
+    total_duration = time.perf_counter() - rescan_start
+    logger.info(
+        "[sources/rescan] Rescan finished in %.3fs (init: %.3fs, sync: %.3fs, index rebuild: %.3fs, virtual articles: %d)",
+        total_duration, init_duration, sync_duration, rebuild_duration, virtual_count,
+    )
 
     return {
         "status": "ok",
         "virtual_articles_discovered": virtual_count,
         "sync_results": sync_results,
+        "duration_seconds": round(total_duration, 3),
+        "timing": {
+            "initialize_seconds": round(init_duration, 3),
+            "sync_seconds": round(sync_duration, 3),
+            "index_rebuild_seconds": round(rebuild_duration, 3),
+            "total_seconds": round(total_duration, 3),
+        },
     }

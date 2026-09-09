@@ -20,6 +20,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+import frontmatter
+
 from wikiknowledge.core.parser import extract_wiki_links
 from wikiknowledge.core.plugins.base import KnowledgeSourcePlugin
 from wikiknowledge.storage.models import ArticleMeta, ArticleType, WikiLink
@@ -33,6 +35,18 @@ SCOPES_READWRITE = ["https://www.googleapis.com/auth/drive"]
 # Supported include MIME types
 GOOGLE_DOC_MIME = "application/vnd.google-apps.document"
 GOOGLE_FOLDER_MIME = "application/vnd.google-apps.folder"
+GOOGLE_SHORTCUT_MIME = "application/vnd.google-apps.shortcut"
+
+MARKDOWN_MIMES = {
+    "text/markdown",
+    "text/x-markdown",
+}
+
+DEFAULT_INCLUDE_MIME_TYPES = [
+    GOOGLE_DOC_MIME,
+    "text/markdown",
+    "text/x-markdown",
+]
 
 
 class GoogleDrivePlugin(KnowledgeSourcePlugin):
@@ -164,7 +178,7 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
         folder_id = self.config.get("folder_id")
         recursive = self.config.get("recursive", True)
         include_mime_types = self.config.get(
-            "include_mime_types", [GOOGLE_DOC_MIME]
+            "include_mime_types", DEFAULT_INCLUDE_MIME_TYPES
         )
         bidirectional = self.config.get("bidirectional", False)
         folders_as_categories = self.config.get("folders_as_categories", True)
@@ -182,7 +196,8 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                 try:
                     root_info = self._drive_service.files().get(
                         fileId=folder_id,
-                        fields="id, name, mimeType, modifiedTime, createdTime, webViewLink, appProperties, properties"
+                        fields="id, name, mimeType, modifiedTime, createdTime, webViewLink, appProperties, properties",
+                        supportsAllDrives=True,
                     ).execute()
                     root_info["_path"] = ""
                     if root_info.get("mimeType") == GOOGLE_FOLDER_MIME:
@@ -230,11 +245,11 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                 if not parent_id:
                     continue
                 
-                name_lower = name.lower()
+                name_stem = self._clean_title(name).lower()
                 is_index = False
-                if name_lower in GoogleDrivePlugin.INDEX_NAMES:
+                if name_stem in GoogleDrivePlugin.INDEX_NAMES:
                     is_index = True
-                elif parent_name and name_lower == parent_name.lower():
+                elif parent_name and name_stem == parent_name.lower():
                     is_index = True
                 
                 if is_index:
@@ -245,6 +260,9 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
             remote_files = [f for f in remote_files if f["id"] not in index_doc_ids]
 
         remote_ids = {f["id"] for f in remote_files}
+        remote_lookup: dict[str, dict] = {f["id"]: f for f in remote_files}
+        for f in index_doc_for_folder.values():
+            remote_lookup[f["id"]] = f
 
         # Process remote files: new and updated
         for file_info in remote_files:
@@ -252,12 +270,29 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
             article_id = f"gdrive:{doc_id}"
             mime_type = file_info.get("mimeType", GOOGLE_DOC_MIME)
             is_folder = mime_type == GOOGLE_FOLDER_MIME
+            is_shortcut = mime_type == GOOGLE_SHORTCUT_MIME
             
             index_doc = index_doc_for_folder.get(doc_id) if is_folder else None
             
+            target_info = None
+            target_id = None
+            if is_shortcut:
+                target_id = file_info.get("shortcutDetails", {}).get("targetId")
+                target_info = self._resolve_shortcut_target(file_info, remote_lookup)
+
             if index_doc:
-                drive_modified = index_doc.get("modifiedTime", "")
-                created_str = index_doc.get("createdTime", "")
+                idx_target = None
+                if index_doc.get("mimeType") == GOOGLE_SHORTCUT_MIME:
+                    idx_target = self._resolve_shortcut_target(index_doc, remote_lookup)
+                idx_mod = index_doc.get("modifiedTime", "")
+                idx_t_mod = idx_target.get("modifiedTime", "") if idx_target else ""
+                drive_modified = max(idx_mod, idx_t_mod) if (idx_mod and idx_t_mod) else (idx_mod or idx_t_mod)
+                created_str = index_doc.get("createdTime", "") or (idx_target.get("createdTime", "") if idx_target else "")
+            elif is_shortcut:
+                sc_mod = file_info.get("modifiedTime", "")
+                t_mod = target_info.get("modifiedTime", "") if target_info else ""
+                drive_modified = max(sc_mod, t_mod) if (sc_mod and t_mod) else (sc_mod or t_mod)
+                created_str = file_info.get("createdTime", "") or (target_info.get("createdTime", "") if target_info else "")
             else:
                 drive_modified = file_info.get("modifiedTime", "")
                 created_str = file_info.get("createdTime", "")
@@ -269,26 +304,101 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                 self._load_article_from_cache(doc_id, cached)
                 continue
 
-            # New or modified — export from Drive
+            # New or modified — export or download from Drive
             content = ""
+            md_meta: dict = {}
+            target_title = self._clean_title(file_info.get("name", doc_id))
+
             if index_doc:
+                idx_title = file_info.get("name", doc_id)
+                idx_mime = index_doc.get("mimeType", "")
+                idx_name = index_doc.get("name", "")
+                idx_link = index_doc.get("webViewLink", "")
+
                 try:
-                    content = self._export_doc(
-                        doc_id=index_doc["id"],
-                        title=file_info.get("name", doc_id),
-                        web_view_link=index_doc.get("webViewLink", ""),
-                    )
+                    if idx_mime == GOOGLE_SHORTCUT_MIME:
+                        if idx_target:
+                            t_mime = idx_target.get("mimeType", "")
+                            t_name = idx_target.get("name", "")
+                            t_link = idx_target.get("webViewLink") or idx_link
+                            if self._is_markdown(t_name, t_mime):
+                                content, md_meta = self._fetch_markdown(
+                                    file_id=idx_target["id"],
+                                    title=idx_title,
+                                    doc_id=doc_id,
+                                    web_view_link=t_link,
+                                )
+                            else:
+                                content = self._export_doc(
+                                    doc_id=idx_target["id"],
+                                    title=idx_title,
+                                    web_view_link=t_link,
+                                )
+                        else:
+                            content = (
+                                f"# {idx_title}\n\n"
+                                f"🔗 **Shortcut to Google Drive Document**\n\n"
+                                f"---\n🔌 **Source**: [View in Google Drive]({idx_link})"
+                            )
+                    elif self._is_markdown(idx_name, idx_mime):
+                        content, md_meta = self._fetch_markdown(
+                            file_id=index_doc["id"],
+                            title=idx_title,
+                            doc_id=doc_id,
+                            web_view_link=idx_link,
+                        )
+                    else:
+                        content = self._export_doc(
+                            doc_id=index_doc["id"],
+                            title=idx_title,
+                            web_view_link=idx_link,
+                        )
                 except Exception as exc:
                     logger.warning("[%s] Failed to export index doc '%s': %s", self.source_name, index_doc["id"], exc)
                     stats["failed"] += 1
                     continue
             elif not is_folder:
+                web_link = file_info.get("webViewLink", "")
                 try:
-                    content = self._export_doc(
-                        doc_id=doc_id,
-                        title=file_info.get("name", doc_id),
-                        web_view_link=file_info.get("webViewLink", ""),
-                    )
+                    if is_shortcut:
+                        if target_info:
+                            t_mime = target_info.get("mimeType", "")
+                            t_name = target_info.get("name", "")
+                            t_link = target_info.get("webViewLink") or web_link
+                            if self._is_markdown(t_name, t_mime):
+                                content, md_meta = self._fetch_markdown(
+                                    file_id=target_id,
+                                    title=target_title,
+                                    doc_id=doc_id,
+                                    web_view_link=t_link,
+                                )
+                            else:
+                                content = self._export_doc(
+                                    doc_id=target_id,
+                                    title=target_title,
+                                    web_view_link=t_link,
+                                )
+                        else:
+                            # Target not directly accessible by service account (external / unshared)
+                            content = (
+                                f"# {target_title}\n\n"
+                                f"🔗 **Shortcut to Google Drive Document**\n\n"
+                                f"*Target document: `{target_id}`*\n\n"
+                                f"---\n🔌 **Source**: [View in Google Drive]({web_link})"
+                            )
+                    elif self._is_markdown(file_info.get("name", ""), mime_type):
+                        content, md_meta = self._fetch_markdown(
+                            file_id=doc_id,
+                            title=target_title,
+                            doc_id=doc_id,
+                            web_view_link=web_link,
+                        )
+                    else:
+                        content = self._export_doc(
+                            doc_id=doc_id,
+                            title=target_title,
+                            web_view_link=web_link,
+                        )
                 except Exception as exc:
                     logger.warning("[%s] Failed to export doc '%s': %s", self.source_name, doc_id, exc)
                     stats["failed"] += 1
@@ -301,6 +411,15 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
             tags: list[str] = []
             categories: list[str] = []
             
+            # Merge frontmatter tags and categories if any were extracted
+            if md_meta:
+                if md_meta.get("tags") and isinstance(md_meta["tags"], list):
+                    tags.extend([str(t).strip() for t in md_meta["tags"] if str(t).strip() and str(t).strip() not in tags])
+                if md_meta.get("categories") and isinstance(md_meta["categories"], list):
+                    categories.extend([str(c).strip() for c in md_meta["categories"] if str(c).strip() and str(c).strip() not in categories])
+                if md_meta.get("title"):
+                    target_title = str(md_meta["title"])
+
             _path = file_info.get("_path", "")
             if "/" in _path:
                 parent_path = _path.rsplit("/", 1)[0]
@@ -318,11 +437,11 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                         if rc not in categories:
                             categories.append(rc)
             
-            target_info = index_doc if index_doc else file_info
+            target_info_for_props = index_doc if index_doc else (target_info if is_shortcut and target_info else file_info)
 
             if bidirectional:
-                props = target_info.get("properties", {}) or {}
-                app_props = target_info.get("appProperties", {}) or {}
+                props = target_info_for_props.get("properties", {}) or {}
+                app_props = target_info_for_props.get("appProperties", {}) or {}
                 
                 raw_tags = props.get("wk_tags")
                 if raw_tags is None:
@@ -348,7 +467,7 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
 
             meta = ArticleMeta(
                 id=article_id,
-                title=file_info.get("name", doc_id),
+                title=target_title,
                 type=ArticleType.CATEGORY if is_folder else ArticleType.LEAF,
                 tags=tags,
                 categories=categories,
@@ -381,6 +500,7 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                 "metadata_dirty": False,
                 "size_bytes": len(content.encode("utf-8")),
                 "index_doc_id": index_doc["id"] if index_doc else None,
+                "target_id": target_id if is_shortcut else None,
             }
 
             if cached:
@@ -567,10 +687,10 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
         results: list[dict] = []
         subfolders: list[tuple[str, str]] = []  # (id, path)
 
-        # We need properties too for bidirectional read
+        # We need properties too for bidirectional read, and shortcutDetails
         fields = (
             "nextPageToken, files(id,name,mimeType,modifiedTime,createdTime,"
-            "webViewLink,properties,appProperties)"
+            "webViewLink,properties,appProperties,shortcutDetails)"
         )
         page_token = None
 
@@ -610,7 +730,7 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                     if self.config.get("folders_as_categories", True):
                         file_info["_path"] = file_path
                         results.append(file_info)
-                elif mime in include_mime_types:
+                elif self._is_supported_file(file_info, include_mime_types):
                     file_info["_path"] = file_path
                     results.append(file_info)
 
@@ -625,6 +745,141 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
             )
 
         return results
+
+    @staticmethod
+    def _clean_title(name: str) -> str:
+        """Strip .md or .markdown extension from a title if present."""
+        lower = name.lower()
+        if lower.endswith(".markdown"):
+            return name[:-9]
+        if lower.endswith(".md"):
+            return name[:-3]
+        return name
+
+    @classmethod
+    def _is_markdown(cls, name: str, mime: str = "") -> bool:
+        """Check if file is markdown by MIME type or extension."""
+        if mime in MARKDOWN_MIMES:
+            return True
+        lower = name.lower()
+        return lower.endswith(".md") or lower.endswith(".markdown")
+
+    @classmethod
+    def _markdown_included(cls, include_mime_types: list[str]) -> bool:
+        """Check if markdown is enabled in include_mime_types."""
+        return any(
+            m in include_mime_types
+            for m in ("text/markdown", "text/x-markdown", "markdown", "*.md", ".md")
+        ) or GOOGLE_DOC_MIME in include_mime_types or not include_mime_types
+
+    def _is_supported_file(self, file_info: dict, include_mime_types: list[str]) -> bool:
+        """Check if a file or shortcut matches supported/configured MIME types."""
+        mime = file_info.get("mimeType", "")
+        name = file_info.get("name", "")
+
+        # Direct Google Doc
+        if mime == GOOGLE_DOC_MIME:
+            return GOOGLE_DOC_MIME in include_mime_types or not include_mime_types
+
+        # Direct Markdown file
+        if self._is_markdown(name, mime):
+            return self._markdown_included(include_mime_types) or mime in include_mime_types
+
+        # Shortcut
+        if mime == GOOGLE_SHORTCUT_MIME:
+            shortcut_details = file_info.get("shortcutDetails", {})
+            target_id = shortcut_details.get("targetId")
+            target_mime = shortcut_details.get("targetMimeType", "")
+            if not target_id:
+                return False
+            # Shortcut to Google Doc
+            if target_mime == GOOGLE_DOC_MIME:
+                return GOOGLE_DOC_MIME in include_mime_types or not include_mime_types
+            # Shortcut to Markdown
+            if self._is_markdown(name, target_mime):
+                return self._markdown_included(include_mime_types) or target_mime in include_mime_types
+            # Explicit shortcut mime in include_mime_types
+            if GOOGLE_SHORTCUT_MIME in include_mime_types:
+                return True
+
+        # Any other configured MIME type
+        return mime in include_mime_types
+
+    def _resolve_shortcut_target(
+        self, shortcut_info: dict, remote_lookup: dict[str, dict]
+    ) -> Optional[dict]:
+        """
+        Resolve the target file metadata for a Google Drive shortcut.
+        Checks remote_lookup first to avoid duplicate API calls.
+        """
+        shortcut_details = shortcut_info.get("shortcutDetails", {})
+        target_id = shortcut_details.get("targetId")
+        if not target_id:
+            return None
+        if target_id in remote_lookup:
+            return remote_lookup[target_id]
+        try:
+            target_info = self._drive_service.files().get(
+                fileId=target_id,
+                fields="id,name,mimeType,modifiedTime,createdTime,webViewLink,properties,appProperties,shortcutDetails",
+                supportsAllDrives=True,
+            ).execute()
+            remote_lookup[target_id] = target_info
+            return target_info
+        except Exception as exc:
+            logger.debug(
+                "[%s] Target '%s' for shortcut '%s' not accessible directly: %s",
+                self.source_name, target_id, shortcut_info.get("id"), exc
+            )
+            return None
+
+    def _fetch_markdown(
+        self, file_id: str, title: str, doc_id: str, web_view_link: str
+    ) -> tuple[str, dict]:
+        """
+        Download raw content of a markdown file from Drive, parse frontmatter, and post-process.
+        Returns (processed_content, frontmatter_metadata).
+        """
+        try:
+            if hasattr(self._drive_service.files(), "get_media"):
+                raw_bytes = self._drive_service.files().get_media(
+                    fileId=file_id, supportsAllDrives=True
+                ).execute()
+            else:
+                raw_bytes = self._drive_service.files().get(
+                    fileId=file_id, alt="media", supportsAllDrives=True
+                ).execute()
+        except AttributeError:
+            raw_bytes = self._drive_service.files().get(
+                fileId=file_id, alt="media", supportsAllDrives=True
+            ).execute()
+
+        if isinstance(raw_bytes, bytes):
+            raw_text = raw_bytes.decode("utf-8", errors="replace")
+        else:
+            raw_text = str(raw_bytes)
+
+        md_meta: dict = {}
+        content = raw_text
+        try:
+            post = frontmatter.loads(raw_text)
+            content = post.content
+            md_meta = dict(post.metadata)
+        except Exception as exc:
+            logger.debug("[%s] Frontmatter parsing failed for '%s': %s", self.source_name, file_id, exc)
+
+        if md_meta.get("title"):
+            title = str(md_meta["title"])
+        else:
+            lines = content.strip().split("\n")
+            if lines and lines[0].startswith("# ") and not lines[0].startswith("## "):
+                h1_heading = lines[0][2:].strip()
+                if h1_heading:
+                    title = h1_heading
+                    md_meta["title"] = title
+
+        content = self._post_process_content(content, title, doc_id, web_view_link)
+        return content, md_meta
 
     def _is_excluded(self, path: str, patterns: list[str]) -> bool:
         """Return True if the given path matches any exclude pattern."""
@@ -889,4 +1144,7 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
             lines = ["", "## Contents", ""]
             lines += [f"- [[{cid}|{title}]]" for title, cid in sorted(children)]
             content = self._articles_content[article_id]
-            self._articles_content[article_id] = content.rstrip() + "\n" + "\n".join(lines) + "\n"
+            new_content = content.rstrip() + "\n" + "\n".join(lines) + "\n"
+            self._articles_content[article_id] = new_content
+            self._links[article_id] = extract_wiki_links(article_id, new_content)
+

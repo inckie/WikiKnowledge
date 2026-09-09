@@ -45,6 +45,30 @@ def _make_drive_file(
     }
 
 
+def _make_shortcut_file(
+    shortcut_id: str,
+    target_id: str,
+    name: str = "Shortcut",
+    target_mime: str = "application/vnd.google-apps.document",
+    modified: str = "2026-01-01T12:00:00.000Z",
+    created: str = "2026-01-01T00:00:00.000Z",
+    path: str | None = None,
+) -> dict:
+    return {
+        "id": shortcut_id,
+        "name": name,
+        "mimeType": "application/vnd.google-apps.shortcut",
+        "modifiedTime": modified,
+        "createdTime": created,
+        "webViewLink": f"https://drive.google.com/file/d/{shortcut_id}/view",
+        "shortcutDetails": {
+            "targetId": target_id,
+            "targetMimeType": target_mime,
+        },
+        "_path": path if path is not None else name,
+    }
+
+
 def _make_plugin(tmp_path: Path, config: dict | None = None) -> GoogleDrivePlugin:
     """Create a plugin with kb_dir pointing to tmp_path."""
     plugin = GoogleDrivePlugin("test-source", "default", kb_dir=tmp_path)
@@ -147,10 +171,53 @@ class TestCacheLoadSave:
         assert "gdrive:doc-001" in plugin._articles_content
         assert "Hello" in plugin._articles_content["gdrive:doc-001"]
 
+    def test_load_cache_appends_category_contents_with_children(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        manifest = {
+            "articles": {
+                "folder-001": {
+                    "title": "My Folder",
+                    "drive_modified": "2026-01-01T12:00:00.000Z",
+                    "cached_at": "2026-01-01T12:01:00+00:00",
+                    "drive_created": "2026-01-01T00:00:00.000Z",
+                    "mime_type": "application/vnd.google-apps.folder",
+                    "drive_path": "My Folder",
+                    "web_view_link": "",
+                    "tags": [],
+                    "categories": [],
+                    "metadata_dirty": False,
+                    "size_bytes": 0,
+                },
+                "doc-001": {
+                    "title": "Child Doc",
+                    "drive_modified": "2026-01-01T12:00:00.000Z",
+                    "cached_at": "2026-01-01T12:01:00+00:00",
+                    "drive_created": "2026-01-01T00:00:00.000Z",
+                    "mime_type": "application/vnd.google-apps.document",
+                    "drive_path": "My Folder/Child Doc",
+                    "web_view_link": "",
+                    "tags": [],
+                    "categories": ["gdrive:folder-001"],
+                    "metadata_dirty": False,
+                    "size_bytes": 0,
+                }
+            }
+        }
+        articles_dir = plugin._cache_dir / "articles"
+        articles_dir.mkdir(parents=True)
+        (articles_dir / "folder-001.md").write_text("# My Folder\n", encoding="utf-8")
+        (articles_dir / "doc-001.md").write_text("# Child Doc\n\nContent.", encoding="utf-8")
+        plugin._write_manifest(manifest)
+
+        assert plugin._load_cache() is True
+        assert "## Contents" in plugin._articles_content["gdrive:folder-001"]
+        assert "[[gdrive:doc-001|Child Doc]]" in plugin._articles_content["gdrive:folder-001"]
+
 
 # ---------------------------------------------------------------------------
 # Content retrieval
 # ---------------------------------------------------------------------------
+
 
 class TestGetArticleContent:
     async def test_returns_content_from_memory(self, tmp_path: Path):
@@ -693,3 +760,242 @@ class TestInitialize:
                 # no folder_id
             })
         assert plugin.is_available() is False
+
+
+# ---------------------------------------------------------------------------
+# Markdown files and Shortcuts support
+# ---------------------------------------------------------------------------
+
+class TestMarkdownAndShortcuts:
+    def test_list_includes_markdown_and_shortcuts(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        doc = _make_drive_file("doc-1", "Doc One")
+        md_file = _make_drive_file("md-1", "notes.md", mime="text/markdown")
+        md_by_ext = _make_drive_file("md-2", "readme.md", mime="text/plain")
+        sc_doc = _make_shortcut_file("sc-1", "doc-1", "Shortcut to Doc")
+        sc_md = _make_shortcut_file("sc-2", "md-1", "notes.md", target_mime="text/markdown")
+        sc_sheet = _make_shortcut_file("sc-3", "sheet-1", "Sheet", target_mime="application/vnd.google-apps.spreadsheet")
+        pdf_file = _make_drive_file("pdf-1", "doc.pdf", mime="application/pdf")
+
+        plugin._drive_service.files.return_value.list.return_value.execute.return_value = {
+            "files": [doc, md_file, md_by_ext, sc_doc, sc_md, sc_sheet, pdf_file]
+        }
+
+        results = plugin._list_folder_recursive(
+            "folder-abc", "", recursive=False,
+            include_mime_types=["application/vnd.google-apps.document", "text/markdown"]
+        )
+        result_ids = [r["id"] for r in results]
+        assert "doc-1" in result_ids
+        assert "md-1" in result_ids
+        assert "md-2" in result_ids
+        assert "sc-1" in result_ids
+        assert "sc-2" in result_ids
+        assert "sc-3" not in result_ids
+        assert "pdf-1" not in result_ids
+
+    async def test_sync_markdown_file_with_frontmatter(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        md_file = _make_drive_file("md-100", "PIN_LOGIC.md", mime="text/markdown")
+
+        plugin._drive_service.files.return_value.list.return_value.execute.return_value = {
+            "files": [md_file]
+        }
+        raw_content = (
+            "---\n"
+            "title: PIN Business Logic\n"
+            "tags: [pin, logic]\n"
+            "categories: [features]\n"
+            "---\n"
+            "# PIN Business Logic\n\n"
+            "Here is the detailed business logic."
+        )
+        plugin._drive_service.files.return_value.get_media.return_value.execute.return_value = raw_content.encode("utf-8")
+
+        stats = await plugin.sync()
+
+        assert stats["new"] == 1
+        assert "gdrive:md-100" in plugin._articles_meta
+        meta = plugin._articles_meta["gdrive:md-100"]
+        assert meta.title == "PIN Business Logic"
+        assert "pin" in meta.tags
+        assert "logic" in meta.tags
+        assert "features" in meta.categories
+
+        content = await plugin.get_article_content("gdrive:md-100")
+        assert "Here is the detailed business logic." in content
+        assert "View in Google Drive" in content
+        assert (plugin._cache_dir / "articles" / "md-100.md").exists()
+
+    async def test_sync_markdown_file_adopts_h1_heading(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        md_file = _make_drive_file("md-101", "some_notes.md", mime="text/markdown")
+
+        plugin._drive_service.files.return_value.list.return_value.execute.return_value = {
+            "files": [md_file]
+        }
+        raw_content = "# Awesome Feature\n\nBody of feature."
+        plugin._drive_service.files.return_value.get_media.return_value.execute.return_value = raw_content.encode("utf-8")
+
+        stats = await plugin.sync()
+
+        assert stats["new"] == 1
+        meta = plugin._articles_meta["gdrive:md-101"]
+        assert meta.title == "Awesome Feature"
+        content = await plugin.get_article_content("gdrive:md-101")
+        assert content.count("# Awesome Feature") == 1  # No duplicate heading prepended
+
+    async def test_sync_shortcut_to_accessible_doc(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        sc = _make_shortcut_file("sc-001", "target-doc-1", name="Shortcut Doc")
+
+        plugin._drive_service.files.return_value.list.return_value.execute.return_value = {
+            "files": [sc]
+        }
+        # Mock resolving target doc
+        target_info = _make_drive_file("target-doc-1", "Target Document", modified="2026-02-01T10:00:00.000Z")
+        plugin._drive_service.files.return_value.get.return_value.execute.return_value = target_info
+        # Mock exporting target doc
+        plugin._drive_service.files.return_value.export.return_value.execute.return_value = (
+            b"# Target Document\n\nThis is the exported document content."
+        )
+
+        stats = await plugin.sync()
+
+        assert stats["new"] == 1
+        assert "gdrive:sc-001" in plugin._articles_meta
+        meta = plugin._articles_meta["gdrive:sc-001"]
+        assert meta.title == "Shortcut Doc"
+        content = await plugin.get_article_content("gdrive:sc-001")
+        assert "This is the exported document content." in content
+
+        manifest = plugin._read_manifest()
+        assert manifest["articles"]["sc-001"]["target_id"] == "target-doc-1"
+
+    async def test_sync_shortcut_to_inaccessible_doc_creates_fallback_link(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        sc = _make_shortcut_file("sc-ext", "target-ext-1", name="External Doc")
+
+        plugin._drive_service.files.return_value.list.return_value.execute.return_value = {
+            "files": [sc]
+        }
+        # Mock get() raising error (e.g. 404 not found / not shared)
+        plugin._drive_service.files.return_value.get.return_value.execute.side_effect = Exception("404 File not found")
+
+        stats = await plugin.sync()
+
+        assert stats["new"] == 1
+        assert "gdrive:sc-ext" in plugin._articles_meta
+        content = await plugin.get_article_content("gdrive:sc-ext")
+        assert "Shortcut to Google Drive Document" in content
+        assert "target-ext-1" in content
+        assert "View in Google Drive" in content
+
+    async def test_sync_shortcut_to_accessible_markdown(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        sc = _make_shortcut_file("sc-md-1", "target-md-1", name="Architecture.md", target_mime="text/markdown")
+
+        plugin._drive_service.files.return_value.list.return_value.execute.return_value = {
+            "files": [sc]
+        }
+        target_info = _make_drive_file("target-md-1", "Architecture.md", mime="text/markdown")
+        plugin._drive_service.files.return_value.get.return_value.execute.return_value = target_info
+        plugin._drive_service.files.return_value.get_media.return_value.execute.return_value = (
+            b"# System Architecture\n\nFull architecture description."
+        )
+
+        stats = await plugin.sync()
+
+        assert stats["new"] == 1
+        assert "gdrive:sc-md-1" in plugin._articles_meta
+        content = await plugin.get_article_content("gdrive:sc-md-1")
+        assert "Full architecture description." in content
+
+    async def test_sync_folder_with_markdown_readme_index(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        folder = _make_drive_file("folder-f1", "FotF", mime="application/vnd.google-apps.folder")
+        folder["_path"] = "FotF"
+        readme = _make_drive_file("md-idx", "README.md", mime="text/markdown", path="FotF/README.md")
+        readme["_path"] = "FotF/README.md"
+
+        plugin._list_folder_recursive = MagicMock(return_value=[folder, readme])
+        plugin._drive_service.files.return_value.get_media.return_value.execute.return_value = (
+            b"# FotF Readme\n\nFolder category overview documentation."
+        )
+
+        stats = await plugin.sync()
+
+        assert stats["new"] == 1
+        assert "gdrive:folder-f1" in plugin._articles_meta
+        assert "gdrive:md-idx" not in plugin._articles_meta
+        content = await plugin.get_article_content("gdrive:folder-f1")
+        assert "Folder category overview documentation." in content
+
+    async def test_sync_folder_with_shortcut_index(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        folder = _make_drive_file("folder-f2", "Guides", mime="application/vnd.google-apps.folder")
+        folder["_path"] = "Guides"
+        sc_index = _make_shortcut_file("sc-idx", "target-guide", name="index", path="Guides/index")
+        sc_index["_path"] = "Guides/index"
+
+        plugin._list_folder_recursive = MagicMock(return_value=[folder, sc_index])
+        target_doc = _make_drive_file("target-guide", "Guides Index")
+        plugin._drive_service.files.return_value.get.return_value.execute.return_value = target_doc
+        plugin._drive_service.files.return_value.export.return_value.execute.return_value = (
+            b"# Guides Index\n\nWelcome to guides."
+        )
+
+        stats = await plugin.sync()
+
+        assert stats["new"] == 1
+        assert "gdrive:folder-f2" in plugin._articles_meta
+        assert "gdrive:sc-idx" not in plugin._articles_meta
+        content = await plugin.get_article_content("gdrive:folder-f2")
+        assert "Welcome to guides." in content
+
+    async def test_delta_sync_re_exports_when_shortcut_target_updated(self, tmp_path: Path):
+        plugin = _make_plugin(tmp_path)
+        t1 = "2026-01-01T10:00:00.000Z"
+        t2 = "2026-01-02T10:00:00.000Z"
+
+        # Cached at t1
+        plugin._cache_dir.mkdir(parents=True)
+        (plugin._cache_dir / "articles").mkdir(parents=True)
+        (plugin._cache_dir / "articles" / "sc-001.md").write_text("# Old\n\nOld content.", encoding="utf-8")
+        plugin._write_manifest({
+            "articles": {
+                "sc-001": {
+                    "title": "Doc",
+                    "drive_modified": t1,
+                    "cached_at": "",
+                    "drive_created": "",
+                    "mime_type": "application/vnd.google-apps.shortcut",
+                    "drive_path": "Doc",
+                    "web_view_link": "",
+                    "tags": [],
+                    "categories": [],
+                    "metadata_dirty": False,
+                    "size_bytes": 10,
+                    "target_id": "target-1",
+                }
+            }
+        })
+
+        # Remote shortcut has target with updated modified time t2
+        sc = _make_shortcut_file("sc-001", "target-1", name="Doc", modified=t1)
+        plugin._drive_service.files.return_value.list.return_value.execute.return_value = {
+            "files": [sc]
+        }
+        target_doc = _make_drive_file("target-1", "Doc", modified=t2)
+        plugin._drive_service.files.return_value.get.return_value.execute.return_value = target_doc
+        plugin._drive_service.files.return_value.export.return_value.execute.return_value = (
+            b"# Doc\n\nUpdated target content."
+        )
+
+        stats = await plugin.sync()
+
+        assert stats["updated"] == 1
+        assert stats["new"] == 0
+        content = await plugin.get_article_content("gdrive:sc-001")
+        assert "Updated target content." in content
+

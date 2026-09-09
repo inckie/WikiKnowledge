@@ -23,11 +23,13 @@ This complements the [[source-code-plugin|Source Code Plugin]] — where the sou
 ## What Gets Captured
 
 - **Google Docs** (`application/vnd.google-apps.document`) within the configured folder tree
+- **Markdown Files** (`.md`, `.markdown`, `text/markdown`, `text/x-markdown`) downloaded directly and parsed for frontmatter metadata
+- **Shortcuts (Links)** (`application/vnd.google-apps.shortcut`) pointing to Google Docs or Markdown files (with full content sync when accessible, and direct link fallback when external)
 - **Google Folders** (`application/vnd.google-apps.folder`) are mirrored as category articles
-- Content is exported as markdown (with HTML + `markdownify` fallback for complex formatting)
+- Content is exported/downloaded as markdown (with HTML + `markdownify` fallback for complex formatting)
 - Optional **tags and categories** stored as Google Drive `properties` (`wk_tags`, `wk_categories`), readable and writable by WikiKnowledge when `bidirectional` mode is enabled
 
-Other file types (Sheets, PDFs, images) are ignored in v1. Non-Docs files will be supported in a future release via the `include_mime_types` config field.
+Other file types (Sheets, PDFs, images) are ignored by default. Non-doc/markdown files can be supported via the `include_mime_types` config field.
 
 ## Folders as Categories
 

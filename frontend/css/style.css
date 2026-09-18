@@ -1363,17 +1363,31 @@ body {
 /* Graph node styles (applied via D3) */
 .graph-node {
     cursor: pointer;
-    transition: filter var(--transition-fast);
+    transition: opacity var(--transition-fast), filter var(--transition-fast);
 }
 
-.graph-node:hover {
+.graph-node.dimmed {
+    opacity: 0.15 !important;
+}
+
+.graph-node.dimmed .graph-node-label {
+    opacity: 0.2;
+}
+
+.graph-node.highlighted {
+    opacity: 1 !important;
     filter: brightness(1.3);
+}
+
+.graph-node.connected {
+    opacity: 1 !important;
 }
 
 .graph-link {
     stroke: var(--border-color);
     stroke-opacity: 0.25;
-    transition: stroke-opacity var(--transition-fast), stroke var(--transition-fast);
+    opacity: 1;
+    transition: stroke-opacity var(--transition-fast), stroke var(--transition-fast), opacity var(--transition-fast);
 }
 
 .graph-link.graph-link-article {
@@ -1395,21 +1409,33 @@ body {
     stroke-width: 1px;
 }
 
+.graph-link.dimmed {
+    opacity: 0.05 !important;
+    stroke-opacity: 0.05 !important;
+    filter: none !important;
+}
+
 .graph-link.highlighted {
-    stroke: var(--accent-primary);
-    stroke-opacity: 0.8;
+    opacity: 1 !important;
+    stroke-opacity: 0.9 !important;
 }
 
 .graph-link.graph-link-category.highlighted {
     stroke: #c084fc;
-    stroke-opacity: 0.95;
-    stroke-width: 2px;
-    filter: drop-shadow(0 0 4px rgba(192, 132, 252, 0.7));
+    stroke-opacity: 1 !important;
+    stroke-width: 2.2px;
+    filter: drop-shadow(0 0 4px rgba(192, 132, 252, 0.8)) !important;
 }
 
 .graph-link.graph-link-article.highlighted {
     stroke: #94a3b8;
-    stroke-opacity: 0.75;
+    stroke-opacity: 0.85 !important;
+    stroke-width: 1.5px;
+}
+
+.graph-link.graph-link-resource.highlighted {
+    stroke: #2dd4bf;
+    stroke-opacity: 0.9 !important;
     stroke-width: 1.5px;
 }
 

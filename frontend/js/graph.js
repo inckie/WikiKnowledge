@@ -345,14 +345,32 @@ const Graph = {
                 if (tId === d.id) connectedIds.add(sId);
             });
 
+            // Dim non-connected nodes, keep hovered and directly connected nodes bright
+            node
+                .classed('dimmed', n => n.id !== d.id && !connectedIds.has(n.id))
+                .classed('highlighted', n => n.id === d.id)
+                .classed('connected', n => connectedIds.has(n.id))
+                .attr('opacity', n => n.id === d.id || connectedIds.has(n.id) ? 1 : 0.15);
+
             node.select('.node-shape')
                 .attr('opacity', n => n.id === d.id || connectedIds.has(n.id) ? 1 : 0.2);
 
+            // Highlight directly connected links and dim all other links
             link
                 .classed('highlighted', l => {
                     const sId = typeof l.source === 'object' ? l.source.id : l.source;
                     const tId = typeof l.target === 'object' ? l.target.id : l.target;
                     return sId === d.id || tId === d.id;
+                })
+                .classed('dimmed', l => {
+                    const sId = typeof l.source === 'object' ? l.source.id : l.source;
+                    const tId = typeof l.target === 'object' ? l.target.id : l.target;
+                    return sId !== d.id && tId !== d.id;
+                })
+                .attr('opacity', l => {
+                    const sId = typeof l.source === 'object' ? l.source.id : l.source;
+                    const tId = typeof l.target === 'object' ? l.target.id : l.target;
+                    return (sId === d.id || tId === d.id) ? 1 : 0.05;
                 })
                 .attr('stroke', l => {
                     const sId = typeof l.source === 'object' ? l.source.id : l.source;
@@ -368,7 +386,7 @@ const Graph = {
                     const tId = typeof l.target === 'object' ? l.target.id : l.target;
                     const isConnected = sId === d.id || tId === d.id;
                     if (isConnected) {
-                        return isLeafToCategory(l) ? 2 : 1.5;
+                        return isLeafToCategory(l) ? 2.2 : 1.5;
                     }
                     return getLinkStrokeWidth(l);
                 })
@@ -376,16 +394,29 @@ const Graph = {
                     const sId = typeof l.source === 'object' ? l.source.id : l.source;
                     const tId = typeof l.target === 'object' ? l.target.id : l.target;
                     const isConnected = sId === d.id || tId === d.id;
-                    if (!isConnected) return 0.08;
-                    return isLeafToCategory(l) ? 0.95 : 0.75;
+                    if (!isConnected) return 0.05;
+                    return isLeafToCategory(l) ? 1 : 0.85;
                 });
+
+            // Bring active links and nodes to top layer
+            link.filter('.highlighted').raise();
+            node.filter('.connected').raise();
+            d3.select(this).raise();
         });
 
         node.on('mouseout', () => {
             tooltip.classList.add('hidden');
+            node
+                .classed('dimmed', false)
+                .classed('highlighted', false)
+                .classed('connected', false)
+                .attr('opacity', 1);
             node.select('.node-shape').attr('opacity', 0.85);
+
             link
                 .classed('highlighted', false)
+                .classed('dimmed', false)
+                .attr('opacity', 1)
                 .attr('stroke', l => getLinkColor(l))
                 .attr('stroke-width', l => getLinkStrokeWidth(l))
                 .attr('stroke-opacity', l => getLinkDefaultOpacity(l));

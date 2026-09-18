@@ -43,7 +43,7 @@ const Graph = {
             .attr('height', this._height)
             .attr('fill', 'url(#bg-gradient)');
 
-        // Arrow marker for directed links
+        // Arrow markers for directed links
         defs.append('marker')
             .attr('id', 'arrowhead')
             .attr('viewBox', '0 -5 10 10')
@@ -54,7 +54,33 @@ const Graph = {
             .attr('orient', 'auto')
             .append('path')
             .attr('d', 'M0,-5L10,0L0,5')
-            .attr('fill', '#4a5568');
+            .attr('fill', '#64748b');
+
+        // Arrow marker for leaf-to-category directed links (bright purple)
+        defs.append('marker')
+            .attr('id', 'arrowhead-category')
+            .attr('viewBox', '0 -5 10 10')
+            .attr('refX', 20)
+            .attr('refY', 0)
+            .attr('markerWidth', 6)
+            .attr('markerHeight', 6)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M0,-5L10,0L0,5')
+            .attr('fill', '#a855f7');
+
+        // Arrow marker for resource links
+        defs.append('marker')
+            .attr('id', 'arrowhead-resource')
+            .attr('viewBox', '0 -5 10 10')
+            .attr('refX', 20)
+            .attr('refY', 0)
+            .attr('markerWidth', 6)
+            .attr('markerHeight', 6)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M0,-5L10,0L0,5')
+            .attr('fill', '#14b8a6');
 
         // Zoom layer
         this._g = this._svg.append('g');
@@ -96,6 +122,83 @@ const Graph = {
         const maxLinks = Math.max(...nodes.map(n => n.linkCount), 1);
         const sizeScale = d3.scaleSqrt().domain([0, maxLinks]).range([5, 18]);
 
+        // Quick lookup map for nodes by id
+        const nodeMap = new Map(nodes.map(n => [n.id, n]));
+        const getNode = (ref) => {
+            if (!ref) return null;
+            if (typeof ref === 'object') return ref;
+            return nodeMap.get(ref);
+        };
+
+        const isCategoryLink = (l) => {
+            const s = getNode(l.source);
+            const t = getNode(l.target);
+            if (!s || !t) return false;
+
+            // 1. Leaf to category (or category to leaf)
+            if ((s.type === 'leaf' && (t.type === 'category' || (Array.isArray(s.categories) && s.categories.includes(t.id)))) ||
+                (t.type === 'leaf' && (s.type === 'category' || (Array.isArray(t.categories) && t.categories.includes(s.id))))) {
+                return true;
+            }
+
+            // 2. Category to parent category (category to category)
+            if (s.type === 'category' && t.type === 'category') {
+                return true;
+            }
+
+            // 3. Category membership via categories array
+            if ((Array.isArray(s.categories) && s.categories.includes(t.id)) ||
+                (Array.isArray(t.categories) && t.categories.includes(s.id))) {
+                return true;
+            }
+
+            return false;
+        };
+        const isLeafToCategory = isCategoryLink;
+
+        const isResourceLink = (l) => {
+            const s = getNode(l.source);
+            const t = getNode(l.target);
+            if (!s || !t) return false;
+            return s.type === 'resource' || t.type === 'resource';
+        };
+
+        const getLinkClass = (l) => {
+            if (isLeafToCategory(l)) return 'graph-link graph-link-category';
+            if (isResourceLink(l)) return 'graph-link graph-link-resource';
+            return 'graph-link graph-link-article';
+        };
+
+        const getLinkMarker = (l) => {
+            if (isLeafToCategory(l)) return 'url(#arrowhead-category)';
+            if (isResourceLink(l)) return 'url(#arrowhead-resource)';
+            return 'url(#arrowhead)';
+        };
+
+        const getLinkDefaultOpacity = (l) => {
+            if (isLeafToCategory(l)) return 0.75;
+            if (isResourceLink(l)) return 0.45;
+            return 0.25; // article-to-article is dimmer
+        };
+
+        const getLinkColor = (l) => {
+            if (isLeafToCategory(l)) return '#a855f7';
+            if (isResourceLink(l)) return '#14b8a6';
+            return '#64748b';
+        };
+
+        const getLinkStrokeWidth = (l) => {
+            if (isLeafToCategory(l)) return 1.5;
+            return 1;
+        };
+
+        // Render category links after article links so bright category links sit on top
+        links.sort((a, b) => {
+            const aCat = isLeafToCategory(a) ? 1 : 0;
+            const bCat = isLeafToCategory(b) ? 1 : 0;
+            return aCat - bCat;
+        });
+
         // Force simulation
         this._simulation = d3.forceSimulation(nodes)
             .force('link', d3.forceLink(links).id(d => d.id).distance(100))
@@ -108,9 +211,11 @@ const Graph = {
             .selectAll('line')
             .data(links)
             .join('line')
-            .attr('class', 'graph-link')
-            .attr('stroke-width', 1)
-            .attr('marker-end', 'url(#arrowhead)');
+            .attr('class', l => getLinkClass(l))
+            .attr('stroke', l => getLinkColor(l))
+            .attr('stroke-width', l => getLinkStrokeWidth(l))
+            .attr('stroke-opacity', l => getLinkDefaultOpacity(l))
+            .attr('marker-end', l => getLinkMarker(l));
 
         // Nodes group
         const node = this._g.append('g')
@@ -216,17 +321,47 @@ const Graph = {
             node.select('.node-shape')
                 .attr('opacity', n => n.id === d.id || connectedIds.has(n.id) ? 1 : 0.2);
 
-            link.attr('stroke-opacity', l => {
-                const sId = typeof l.source === 'object' ? l.source.id : l.source;
-                const tId = typeof l.target === 'object' ? l.target.id : l.target;
-                return sId === d.id || tId === d.id ? 0.8 : 0.1;
-            });
+            link
+                .classed('highlighted', l => {
+                    const sId = typeof l.source === 'object' ? l.source.id : l.source;
+                    const tId = typeof l.target === 'object' ? l.target.id : l.target;
+                    return sId === d.id || tId === d.id;
+                })
+                .attr('stroke', l => {
+                    const sId = typeof l.source === 'object' ? l.source.id : l.source;
+                    const tId = typeof l.target === 'object' ? l.target.id : l.target;
+                    const isConnected = sId === d.id || tId === d.id;
+                    if (isConnected) {
+                        return isLeafToCategory(l) ? '#c084fc' : (isResourceLink(l) ? '#2dd4bf' : '#94a3b8');
+                    }
+                    return getLinkColor(l);
+                })
+                .attr('stroke-width', l => {
+                    const sId = typeof l.source === 'object' ? l.source.id : l.source;
+                    const tId = typeof l.target === 'object' ? l.target.id : l.target;
+                    const isConnected = sId === d.id || tId === d.id;
+                    if (isConnected) {
+                        return isLeafToCategory(l) ? 2 : 1.5;
+                    }
+                    return getLinkStrokeWidth(l);
+                })
+                .attr('stroke-opacity', l => {
+                    const sId = typeof l.source === 'object' ? l.source.id : l.source;
+                    const tId = typeof l.target === 'object' ? l.target.id : l.target;
+                    const isConnected = sId === d.id || tId === d.id;
+                    if (!isConnected) return 0.08;
+                    return isLeafToCategory(l) ? 0.95 : 0.75;
+                });
         });
 
         node.on('mouseout', () => {
             tooltip.classList.add('hidden');
             node.select('.node-shape').attr('opacity', 0.85);
-            link.attr('stroke-opacity', 0.4);
+            link
+                .classed('highlighted', false)
+                .attr('stroke', l => getLinkColor(l))
+                .attr('stroke-width', l => getLinkStrokeWidth(l))
+                .attr('stroke-opacity', l => getLinkDefaultOpacity(l));
         });
 
         // Click to navigate

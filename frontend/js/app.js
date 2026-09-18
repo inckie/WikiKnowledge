@@ -281,8 +281,11 @@ const App = {
                 btn.classList.add('active');
 
                 if (view === 'graph') {
-                    window.location.hash = '#/graph';
-                    this._showGraph();
+                    if (window.location.hash === '#/graph') {
+                        this._showGraph();
+                    } else {
+                        window.location.hash = '#/graph';
+                    }
                 } else {
                     this._loadSidebarContent(view);
                 }
@@ -290,8 +293,11 @@ const App = {
         });
 
         const handleSettingsClick = () => {
-            window.location.hash = '#/settings';
-            this._showSettings();
+            if (window.location.hash === '#/settings') {
+                this._showSettings();
+            } else {
+                window.location.hash = '#/settings';
+            }
         };
         const btnSettings = document.getElementById('btn-settings-toggle');
         const btnSettingsMobile = document.getElementById('btn-settings-toggle-mobile');

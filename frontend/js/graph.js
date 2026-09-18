@@ -11,20 +11,28 @@ const Graph = {
     _zoom: null,
     _width: 0,
     _height: 0,
+    _initId: 0,
 
     /**
      * Initialize the graph view with full graph data.
      */
     async init() {
+        const initId = ++this._initId;
         const container = document.getElementById('graph-container');
         const svgEl = document.getElementById('graph-svg');
+        if (!container || !svgEl) return;
 
         this._width = container.clientWidth;
         this._height = container.clientHeight;
 
+        // Stop any running simulation
+        if (this._simulation) {
+            this._simulation.stop();
+            this._simulation = null;
+        }
+
         // Clear previous
         d3.select(svgEl).selectAll('*').remove();
-        if (this._simulation) this._simulation.stop();
 
         this._svg = d3.select(svgEl)
             .attr('width', this._width)
@@ -94,20 +102,39 @@ const Graph = {
         // Fetch and render
         try {
             const data = await API.fetchGraph();
+            // If another init was invoked while awaiting API response, ignore stale render
+            if (initId !== this._initId) return;
             this._renderGraph(data);
         } catch (e) {
+            if (initId !== this._initId) return;
             console.error('Failed to load graph:', e);
         }
 
         // Reset button
-        document.getElementById('btn-graph-reset').onclick = () => {
-            this._svg.transition().duration(500)
-                .call(this._zoom.transform, d3.zoomIdentity);
-        };
+        const resetBtn = document.getElementById('btn-graph-reset');
+        if (resetBtn) {
+            resetBtn.onclick = () => {
+                if (this._svg && this._zoom) {
+                    this._svg.transition().duration(500)
+                        .call(this._zoom.transform, d3.zoomIdentity);
+                }
+            };
+        }
     },
 
     _renderGraph(data) {
-        if (!data.nodes.length) return;
+        if (!data || !data.nodes || !data.nodes.length) return;
+
+        // Stop any running simulation before starting a new one
+        if (this._simulation) {
+            this._simulation.stop();
+            this._simulation = null;
+        }
+
+        // Ensure zoom layer is clean before rendering nodes and links
+        if (this._g) {
+            this._g.selectAll('*').remove();
+        }
 
         const { nodes, links } = data;
 

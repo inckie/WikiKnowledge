@@ -413,8 +413,8 @@ def create_mcp_server(
         is_dirty_by_timestamp = most_recent_member.modified > category_meta.modified
 
         # 2. Content inclusion comparison
-        ai_start = content.find("<!-- ai:start -->")
-        ai_end = content.find("<!-- ai:end -->")
+        ai_start = content.rfind("<!-- ai:start -->")
+        ai_end = content.rfind("<!-- ai:end -->")
         
         ai_block = ""
         if ai_start != -1 and ai_end != -1 and ai_end > ai_start:

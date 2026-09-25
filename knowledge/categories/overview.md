@@ -2,7 +2,7 @@
 categories: []
 created: '2026-06-20T02:02:12.540707+00:00'
 id: overview
-modified: '2026-07-18T06:32:03.183707+00:00'
+modified: '2026-09-25T11:24:02.703964+00:00'
 tags:
 - documentation
 - overview
@@ -75,7 +75,7 @@ There is also a visualization of the graph, which allows users to see the struct
 
 <!-- ai:start -->
 ### [[user-manual|User & AI Authoring Manual]]
-The definitive guide for humans and AI agents on how to interact with, format, and author content within the WikiKnowledge system (includes MCP settings and markup conventions).
+The definitive guide for humans and AI agents on how to interact with, format, and author content within the WikiKnowledge system (includes MCP settings, markup conventions, and interactive diagram authoring).
 
 ### [[system-architecture|System Architecture]]
 The technical implementation details of WikiKnowledge, covering the backend, index, and knowledge source plugins.

@@ -3,7 +3,7 @@ categories:
 - user-manual
 created: '2026-06-19T21:00:00+00:00'
 id: markup-conventions
-modified: '2026-07-18T06:31:37.761713+00:00'
+modified: '2026-09-25T11:22:56.551869+00:00'
 tags:
 - markup
 - conventions
@@ -22,7 +22,7 @@ The conventions fall into three categories:
 
 2. **Linking** — Double-bracket wiki links (`[[target-id]]` or `[[target-id|Display Text]]`) create connections between articles. These links are the raw material from which the knowledge graph is built.
 
-3. **Authorship** — HTML comment markers (`<!-- human:start -->` / `<!-- human:end -->` and `<!-- ai:start -->` / `<!-- ai:end -->`) delineate human-written and AI-generated sections in category articles. This ensures that AI summarization preserves the human architect's vision while automatically updating the content summaries.
+3. **Authorship** — HTML comment markers (`human:start/end` and `ai:start/end`) delineate human-written and AI-generated sections in category articles. This ensures that AI summarization preserves the human architect's vision while automatically updating the content summaries.
 
 All three conventions are designed to degrade gracefully: a file with missing frontmatter is treated as having default metadata; unresolved wiki links are displayed with a "missing" indicator; and content without authorship markers is assumed to be human-written.
 <!-- human:end -->
@@ -34,7 +34,7 @@ All three conventions are designed to degrade gracefully: a file with missing fr
 Documents the YAML frontmatter format used at the top of every `.md` file. Covers required fields (`id`, `title`, `type`, `tags`, `categories`, `created`, `modified`), parsing with the `python-frontmatter` library, and the design rationale for choosing YAML frontmatter over alternatives like sidecar files or database records.
 
 ### [[wiki-link-syntax|Wiki Link Syntax]]
-Explains the `[[article-id]]` and `[[article-id|Display Text]]` double-bracket syntax for internal links. Covers resolution rules (case-sensitive matching against the `id` field), extraction and indexing (forward links + back links), edge cases (self-links, links in code blocks), and the relationship between wiki links and the knowledge graph.
+Explains the `[[article-id]]` and `[[article-id|Display Text]]` double-bracket syntax for internal links. Covers resolution rules (case-sensitive matching against the `id` field), extraction and indexing (forward links + back links), edge cases (self-links, links in code blocks and mermaid diagrams), and the relationship between wiki links and the knowledge graph.
 
 ### [[source-link-syntax|Source Link Syntax]]
 Documents the extended wiki-link syntax used to reference virtual articles from external knowledge sources. Covers source-qualified link prefixes (`src:` and `gdrive:`), link resolution rules, multi-KB `@kb-name` qualifiers, and how disconnected sources degrade gracefully in the UI.
@@ -46,5 +46,5 @@ Describes the HTML comment marker system for distinguishing human-written conten
 Details the specialized UI and data consistency features for category articles. This includes the automatic "Sub-articles" section, highlighting of unmentioned sub-articles to prompt authors for updates, a "dirty" indicator (⚠️) when a category's summary may be out of sync with its members, and intelligent backlink filtering to reduce noise from sub-article references.
 
 ### [[mermaid-diagrams|Mermaid Diagrams]]
-Documentation of Mermaid support. To embed a diagram, use a standard markdown fenced code block and specify mermaid as the language.
+Documents native Mermaid diagram support. Explains embedding diagrams in fenced code blocks, interactive clickable [[wiki-links]] inside diagram node labels, SPA routing navigation, and multi-link support.
 <!-- ai:end -->

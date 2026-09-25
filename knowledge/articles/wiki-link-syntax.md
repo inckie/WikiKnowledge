@@ -3,7 +3,7 @@ categories:
 - markup-conventions
 created: '2026-06-19T21:00:00+00:00'
 id: wiki-link-syntax
-modified: '2026-07-19T08:53:49.025019+00:00'
+modified: '2026-09-25T11:20:07.984113+00:00'
 tags:
 - markdown
 - wiki-links
@@ -77,7 +77,7 @@ The "What Links Here" query is one of the most powerful navigation tools in the 
 
 - **Self-links**: An article linking to itself (`[[my-own-id]]`) is valid but flagged in the UI
 - **Nested brackets**: `[[ [[not-valid]] ]]` — inner brackets are not supported; the parser matches the first `]]`
-- **Links in code blocks**: Wiki links inside fenced code blocks (`` ``` ``) are **not** parsed or resolved
+- **Links in code blocks**: Wiki links inside standard programming language code blocks (e.g., `python`, `javascript`) are protected from link transformation. However, inside `mermaid` diagram blocks, wiki links (`[[target]]` or `[[target|display]]`) are parsed by the viewer into clickable links within diagram nodes.
 - **Links in frontmatter**: Wiki links in YAML frontmatter are **not** parsed; use the `categories` field instead
 
 ## Relationship to Graph

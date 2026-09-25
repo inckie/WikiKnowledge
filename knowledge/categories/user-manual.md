@@ -3,7 +3,7 @@ categories:
 - overview
 created: '2026-06-21T10:00:00+00:00'
 id: user-manual
-modified: '2026-07-18T06:38:43.158314+00:00'
+modified: '2026-09-25T11:23:32.486102+00:00'
 tags:
 - user-manual
 - guide
@@ -29,5 +29,5 @@ Instructions on configuring your AI settings via the Web UI and using the Floati
 A guide on how to embed WikiKnowledge metadata directly into source code repositories so they can be indexed as virtual articles.
 
 ### [[markup-conventions|Markup Conventions]]
-The strict foundational rules defining how to write WikiKnowledge markdown, covering frontmatter syntax, wiki links, and human-protected blocks.
+The foundational rules defining how to write WikiKnowledge markdown, covering frontmatter syntax, wiki links, mermaid diagrams, and human-protected blocks.
 <!-- ai:end -->

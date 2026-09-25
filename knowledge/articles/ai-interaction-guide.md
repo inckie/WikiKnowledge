@@ -128,13 +128,14 @@ When an article requires flowcharts, sequence diagrams, state diagrams, or other
 1.  Create a standard fenced code block specifying `mermaid` as the language:
     ```markdown
     ` ``mermaid
-    graph TD
-        A[Start] --> B[Process];
+    flowchart TD
+        App["App Entrypoint<br/>[[src:server/entry|run.py]]"] --> Core["[[core-engine|Core Engine]]"]
     ` ``
     ```
     *(Note: remove the space between backticks when using)*
-2.  The frontend automatically intercepts and renders these blocks seamlessly.
-3.  This is highly recommended for AIs because it allows for easy future modification and version control compared to static binary images.
+2.  **Embed Wiki Links Directly**: You can and should embed `[[wiki-links]]` directly inside diagram node labels (supporting conceptual articles, source code virtual articles, and media). The frontend viewer automatically transforms them into clickable navigation links inside the rendered diagram.
+3.  The frontend automatically intercepts and renders these blocks seamlessly without external dependencies or static image exports.
+4.  This is highly recommended for AIs because it creates interactive visual architecture maps while allowing for easy future modification and version control compared to static binary images.
 
 ### Workflow for Creating a Category Article
 

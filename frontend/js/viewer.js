@@ -63,13 +63,18 @@ const Viewer = {
         html = this._processContentBlocks(html);
 
         // Process mermaid code blocks
-        html = html.replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/gi, (match, code) => {
+        html = html.replace(/<pre><code class="(?:[^"]*?\s+)?language-mermaid(?:\s+[^"]*?)?">([\s\S]*?)<\/code><\/pre>/gi, (match, code) => {
             let unescaped = code
                 .replace(/&lt;/g, '<')
                 .replace(/&gt;/g, '>')
                 .replace(/&quot;/g, '"')
                 .replace(/&#39;/g, "'")
                 .replace(/&amp;/g, '&');
+
+            // Resolve file and wiki links within mermaid diagrams
+            unescaped = this._processFileLinks(unescaped);
+            unescaped = this._processWikiLinks(unescaped);
+
             return `<div class="mermaid">${unescaped}</div>`;
         });
 

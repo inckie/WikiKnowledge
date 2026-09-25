@@ -8,8 +8,8 @@ The WikiKnowledge web interface is powered by a FastAPI application that serves 
 
 ## Architecture
 
-> Request → [[src:wikiknowledge/wk/frontend-app|FastAPI Router]] → [[src:wikiknowledge/wk/ai-service|Service Layer]] → [[src:wikiknowledge/wk/storage-contract|Storage Backend]] → Filesystem
-                                         → [[src:wikiknowledge/wk/index-engine|In-Memory Index]]
+> Request → [[src:wikiknowledge/fastapi-backend|FastAPI Router]] → [[src:wikiknowledge/ai-service-architecture|Service Layer]] → [[src:wikiknowledge/storage-abstraction|Storage Backend]] → Filesystem
+                                         → [[src:wikiknowledge/in-memory-index|In-Memory Index]]
 
 The API layer is intentionally thin. Route handlers validate input, call into the [[src:wikiknowledge/storage-abstraction|storage-abstraction]] or [[src:wikiknowledge/in-memory-index|in-memory-index]], and return serialized responses. Business logic (e.g., update cascading, summarization triggers) lives in the service layer.
 

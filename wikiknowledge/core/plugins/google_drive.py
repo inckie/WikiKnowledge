@@ -5,7 +5,7 @@ discovers Google Docs, exports their content as markdown, and serves them as
 virtual articles in the knowledge graph. Supports optional bi-directional
 metadata sync via Google Drive appProperties.
 
-Links to: [[knowledge-sources]], [[src:wikiknowledge/wk/index-engine]]
+Links to: [[knowledge-sources]], [[src:wikiknowledge/in-memory-index]]
 """
 
 from __future__ import annotations

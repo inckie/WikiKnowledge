@@ -3,7 +3,7 @@ categories:
 - system-architecture
 created: '2026-07-06T05:59:38.961944+00:00'
 id: knowledge-sources
-modified: '2026-07-06T05:59:38.961967+00:00'
+modified: '2026-09-25T11:02:30.072562+00:00'
 tags:
 - knowledge-sources
 - plugins
@@ -49,14 +49,23 @@ This system is explicitly *not* a code indexing tool (like a language server or 
 
 <!-- ai:start -->
 ### [[source-code-plugin|Source Code Plugin]]
-Details how source code files can participate in the knowledge graph. Explains the annotation format for different programming languages (Python RST docstrings, JavaScript JSDoc), what knowledge gets captured (module-level architecture), and configuration formats. Includes a self-annotation example from WikiKnowledge's own codebase.
+Details how source code files can participate in the knowledge graph. Explains the annotation format for different programming languages (Python RST docstrings, JavaScript/TypeScript JSDoc, Java/Kotlin), what knowledge gets captured (module-level architecture), and configuration formats. Includes a self-annotation example from WikiKnowledge's own codebase.
 
 ### [[source-link-syntax|Source Link Syntax]]
-Documents the extended wiki-link syntax used to reference source code articles. Explains the `[[src:source-name/module-path]]` format, multi-KB `@kb-name` qualifiers, resolution rules, and how disconnected sources are rendered differently from broken links.
+Documents the extended wiki-link syntax used to reference external source articles. Explains the `[[src:source-name/module-path]]` and `[[gdrive:doc-id]]` formats, multi-KB `@kb-name` qualifiers, resolution rules within source codebases, and how disconnected sources degrade gracefully.
 
 ### [[markdown-files-plugin|Markdown Files Plugin]]
-Covers importing an existing markdown documentation tree (Docusaurus, MkDocs, plain `docs/` folders) with no annotations required: folders become category articles, dash-concatenated relative paths become article IDs, relative markdown links and images are rewritten on serving, and include/exclude globs control what is indexed.
+Covers importing an existing markdown documentation tree (Docusaurus, MkDocs, Docsify, or plain `docs/` folders) with zero annotations required: folders become category articles, dash-concatenated relative paths become article IDs, relative markdown links and images are rewritten on serving, and include/exclude globs control what is indexed.
+
+### [[src:wikiknowledge/markdown-files-plugin|Markdown Files Plugin (Source Implementation)]]
+The backend Python source module (`markdown_files.py`) implementing the Markdown Files Plugin. Handles discovering filesystem directory trees, creating virtual categories and leaves, rewriting relative links into wiki-links, and safely serving static assets like images.
 
 ### [[google-drive-plugin|Google Drive Plugin]]
-Covers the Google Drive knowledge source plugin: service account authentication, folder configuration, virtual article IDs (`gdrive:<doc-id>`), local caching with delta sync, optional bi-directional tag/category metadata via Drive `appProperties`, markdown export pipeline, and multi-account support.
+Covers the Google Drive knowledge source plugin: service account authentication, folder configuration, virtual article IDs (`gdrive:<doc-id>`), local caching with on-demand sync, folder hierarchy mirroring, markdown export pipeline, and bidirectional tag/category metadata synchronization via Drive properties.
+
+### [[google-docs-extension|Google Docs Extension for WikiKnowledge]]
+A setup guide for creating a Google Docs Apps Script extension (`Code.gs` and `Sidebar.html`). Provides an in-editor sidebar allowing authors to view and update WikiKnowledge tags (`wk_tags`) and categories (`wk_categories`) directly within Google Docs, respecting backend property length limits.
+
+### [[gdrive:1AxAubXmVpPNOHFANk_1shZcE_3zKxUQtM5INMLw3404|WikiKnowledge Google Drive]]
+A sample Google Doc virtual article integrated via the Google Drive plugin demonstrating live document rendering. Documents Google Drive API custom property constraints and acts as a template for authoring new Google Docs for WikiKnowledge.
 <!-- ai:end -->

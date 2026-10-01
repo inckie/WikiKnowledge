@@ -118,6 +118,37 @@ const API = {
         });
     },
 
+    async replaceResource(resourceId, formData) {
+        const url = `${this.BASE}/resources/${encodeURIComponent(resourceId)}`;
+        const resp = await fetch(url, {
+            method: 'PUT',
+            body: formData, // No Content-Type header, let browser set multipart/form-data boundary
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+            throw new Error(err.detail || `HTTP ${resp.status}`);
+        }
+        return resp.json();
+    },
+
+    async replaceResourceFile(resourceId, fileOrBlob, contentType) {
+        const url = `${this.BASE}/resources/${encodeURIComponent(resourceId)}/file`;
+        const headers = {};
+        if (contentType) {
+            headers['Content-Type'] = contentType;
+        }
+        const resp = await fetch(url, {
+            method: 'PUT',
+            headers,
+            body: fileOrBlob,
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+            throw new Error(err.detail || `HTTP ${resp.status}`);
+        }
+        return resp.json();
+    },
+
     // --- AI Integration ---
 
     async getAISettings() {

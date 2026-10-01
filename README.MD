@@ -9,7 +9,6 @@ See [knowledge/categories/overview.md](knowledge/categories/overview.md) for the
 
 TODO:
 
-- [ ] resource files update support
 - [ ] readonly mode
 - [ ] resource bundles
 - [ ] read/write locks on parallel requests

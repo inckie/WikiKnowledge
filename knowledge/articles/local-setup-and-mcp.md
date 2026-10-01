@@ -104,6 +104,8 @@ Once configured, the AI agent gains access to the following functions:
 - `rescan_sources()`: Re-initialize all sources and completely rebuild the knowledge graph index.
 - `get_resource(resource_id)`: Retrieve a media resource (metadata + content) by its unique ID.
 - `list_resources()`: List all media resources (metadata, tags, and associations) currently in the knowledge base.
-- `upload_resource(resource_id, title, data, is_base64, mime_type, tags, categories, related, description)`: Upload or update a media resource with sidecar metadata.
+- `upload_resource(resource_id, title, data, is_base64, mime_type, tags, categories, related, description)`: Upload or update a media resource with sidecar metadata (preserves creation date on update).
+- `replace_resource(resource_id, data, is_base64, mime_type, title, tags, categories, related, description)`: Replace the file content of an existing media resource, optionally updating metadata while preserving unspecified fields.
+- `update_resource(resource_id, title, data, is_base64, mime_type, tags, categories, related, description)`: Update metadata and/or replace file content for an existing media resource.
 - `move_resource(resource_id, new_id, update_references)`: Rename a resource and update all references to it.
 - `delete_resource(resource_id)`: Delete a media resource and its `.meta` sidecar.

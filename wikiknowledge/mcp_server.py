@@ -1,7 +1,7 @@
 """
 MCP (Model Context Protocol) server for AI tool access to the knowledge base.
 
-17-tool MCP server factory. Gives AI agents full CRUD + query access to the knowledge base.
+MCP server factory. Gives AI agents full CRUD + query access to the knowledge base.
 """
 
 from __future__ import annotations
@@ -627,6 +627,13 @@ def create_mcp_server(
             mime_type = mimetypes.guess_type(resource_id)[0] or "application/octet-stream"
 
         now = datetime.now(timezone.utc)
+        created = now
+        try:
+            existing_meta = await storage.get_resource_meta(resource_id)
+            created = existing_meta.created
+        except KeyError:
+            pass
+
         meta = ResourceMeta(
             id=resource_id,
             title=title,
@@ -636,7 +643,7 @@ def create_mcp_server(
             categories=categories or [],
             related=related or [],
             description=description or "",
-            created=now,
+            created=created,
             modified=now,
         )
 
@@ -651,19 +658,90 @@ def create_mcp_server(
             return f"Error: Failed to save resource '{resource_id}': {e}"
 
     @mcp.tool()
-    async def update_resource(
+    async def replace_resource(
         resource_id: str,
+        data: str,
+        is_base64: bool = False,
+        mime_type: Optional[str] = None,
         title: Optional[str] = None,
         tags: Optional[list[str]] = None,
         categories: Optional[list[str]] = None,
         related: Optional[list[str]] = None,
         description: Optional[str] = None,
     ) -> str:
-        """Update metadata for an existing media resource.
+        """Replace the file content of an existing media resource, optionally updating its metadata.
+        
+        Args:
+            resource_id: Unique ID of the resource to replace (e.g., 'logo.svg').
+            data: Raw string content (for text/SVG) or base64-encoded binary string.
+            is_base64: Set to True if `data` is a base64-encoded string.
+            mime_type: Optional MIME type (e.g., 'image/svg+xml'). Guessed from resource_id if omitted.
+            title: Optional updated title (preserves existing title if omitted).
+            tags: Optional updated tags list (preserves existing tags if omitted).
+            categories: Optional updated categories list (preserves existing categories if omitted).
+            related: Optional updated related article IDs (preserves existing related if omitted).
+            description: Optional updated summary/description (preserves existing description if omitted).
+        """
+        try:
+            resource = await storage.get_resource(resource_id)
+        except KeyError:
+            return f"Error: Resource '{resource_id}' not found."
+
+        if is_base64:
+            try:
+                raw_data = base64.b64decode(data)
+            except Exception as e:
+                return f"Error: Invalid base64 data: {e}"
+        else:
+            raw_data = data.encode("utf-8")
+
+        meta = resource.meta
+
+        if title is not None:
+            meta.title = title
+        if tags is not None:
+            meta.tags = tags
+        if categories is not None:
+            meta.categories = categories
+        if related is not None:
+            meta.related = related
+        if description is not None:
+            meta.description = description
+
+        if mime_type is not None:
+            meta.mime_type = mime_type
+        elif not meta.mime_type or meta.mime_type == "application/octet-stream":
+            meta.mime_type = mimetypes.guess_type(resource_id)[0] or "application/octet-stream"
+
+        meta.modified = datetime.now(timezone.utc)
+
+        try:
+            saved_meta = await storage.save_resource(resource_id, raw_data, meta)
+            index.rebuild_resource(resource_id, saved_meta)
+            return f"Success: Resource '{resource_id}' replaced successfully."
+        except Exception as e:
+            return f"Error: Failed to replace resource '{resource_id}': {e}"
+
+    @mcp.tool()
+    async def update_resource(
+        resource_id: str,
+        title: Optional[str] = None,
+        data: Optional[str] = None,
+        is_base64: bool = False,
+        mime_type: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+        categories: Optional[list[str]] = None,
+        related: Optional[list[str]] = None,
+        description: Optional[str] = None,
+    ) -> str:
+        """Update metadata and/or replace file content for an existing media resource.
         
         Args:
             resource_id: Unique ID of the resource to update.
             title: Human-readable title (optional).
+            data: Raw string content or base64-encoded binary string to replace file data (optional).
+            is_base64: Set to True if `data` is a base64-encoded string.
+            mime_type: Optional MIME type (e.g., 'image/svg+xml').
             tags: List of tags (optional).
             categories: List of categories (optional).
             related: List of related article IDs (optional).
@@ -686,15 +764,32 @@ def create_mcp_server(
             meta.related = related
         if description is not None:
             meta.description = description
+
+        raw_data = resource.data
+        if data is not None:
+            if is_base64:
+                try:
+                    raw_data = base64.b64decode(data)
+                except Exception as e:
+                    return f"Error: Invalid base64 data: {e}"
+            else:
+                raw_data = data.encode("utf-8")
+
+            if mime_type is not None:
+                meta.mime_type = mime_type
+            elif not meta.mime_type or meta.mime_type == "application/octet-stream":
+                meta.mime_type = mimetypes.guess_type(resource_id)[0] or "application/octet-stream"
+        elif mime_type is not None:
+            meta.mime_type = mime_type
             
         meta.modified = datetime.now(timezone.utc)
         
         try:
-            saved_meta = await storage.save_resource(resource_id, resource.data, meta)
+            saved_meta = await storage.save_resource(resource_id, raw_data, meta)
             index.rebuild_resource(resource_id, saved_meta)
-            return f"Success: Resource '{resource_id}' metadata updated successfully."
+            return f"Success: Resource '{resource_id}' updated successfully."
         except Exception as e:
-            return f"Error: Failed to update resource metadata '{resource_id}': {e}"
+            return f"Error: Failed to update resource '{resource_id}': {e}"
 
     @mcp.tool()
     async def delete_resource(resource_id: str) -> str:

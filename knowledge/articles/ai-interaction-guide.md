@@ -63,7 +63,7 @@ Your primary interface to the knowledge base is through MCP tools. Use them to e
 
 7.  **`list_resources()` / `get_resource(resource_id)`**: Discover what images, diagrams, or other binary files are already uploaded in the knowledge base and retrieve their metadata or content.
 
-8.  **`upload_resource(...)` / `delete_resource(resource_id)`**: Upload or delete media resources.
+8.  **`upload_resource(...)` / `replace_resource(...)` / `update_resource(...)` / `delete_resource(resource_id)`**: Upload, replace file content, update metadata/content, or delete media resources.
 
 ## Adding and Updating Knowledge
 
@@ -115,7 +115,10 @@ This tool is critical because it will automatically find all incoming `[[wiki-li
 When an article requires images, diagrams, logos, or other binary files:
 
 1.  **Check Existing**: Run **`list_resources()`** to see if the file is already uploaded.
-2.  **Upload/Update**: If not, use the **`upload_resource()`** tool.
+2.  **Upload/Update/Replace**:
+    *   To upload a new resource, use the **`upload_resource()`** tool.
+    *   To replace the file content of an existing resource, use **`replace_resource()`** (or **`update_resource()`** with the `data` parameter).
+    *   To modify only metadata without changing the file, use **`update_resource()`** with metadata fields.
     *   **Resource ID**: Ensure the `resource_id` explicitly retains the file extension (e.g., `id: diagram.png`) to avoid name collisions and ensure clarity.
     *   **Description**: Provide a rich, descriptive summary of the media's content in the `description` parameter. This is critical for text-only LLMs accessing the knowledge base to understand the image or graphic.
     *   **Related**: Link the resource to the parent article using the `related` field to establish the connection in the graph.

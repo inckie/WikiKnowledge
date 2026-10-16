@@ -226,12 +226,22 @@ const Graph = {
             return aCat - bCat;
         });
 
+        // Adjacency built once, so hover doesn't scan every link
+        const adj = new Map(nodes.map(n => [n.id, new Set()]));
+        links.forEach(l => {
+            const sId = typeof l.source === 'object' ? l.source.id : l.source;
+            const tId = typeof l.target === 'object' ? l.target.id : l.target;
+            adj.get(sId)?.add(tId);
+            adj.get(tId)?.add(sId);
+        });
+
         // Force simulation
         this._simulation = d3.forceSimulation(nodes)
             .force('link', d3.forceLink(links).id(d => d.id).distance(100))
             .force('charge', d3.forceManyBody().strength(-200))
             .force('center', d3.forceCenter(this._width / 2, this._height / 2))
-            .force('collision', d3.forceCollide().radius(d => sizeScale(d.linkCount) + 10));
+            .force('collision', d3.forceCollide().radius(d => sizeScale(d.linkCount) + 10))
+            .alphaDecay(0.06);
 
         // Links
         const link = this._g.append('g')
@@ -337,13 +347,7 @@ const Graph = {
             tooltip.classList.remove('hidden');
 
             // Highlight connected
-            const connectedIds = new Set();
-            links.forEach(l => {
-                const sId = typeof l.source === 'object' ? l.source.id : l.source;
-                const tId = typeof l.target === 'object' ? l.target.id : l.target;
-                if (sId === d.id) connectedIds.add(tId);
-                if (tId === d.id) connectedIds.add(sId);
-            });
+            const connectedIds = adj.get(d.id);
 
             // Dim non-connected nodes, keep hovered and directly connected nodes bright
             node

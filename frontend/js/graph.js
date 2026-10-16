@@ -16,6 +16,8 @@ const Graph = {
      * Initialize the graph view with full graph data.
      */
     async init() {
+        // Guard: init is triggered twice (hash change + direct call); only the latest render wins
+        const token = this._initToken = (this._initToken || 0) + 1;
         const container = document.getElementById('graph-container');
         const svgEl = document.getElementById('graph-svg');
 
@@ -68,6 +70,7 @@ const Graph = {
         // Fetch and render
         try {
             const data = await API.fetchGraph();
+            if (token !== this._initToken) return;
             this._renderGraph(data);
         } catch (e) {
             console.error('Failed to load graph:', e);
@@ -96,11 +99,20 @@ const Graph = {
         const maxLinks = Math.max(...nodes.map(n => n.linkCount), 1);
         const sizeScale = d3.scaleSqrt().domain([0, maxLinks]).range([5, 18]);
 
+        const adj = new Map(nodes.map(n => [n.id, new Set()]));
+        links.forEach(l => {
+            const sId = typeof l.source === 'object' ? l.source.id : l.source;
+            const tId = typeof l.target === 'object' ? l.target.id : l.target;
+            adj.get(sId)?.add(tId);
+            adj.get(tId)?.add(sId);
+        });
+
         // Force simulation
         this._simulation = d3.forceSimulation(nodes)
             .force('link', d3.forceLink(links).id(d => d.id).distance(100))
             .force('charge', d3.forceManyBody().strength(-200))
             .force('center', d3.forceCenter(this._width / 2, this._height / 2))
+            .alphaDecay(0.06)
             .force('collision', d3.forceCollide().radius(d => sizeScale(d.linkCount) + 10));
 
         // Links
@@ -109,8 +121,7 @@ const Graph = {
             .data(links)
             .join('line')
             .attr('class', 'graph-link')
-            .attr('stroke-width', 1)
-            .attr('marker-end', 'url(#arrowhead)');
+            .attr('stroke-width', 1);
 
         // Nodes group
         const node = this._g.append('g')
@@ -205,13 +216,7 @@ const Graph = {
             tooltip.classList.remove('hidden');
 
             // Highlight connected
-            const connectedIds = new Set();
-            links.forEach(l => {
-                const sId = typeof l.source === 'object' ? l.source.id : l.source;
-                const tId = typeof l.target === 'object' ? l.target.id : l.target;
-                if (sId === d.id) connectedIds.add(tId);
-                if (tId === d.id) connectedIds.add(sId);
-            });
+            const connectedIds = adj.get(d.id);
 
             node.select('.node-shape')
                 .attr('opacity', n => n.id === d.id || connectedIds.has(n.id) ? 1 : 0.2);

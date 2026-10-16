@@ -1387,7 +1387,6 @@ body {
     stroke: var(--border-color);
     stroke-opacity: 0.25;
     opacity: 1;
-    transition: stroke-opacity var(--transition-fast), stroke var(--transition-fast), opacity var(--transition-fast);
 }
 
 .graph-link.graph-link-article {
@@ -1400,7 +1399,6 @@ body {
     stroke: #a855f7;
     stroke-opacity: 0.75;
     stroke-width: 1.5px;
-    filter: drop-shadow(0 0 2px rgba(168, 85, 247, 0.45));
 }
 
 .graph-link.graph-link-resource {

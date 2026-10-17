@@ -27,7 +27,7 @@
         });
     </script>
 
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/style.css?v=1.1">
     
     <!-- Theme initialization script (prevents flash) -->
     <script>
@@ -133,6 +133,22 @@
                 <div class="article-body markdown-body" id="article-body"></div>
                 <div id="category-section" class="category-section"></div>
                 <div class="article-backlinks" id="article-backlinks"></div>
+            </div>
+
+            <!-- Search Results View -->
+            <div id="view-search" class="view">
+                <div class="search-view-header">
+                    <div class="search-view-breadcrumb" id="search-view-breadcrumb">
+                        <a href="#/">Home</a>
+                        <span class="separator">›</span>
+                        <span>Search Results</span>
+                    </div>
+                    <div class="search-view-title-row">
+                        <h2 id="search-view-heading" class="search-view-heading">Search Results</h2>
+                        <span id="search-view-count" class="search-view-count-badge"></span>
+                    </div>
+                </div>
+                <div id="search-view-results" class="search-view-results-list"></div>
             </div>
 
             <!-- Article editor -->

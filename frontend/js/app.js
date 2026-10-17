@@ -106,6 +106,10 @@ const App = {
             this._showGraph();
         } else if (route === 'settings') {
             this._showSettings();
+        } else if (route === 'search') {
+            const urlParams = new URLSearchParams(queryString);
+            const query = urlParams.get('q') || (param ? decodeURIComponent(param) : '');
+            this._showSearchResults(query);
         } else {
             this._showView('welcome');
         }
@@ -271,6 +275,115 @@ const App = {
     },
 
     /**
+     * Show full search results in main view.
+     */
+    async _showSearchResults(query) {
+        this._showView('search');
+        this._currentArticleId = null;
+
+        // Clear active selection in sidebar
+        document.querySelectorAll('.sidebar-list-item.active').forEach(el => el.classList.remove('active'));
+
+        const headingEl = document.getElementById('search-view-heading');
+        const countEl = document.getElementById('search-view-count');
+        const resultsListEl = document.getElementById('search-view-results');
+        const searchInput = document.getElementById('search-input');
+
+        if (searchInput && query && searchInput.value !== query) {
+            searchInput.value = query;
+        }
+
+        if (!query || !query.trim()) {
+            if (headingEl) headingEl.textContent = 'Search';
+            if (countEl) countEl.textContent = '';
+            if (resultsListEl) {
+                resultsListEl.innerHTML = `
+                    <div class="search-empty-state">
+                        <div class="empty-icon">🔍</div>
+                        <h3>No search term entered</h3>
+                        <p>Use the search box in the sidebar to search for articles across titles, tags, and content.</p>
+                    </div>`;
+            }
+            return;
+        }
+
+        const trimmedQ = query.trim();
+        if (headingEl) headingEl.textContent = `Search Results for "${trimmedQ}"`;
+        if (countEl) countEl.textContent = 'Searching...';
+        if (resultsListEl) {
+            resultsListEl.innerHTML = '<div style="padding: var(--space-6); color: var(--text-muted); text-align: center;">Loading search results...</div>';
+        }
+
+        try {
+            const results = await API.search(trimmedQ);
+            if (countEl) {
+                countEl.textContent = `${results.length} article${results.length === 1 ? '' : 's'} found`;
+            }
+
+            if (!results.length) {
+                if (resultsListEl) {
+                    resultsListEl.innerHTML = `
+                        <div class="search-empty-state">
+                            <div class="empty-icon">🔍</div>
+                            <h3>No matching articles</h3>
+                            <p>No articles matched your search query <strong>"${Utils.escapeHtml(trimmedQ)}"</strong>.</p>
+                        </div>`;
+                }
+                return;
+            }
+
+            if (resultsListEl) {
+                resultsListEl.innerHTML = results.map(r => {
+                    const sourceInfo = Utils.getSourceInfo(r, this._sources);
+                    const sourceBadge = sourceInfo.type !== 'native' ?
+                        `<span class="source-badge ${sourceInfo.badgeClass}" title="${sourceInfo.label}">${sourceInfo.badgeText}</span>` : '';
+                    const tagChips = r.tags && r.tags.length ?
+                        `<div class="search-card-tags">${r.tags.map(t => `<span class="chip chip-tag" data-tag="${Utils.escapeHtml(t)}">#${Utils.escapeHtml(t)}</span>`).join('')}</div>` : '';
+
+                    return `
+                        <div class="search-card" data-id="${Utils.escapeHtml(r.id)}">
+                            <div class="search-card-header">
+                                <span class="type-badge ${r.type}">${r.type}</span>
+                                ${sourceBadge}
+                                <a href="#/article/${encodeURIComponent(r.id)}" class="search-card-title">${Utils.escapeHtml(r.title || r.id)}</a>
+                            </div>
+                            <div class="search-card-id">${Utils.escapeHtml(r.id)}</div>
+                            ${tagChips}
+                        </div>
+                    `;
+                }).join('');
+
+                resultsListEl.querySelectorAll('.search-card').forEach(card => {
+                    card.addEventListener('click', (e) => {
+                        const tagEl = e.target.closest('.chip-tag');
+                        if (tagEl) {
+                            e.stopPropagation();
+                            this.filterByTag(tagEl.dataset.tag);
+                            return;
+                        }
+                        if (e.target.closest('a')) {
+                            return;
+                        }
+                        const articleId = card.dataset.id;
+                        window.location.hash = `#/article/${encodeURIComponent(articleId)}`;
+                    });
+                });
+            }
+
+            // Scroll main content to top
+            const mainContent = document.getElementById('main-content');
+            if (mainContent) mainContent.scrollTo(0, 0);
+
+        } catch (err) {
+            console.error('Failed to load search results:', err);
+            if (countEl) countEl.textContent = 'Error';
+            if (resultsListEl) {
+                resultsListEl.innerHTML = `<div style="padding: var(--space-6); color: var(--color-danger); text-align: center;">Failed to load search results: ${Utils.escapeHtml(err.message)}</div>`;
+            }
+        }
+    },
+
+    /**
      * Bind sidebar navigation buttons.
      */
     _bindNav() {
@@ -309,9 +422,10 @@ const App = {
 
         // Search
         const searchInput = document.getElementById('search-input');
+        const resultsEl = document.getElementById('search-results');
+
         searchInput.addEventListener('input', Utils.debounce(async () => {
             const q = searchInput.value.trim();
-            const resultsEl = document.getElementById('search-results');
 
             if (!q) {
                 resultsEl.classList.add('hidden');
@@ -323,28 +437,45 @@ const App = {
                 if (!results.length) {
                     resultsEl.innerHTML = '<div class="search-result-item" style="color:var(--text-muted)">No results</div>';
                 } else {
-                    resultsEl.innerHTML = results.map(r => {
+                    const hasMore = results.length > 10;
+                    const displayResults = hasMore ? results.slice(0, 10) : results;
+
+                    let itemsHtml = displayResults.map(r => {
                         const sourceInfo = Utils.getSourceInfo(r, this._sources);
                         const sourceBadge = sourceInfo.type !== 'native' ?
                             `<span class="source-badge ${sourceInfo.badgeClass}" title="${sourceInfo.label}">${sourceInfo.badgeText}</span>` : '';
-                        const tagChips = r.tags && r.tags.length ?
-                            `<div class="search-item-tags">${r.tags.map(t => `<span class="mini-tag">#${Utils.escapeHtml(t)}</span>`).join('')}</div>` : '';
 
                         return `<div class="search-result-item" data-id="${Utils.escapeHtml(r.id)}">
                             <span class="type-badge ${r.type}">${r.type}</span>
                             ${sourceBadge}
-                            <span class="search-result-title">${Utils.escapeHtml(r.title)}</span>
-                            ${tagChips}
+                            <span class="search-result-title">${Utils.escapeHtml(r.title || r.id)}</span>
                         </div>`;
                     }).join('');
 
+                    if (hasMore) {
+                        itemsHtml += `<div class="search-show-all-item" id="search-show-all-btn">
+                            <span>Show All (${results.length} results)</span>
+                            <span>→</span>
+                        </div>`;
+                    }
+
+                    resultsEl.innerHTML = itemsHtml;
+
                     resultsEl.querySelectorAll('.search-result-item[data-id]').forEach(el => {
                         el.addEventListener('click', () => {
-                            window.location.hash = `#/article/${el.dataset.id}`;
+                            window.location.hash = `#/article/${encodeURIComponent(el.dataset.id)}`;
                             searchInput.value = '';
                             resultsEl.classList.add('hidden');
                         });
                     });
+
+                    const showAllBtn = document.getElementById('search-show-all-btn');
+                    if (showAllBtn) {
+                        showAllBtn.addEventListener('click', () => {
+                            resultsEl.classList.add('hidden');
+                            window.location.hash = `#/search?q=${encodeURIComponent(q)}`;
+                        });
+                    }
                 }
                 resultsEl.classList.remove('hidden');
             } catch (e) {
@@ -352,10 +483,21 @@ const App = {
             }
         }, 250));
 
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const q = searchInput.value.trim();
+                if (q) {
+                    e.preventDefault();
+                    resultsEl.classList.add('hidden');
+                    window.location.hash = `#/search?q=${encodeURIComponent(q)}`;
+                }
+            }
+        });
+
         // Hide search results on outside click
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.sidebar-search')) {
-                document.getElementById('search-results').classList.add('hidden');
+                resultsEl.classList.add('hidden');
             }
         });
     },

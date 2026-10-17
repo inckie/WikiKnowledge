@@ -27,7 +27,7 @@
         });
     </script>
 
-    <link rel="stylesheet" href="/css/style.css?v=1.1">
+    <link rel="stylesheet" href="/css/style.css?v=1.2">
     
     <!-- Theme initialization script (prevents flash) -->
     <script>
@@ -215,6 +215,33 @@
                             <button id="btn-rescan-sources" class="btn btn-secondary">🔄 Re-scan Sources</button>
                         </div>
                     </div>
+
+                    <!-- Embedding Search Card -->
+                    <div class="settings-card">
+                        <div class="settings-header">
+                            <span class="settings-icon">⚡</span>
+                            <div>
+                                <h4>Embedding Search (Model2Vec)</h4>
+                                <p class="settings-desc">Enable semantic vector search across wiki articles and connected external sources using lightweight static embeddings (<code>minishlab/potion-base-8M</code>).</p>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="embedding-enabled">
+                                <span>Enable Semantic Embedding Search</span>
+                            </label>
+                            <span class="form-help">When enabled, search queries find conceptually related content even when keywords don't match exactly.</span>
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; background: var(--bg-surface); padding: var(--space-3) var(--space-4); border-radius: var(--border-radius); border: 1px solid var(--border-color);">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Index Status:</span>
+                                <span id="embedding-status-badge" class="source-badge" style="background: var(--bg-hover); border: 1px solid var(--border-color); font-size: 0.75rem;">Disabled</span>
+                                <span id="embedding-stats" style="font-size: 0.8rem; color: var(--text-muted);"></span>
+                            </div>
+                            <button id="btn-rebuild-embeddings" class="btn btn-secondary" style="font-size: 0.85rem; padding: 4px 12px;">🔄 Rebuild Index</button>
+                        </div>
+                        <div id="embedding-status-message" class="settings-status hidden" style="margin-top: 12px;"></div>
+                    </div>
                     
                     <!-- AI Settings Card -->
                     <div class="settings-card">
@@ -333,14 +360,14 @@
     </div>
 
     <!-- Scripts (ES modules) -->
-    <script src="/js/utils.js"></script>
-    <script src="/js/api.js"></script>
-    <script src="/js/metadata.js"></script>
-    <script src="/js/viewer.js"></script>
-    <script src="/js/editor.js"></script>
-    <script src="/js/graph.js"></script>
-    <script src="/js/settings.js"></script>
-    <script src="/js/chat.js"></script>
-    <script src="/js/app.js"></script>
+    <script src="/js/utils.js?v=2"></script>
+    <script src="/js/api.js?v=2"></script>
+    <script src="/js/metadata.js?v=2"></script>
+    <script src="/js/viewer.js?v=2"></script>
+    <script src="/js/editor.js?v=2"></script>
+    <script src="/js/graph.js?v=2"></script>
+    <script src="/js/settings.js?v=2"></script>
+    <script src="/js/chat.js?v=2"></script>
+    <script src="/js/app.js?v=3"></script>
 </body>
 </html>

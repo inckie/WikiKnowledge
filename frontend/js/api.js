@@ -201,4 +201,23 @@ const API = {
             body: JSON.stringify({ tags, categories }),
         });
     },
+
+    // --- Embedding Search ---
+
+    async getEmbeddingSettings() {
+        return this._fetch('/search/embedding/settings');
+    },
+
+    async saveEmbeddingSettings(enabled) {
+        return this._fetch('/search/embedding/settings', {
+            method: 'POST',
+            body: JSON.stringify({ enabled }),
+        });
+    },
+
+    async rebuildEmbeddingIndex() {
+        return this._fetch('/search/embedding/rebuild', {
+            method: 'POST',
+        });
+    },
 };

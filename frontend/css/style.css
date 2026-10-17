@@ -282,12 +282,18 @@ body {
     padding: var(--space-2) var(--space-3);
     cursor: pointer;
     display: flex;
-    align-items: center;
-    gap: var(--space-2);
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
     font-size: var(--text-sm);
     transition: background var(--transition-fast);
     overflow: hidden;
-    min-height: 36px;
+    min-height: 44px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
 }
 
 .search-result-item:hover {
@@ -295,12 +301,24 @@ body {
 }
 
 .search-result-title {
-    flex: 1;
-    min-width: 0;
+    width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--text-primary);
+    color: var(--text-bright);
+    font-weight: 500;
+}
+
+.search-result-badges {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.search-result-badges .type-badge,
+.search-result-badges .source-badge {
+    margin-right: 0;
 }
 
 .search-show-all-item {

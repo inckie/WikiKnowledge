@@ -19,7 +19,7 @@ WikiKnowledge features an optional AI integration architecture built upon the Op
 
 ## Web UI Settings Page
 
-The WikiKnowledge web interface includes a dedicated **Settings** page accessible via the sidebar navigation (`#/settings`).
+The WikiKnowledge web interface includes a dedicated **System Settings** page accessible via the sidebar navigation (`#/settings`). It manages [[knowledge-sources|Knowledge Sources]], AI API Integration, and [[embedding-search|Embedding Search (Model2Vec)]].
 
 ```
 ┌────────────────────────────────────────────────────────┐

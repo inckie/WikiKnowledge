@@ -47,6 +47,7 @@ const Settings = {
         }
 
         await this.loadSources();
+        await this.loadEmbeddingSettings();
     },
 
     _bindEvents() {
@@ -55,6 +56,8 @@ const Settings = {
         const fetchBtn = document.getElementById('btn-fetch-models');
         const saveBtn = document.getElementById('btn-save-settings');
         const rescanBtn = document.getElementById('btn-rescan-sources');
+        const embeddingToggle = document.getElementById('embedding-enabled');
+        const rebuildEmbeddingBtn = document.getElementById('btn-rebuild-embeddings');
 
         if (urlEl) urlEl.addEventListener('input', () => this._checkInputState());
         if (keyEl) keyEl.addEventListener('input', () => this._checkInputState());
@@ -69,6 +72,14 @@ const Settings = {
 
         if (rescanBtn) {
             rescanBtn.addEventListener('click', () => this.rescanSources());
+        }
+
+        if (embeddingToggle) {
+            embeddingToggle.addEventListener('change', (e) => this.saveEmbeddingToggle(e.target.checked));
+        }
+
+        if (rebuildEmbeddingBtn) {
+            rebuildEmbeddingBtn.addEventListener('click', () => this.rebuildEmbeddingIndex());
         }
     },
 
@@ -330,6 +341,142 @@ const Settings = {
         } finally {
             btn.innerHTML = originalText;
             btn.disabled = false;
+        }
+    },
+
+    // --- Embedding Search UI ---
+
+    _embeddingPollTimer: null,
+
+    async loadEmbeddingSettings() {
+        const toggleEl = document.getElementById('embedding-enabled');
+        if (!toggleEl) return;
+
+        try {
+            const data = await API.getEmbeddingSettings();
+            toggleEl.checked = !!data.enabled;
+            this.updateEmbeddingStatusUI(data);
+
+            if (data.status === 'indexing') {
+                this._startEmbeddingPolling();
+            }
+        } catch (e) {
+            console.error('Failed to load embedding settings:', e);
+        }
+    },
+
+    updateEmbeddingStatusUI(data) {
+        const badgeEl = document.getElementById('embedding-status-badge');
+        const statsEl = document.getElementById('embedding-stats');
+        const errorEl = document.getElementById('embedding-status-message');
+        const rebuildBtn = document.getElementById('btn-rebuild-embeddings');
+
+        if (!badgeEl) return;
+
+        if (!data.enabled) {
+            badgeEl.textContent = 'Disabled';
+            badgeEl.className = 'source-badge';
+            badgeEl.style.background = 'var(--bg-hover)';
+            badgeEl.style.color = 'var(--text-muted)';
+            badgeEl.style.borderColor = 'var(--border-color)';
+        } else if (data.status === 'indexing') {
+            badgeEl.textContent = '⏳ Indexing...';
+            badgeEl.className = 'source-badge';
+            badgeEl.style.background = 'rgba(245, 158, 11, 0.15)';
+            badgeEl.style.color = '#f59e0b';
+            badgeEl.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+        } else if (data.status === 'ready') {
+            badgeEl.textContent = '● Ready';
+            badgeEl.className = 'source-badge';
+            badgeEl.style.background = 'rgba(16, 185, 129, 0.15)';
+            badgeEl.style.color = '#10b981';
+            badgeEl.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+        } else if (data.status === 'error') {
+            badgeEl.textContent = '● Error';
+            badgeEl.className = 'source-badge';
+            badgeEl.style.background = 'rgba(239, 68, 68, 0.15)';
+            badgeEl.style.color = '#ef4444';
+            badgeEl.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+        } else {
+            badgeEl.textContent = data.status || 'Idle';
+            badgeEl.className = 'source-badge';
+            badgeEl.style.background = 'var(--bg-hover)';
+            badgeEl.style.color = 'var(--text-secondary)';
+            badgeEl.style.borderColor = 'var(--border-color)';
+        }
+
+        if (statsEl) {
+            if (data.status === 'ready' && data.article_count > 0) {
+                statsEl.textContent = `(${data.article_count} articles, ${data.chunk_count} chunks indexed)`;
+            } else if (data.status === 'indexing') {
+                statsEl.textContent = '(indexing in background...)';
+            } else {
+                statsEl.textContent = '';
+            }
+        }
+
+        if (rebuildBtn) {
+            rebuildBtn.disabled = data.status === 'indexing';
+        }
+
+        if (errorEl) {
+            if (data.last_error) {
+                errorEl.className = 'settings-status error';
+                errorEl.textContent = `Indexing error: ${data.last_error}`;
+                errorEl.classList.remove('hidden');
+            } else {
+                errorEl.classList.add('hidden');
+            }
+        }
+    },
+
+    _startEmbeddingPolling() {
+        if (this._embeddingPollTimer) return;
+        this._embeddingPollTimer = setInterval(async () => {
+            try {
+                const data = await API.getEmbeddingSettings();
+                this.updateEmbeddingStatusUI(data);
+                if (data.status !== 'indexing') {
+                    clearInterval(this._embeddingPollTimer);
+                    this._embeddingPollTimer = null;
+                    if (data.status === 'ready') {
+                        Utils.toast('Embedding index build completed!', 'success');
+                    } else if (data.status === 'error') {
+                        Utils.toast('Embedding index build failed.', 'error');
+                    }
+                }
+            } catch (e) {
+                clearInterval(this._embeddingPollTimer);
+                this._embeddingPollTimer = null;
+            }
+        }, 1500);
+    },
+
+    async saveEmbeddingToggle(enabled) {
+        try {
+            const data = await API.saveEmbeddingSettings(enabled);
+            this.updateEmbeddingStatusUI(data);
+            Utils.toast(enabled ? 'Embedding search enabled' : 'Embedding search disabled', 'info');
+            if (enabled && data.status === 'indexing') {
+                this._startEmbeddingPolling();
+            }
+        } catch (e) {
+            Utils.toast(`Failed to update embedding settings: ${e.message}`, 'error');
+        }
+    },
+
+    async rebuildEmbeddingIndex() {
+        const btn = document.getElementById('btn-rebuild-embeddings');
+        if (btn) btn.disabled = true;
+
+        try {
+            const data = await API.rebuildEmbeddingIndex();
+            this.updateEmbeddingStatusUI(data);
+            Utils.toast('Started background embedding indexing...', 'info');
+            this._startEmbeddingPolling();
+        } catch (e) {
+            Utils.toast(`Failed to rebuild embeddings: ${e.message}`, 'error');
+            if (btn) btn.disabled = false;
         }
     }
 };

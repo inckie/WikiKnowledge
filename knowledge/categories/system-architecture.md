@@ -25,8 +25,10 @@ flowchart TD
     API --> Index[In-Memory Index]
     API --> Storage[Storage Backend]
     API --> AIService[AI Service / MCP Server]
+    API --> EmbeddingService[Embedding Search Service]
     
     Storage --> FS[(Markdown Files)]
+    EmbeddingService --> VectorCache[(Vector Cache: .index/embeddings/)]
     
     Index -. Builds from .- Storage
     Index -. Builds from .- SourceMgr[Source Manager]
@@ -39,6 +41,9 @@ flowchart TD
 <!-- human:end -->
 
 <!-- ai:start -->
+### [[embedding-search|Embedding Search & Hybrid Retrieval Architecture]]
+Explains the vector search engine built on Model2Vec (`minishlab/potion-base-8M`), non-blocking background indexing, chunking strategy, and the hybrid retrieval ranking algorithm.
+
 ### [[src:wikiknowledge/ai-service-architecture|AI Service & MCP Architecture]]
 Explains the backend implementation of WikiKnowledge's AI integration, detailing how `AIService` manages FastAPI lifecycles and the active Model Context Protocol execution loop.
 

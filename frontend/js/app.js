@@ -308,6 +308,9 @@ const App = {
         }
 
         const trimmedQ = query.trim();
+        const resultsDropdown = document.getElementById('search-results');
+        if (resultsDropdown) resultsDropdown.classList.add('hidden');
+
         if (headingEl) headingEl.textContent = `Search Results for "${trimmedQ}"`;
         if (countEl) countEl.textContent = 'Searching...';
         if (resultsListEl) {
@@ -337,17 +340,24 @@ const App = {
                     const sourceInfo = Utils.getSourceInfo(r, this._sources);
                     const sourceBadge = sourceInfo.type !== 'native' ?
                         `<span class="source-badge ${sourceInfo.badgeClass}" title="${sourceInfo.label}">${sourceInfo.badgeText}</span>` : '';
+                    const matchBadge = r.match_type === 'semantic' ?
+                        `<span class="source-badge" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3);" title="Semantic match">semantic</span>` :
+                        (r.match_type === 'hybrid' ? `<span class="source-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);" title="Keyword + Semantic match">hybrid</span>` : '');
+                    const snippetHtml = r.snippet ?
+                        `<div class="search-card-snippet" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px; line-height: 1.5; background: var(--bg-surface); padding: 6px 10px; border-radius: 4px; border-left: 2px solid var(--color-primary);">${Utils.escapeHtml(r.snippet)}</div>` : '';
                     const tagChips = r.tags && r.tags.length ?
                         `<div class="search-card-tags">${r.tags.map(t => `<span class="chip chip-tag" data-tag="${Utils.escapeHtml(t)}">#${Utils.escapeHtml(t)}</span>`).join('')}</div>` : '';
 
                     return `
                         <div class="search-card" data-id="${Utils.escapeHtml(r.id)}">
                             <div class="search-card-header">
+                                <a href="#/article/${encodeURIComponent(r.id)}" class="search-card-title">${Utils.escapeHtml(r.title || r.id)}</a>
                                 <span class="type-badge ${r.type}">${r.type}</span>
                                 ${sourceBadge}
-                                <a href="#/article/${encodeURIComponent(r.id)}" class="search-card-title">${Utils.escapeHtml(r.title || r.id)}</a>
+                                ${matchBadge}
                             </div>
                             <div class="search-card-id">${Utils.escapeHtml(r.id)}</div>
+                            ${snippetHtml}
                             ${tagChips}
                         </div>
                     `;
@@ -444,11 +454,19 @@ const App = {
                         const sourceInfo = Utils.getSourceInfo(r, this._sources);
                         const sourceBadge = sourceInfo.type !== 'native' ?
                             `<span class="source-badge ${sourceInfo.badgeClass}" title="${sourceInfo.label}">${sourceInfo.badgeText}</span>` : '';
+                        const matchBadge = r.match_type === 'semantic' ?
+                            `<span class="source-badge" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3);" title="Semantic match">semantic</span>` :
+                            (r.match_type === 'hybrid' ? `<span class="source-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);" title="Keyword + Semantic match">hybrid</span>` : '');
 
-                        return `<div class="search-result-item" data-id="${Utils.escapeHtml(r.id)}">
+                        const badgesHtml = `<div class="search-result-badges">
                             <span class="type-badge ${r.type}">${r.type}</span>
                             ${sourceBadge}
-                            <span class="search-result-title">${Utils.escapeHtml(r.title || r.id)}</span>
+                            ${matchBadge}
+                        </div>`;
+
+                        return `<div class="search-result-item" data-id="${Utils.escapeHtml(r.id)}">
+                            <div class="search-result-title">${Utils.escapeHtml(r.title || r.id)}</div>
+                            ${badgesHtml}
                         </div>`;
                     }).join('');
 

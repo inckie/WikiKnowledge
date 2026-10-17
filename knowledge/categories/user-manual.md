@@ -25,6 +25,9 @@ The primary manual for AI agents, outlining the strict step-by-step workflow for
 ### [[ai-settings-and-mcp-binding|AI Settings and Web UI Configuration]]
 Instructions on configuring your AI settings via the Web UI and using the Floating AI Chat Window.
 
+### [[embedding-search|Embedding Search & Hybrid Retrieval]]
+User and architectural guide for enabling semantic vector search, understanding hybrid match ranking, and rebuilding vector indices.
+
 ### [[ai-source-code-annotations|AI Source Code Annotations Guide]]
 A guide on how to embed WikiKnowledge metadata directly into source code repositories so they can be indexed as virtual articles.
 

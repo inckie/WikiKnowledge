@@ -22,7 +22,7 @@ from urllib.parse import unquote, quote
 import frontmatter
 
 from wikiknowledge.core.parser import extract_wiki_links
-from wikiknowledge.core.plugins.base import KnowledgeSourcePlugin
+from wikiknowledge.core.plugins.base import KnowledgeSourcePlugin, collect_source_files
 from wikiknowledge.storage.models import ArticleMeta, ArticleType, WikiLink
 
 logger = logging.getLogger(__name__)
@@ -102,10 +102,7 @@ class MarkdownFilesPlugin(KnowledgeSourcePlugin):
 
     # --- Discovery ---
 
-    async def discover_articles(self) -> list[ArticleMeta]:
-        if not self.is_available():
-            return []
-
+    def _discover_articles_sync(self) -> list[ArticleMeta]:
         t0 = time.perf_counter()
         self._articles_meta.clear()
         self._articles_content.clear()
@@ -196,26 +193,13 @@ class MarkdownFilesPlugin(KnowledgeSourcePlugin):
     # --- File collection ---
 
     def _collect_files(self) -> list[Path]:
-        matched: set[Path] = set()
-        for pattern in self._include:
-            for path in self.root_path.glob(pattern):
-                if path.is_file() and path.suffix.lower() in self.MD_EXTENSIONS:
-                    matched.add(path.resolve())
-
-        for pattern in self._exclude:
-            matched -= {p.resolve() for p in self.root_path.glob(pattern)}
-            
-        respect_gitignore = self.config.get("respect_gitignore", False)
-        if respect_gitignore:
-            from wikiknowledge.core.plugins.base import is_path_ignored
-            gitignore_cache = {}
-            filtered_files = set()
-            for file_path in matched:
-                if not is_path_ignored(file_path, self.root_path, gitignore_cache):
-                    filtered_files.add(file_path)
-            matched = filtered_files
-
-        return sorted(matched)
+        return collect_source_files(
+            root_path=self.root_path,
+            includes=self._include,
+            excludes=self._exclude,
+            valid_extensions=self.MD_EXTENSIONS,
+            respect_gitignore=self.config.get("respect_gitignore", False),
+        )
 
     def _collect_folders(self, files: list[Path]) -> list[Path]:
         """All folders between the root and any included file (root excluded)."""

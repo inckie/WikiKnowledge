@@ -115,6 +115,7 @@ The auto-generated OpenAPI documentation is available at `/docs` (Swagger UI) an
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import time
@@ -164,15 +165,13 @@ async def lifespan(app: FastAPI):
     startup_start = time.perf_counter()
     logger.info("Initializing WikiKnowledge...")
 
-    # Initialize storage backend
-    t_storage_start = time.perf_counter()
-    await storage.initialize()
-    storage_time = time.perf_counter() - t_storage_start
-    
-    # Initialize knowledge sources
-    t_sources_start = time.perf_counter()
-    await source_manager.initialize()
-    sources_time = time.perf_counter() - t_sources_start
+    # Initialize storage backend and knowledge sources concurrently
+    t_init_start = time.perf_counter()
+    await asyncio.gather(
+        storage.initialize(),
+        source_manager.initialize(),
+    )
+    init_time = time.perf_counter() - t_init_start
 
     t_index_start = time.perf_counter()
     from wikiknowledge.core.index import rebuild_full_index
@@ -197,8 +196,8 @@ async def lifespan(app: FastAPI):
     ai_service.inject_environment()
     total_startup = time.perf_counter() - startup_start
     logger.info(
-        "WikiKnowledge startup complete in %.3fs (storage: %.3fs, sources init: %.3fs, index: %.3fs, embedding: %.3fs)",
-        total_startup, storage_time, sources_time, index_time, embedding_time,
+        "WikiKnowledge startup complete in %.3fs (storage+sources init: %.3fs, index: %.3fs, embedding: %.3fs)",
+        total_startup, init_time, index_time, embedding_time,
     )
 
     yield

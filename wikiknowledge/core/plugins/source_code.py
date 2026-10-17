@@ -4,9 +4,9 @@ Languages: Python (`:wk-*:` in docstrings), JavaScript/TypeScript, Java/Kotlin a
 Swift (`@wk-*` in doc comments). Swift additionally accepts `///` line runs.
 """
 
-import glob
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import logging
-import os
 import re
 import time
 from datetime import datetime, timezone
@@ -14,7 +14,12 @@ from pathlib import Path
 from typing import Optional
 
 from wikiknowledge.core.parser import extract_wiki_links
-from wikiknowledge.core.plugins.base import KnowledgeSourcePlugin
+from wikiknowledge.core.plugins.base import (
+    KnowledgeSourcePlugin,
+    collect_source_files,
+    get_optimal_worker_count,
+    is_path_ignored,
+)
 from wikiknowledge.storage.models import ArticleMeta, ArticleType, WikiLink
 
 logger = logging.getLogger(__name__)
@@ -67,10 +72,7 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
     def is_available(self) -> bool:
         return self._available
 
-    async def discover_articles(self) -> list[ArticleMeta]:
-        if not self.is_available():
-            return []
-            
+    def _discover_articles_sync(self) -> list[ArticleMeta]:
         t0 = time.perf_counter()
         self._articles_meta.clear()
         self._articles_content.clear()
@@ -78,37 +80,46 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
 
         languages = self.config.get("languages", {})
         total_scanned_files = 0
-        
+        respect_gitignore = self.config.get("respect_gitignore", False)
+        gitignore_cache: dict = {}
+
         for lang, settings in languages.items():
             includes = settings.get("include", [])
             excludes = settings.get("exclude", [])
-            
-            # Simple globbing, handles includes and excludes
-            files_to_check = set()
-            for inc in includes:
-                matches = self.root_path.glob(inc)
-                for m in matches:
-                    if m.is_file():
-                        files_to_check.add(m)
-                        
-            for exc in excludes:
-                exc_matches = set(self.root_path.glob(exc))
-                files_to_check -= exc_matches
-                
-            respect_gitignore = self.config.get("respect_gitignore", False)
-            if respect_gitignore:
-                from wikiknowledge.core.plugins.base import is_path_ignored
-                gitignore_cache = {}
-                filtered_files = set()
-                for file_path in files_to_check:
-                    if not is_path_ignored(file_path, self.root_path, gitignore_cache):
-                        filtered_files.add(file_path)
-                files_to_check = filtered_files
-                
+
+            files_to_check = collect_source_files(
+                root_path=self.root_path,
+                includes=includes,
+                excludes=excludes,
+            )
             total_scanned_files += len(files_to_check)
-            for file_path in files_to_check:
+
+            if not files_to_check:
+                continue
+
+            def _check_and_read(file_path: Path) -> tuple[Path, str] | None:
                 try:
-                    self._parse_file(file_path, lang)
+                    # Skip files larger than 1MB (minified assets or bundles)
+                    if file_path.stat().st_size > 1_000_000:
+                        return None
+                    content = file_path.read_text(encoding="utf-8")
+                    if not content or "wk-id" not in content:
+                        return None
+                    if respect_gitignore and is_path_ignored(file_path, self.root_path, gitignore_cache):
+                        return None
+                    return file_path, content
+                except Exception:
+                    return None
+
+            with ThreadPoolExecutor(max_workers=get_optimal_worker_count()) as pool:
+                matched_files = [
+                    res for res in pool.map(_check_and_read, files_to_check)
+                    if res is not None
+                ]
+
+            for file_path, content in matched_files:
+                try:
+                    self._parse_file(file_path, lang, content=content)
                 except Exception as e:
                     logger.warning("Error parsing %s: %s", file_path, e)
 
@@ -128,8 +139,9 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
     async def get_links(self) -> dict[str, list[WikiLink]]:
         return self._links
 
-    def _parse_file(self, file_path: Path, lang: str) -> None:
-        content = file_path.read_text(encoding="utf-8")
+    def _parse_file(self, file_path: Path, lang: str, content: Optional[str] = None) -> None:
+        if content is None:
+            content = file_path.read_text(encoding="utf-8")
         if not content:
             return
 

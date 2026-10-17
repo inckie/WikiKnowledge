@@ -15,6 +15,7 @@ import os
 import shutil
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -25,6 +26,7 @@ import frontmatter
 import yaml
 
 from wikiknowledge.core.parser import extract_wiki_links
+from wikiknowledge.core.plugins.base import get_optimal_worker_count
 from wikiknowledge.storage.base import StorageBackend
 from wikiknowledge.storage.models import (
     Article,
@@ -74,27 +76,44 @@ class MarkdownStorageBackend(StorageBackend):
         self._links_cache.clear()
         self._resource_meta_cache.clear()
 
-        # Scan articles and categories
+        # Scan articles and categories in parallel
+        md_files: list[Path] = []
         for directory in [self.articles_dir, self.categories_dir]:
-            if not directory.exists():
-                continue
-            for md_file in sorted(directory.glob("*.md")):
-                try:
-                    article = self._read_file(md_file)
-                    self._meta_cache[article.meta.id] = article.meta
-                    links = extract_wiki_links(article.meta.id, article.content)
-                    self._links_cache[article.meta.id] = links
-                except Exception as e:
-                    logger.warning("Failed to parse %s: %s", md_file, e)
+            if directory.exists():
+                md_files.extend(sorted(directory.glob("*.md")))
+
+        def _load_article_file(md_file: Path) -> tuple[ArticleMeta, list[WikiLink]] | None:
+            try:
+                article = self._read_file(md_file)
+                links = extract_wiki_links(article.meta.id, article.content)
+                return article.meta, links
+            except Exception as e:
+                logger.warning("Failed to parse %s: %s", md_file, e)
+                return None
+
+        if md_files:
+            with ThreadPoolExecutor(max_workers=get_optimal_worker_count(32)) as pool:
+                for result in pool.map(_load_article_file, md_files):
+                    if result:
+                        meta, links = result
+                        self._meta_cache[meta.id] = meta
+                        self._links_cache[meta.id] = links
 
         # Scan media resources (.meta sidecar files)
         if self.media_dir.exists():
-            for meta_file in sorted(self.media_dir.glob("*.meta")):
+            meta_files = sorted(self.media_dir.glob("*.meta"))
+            def _load_resource_meta(meta_file: Path) -> ResourceMeta | None:
                 try:
-                    resource_meta = self._read_resource_meta(meta_file)
-                    self._resource_meta_cache[resource_meta.id] = resource_meta
+                    return self._read_resource_meta(meta_file)
                 except Exception as e:
                     logger.warning("Failed to parse resource meta %s: %s", meta_file, e)
+                    return None
+
+            if meta_files:
+                with ThreadPoolExecutor(max_workers=get_optimal_worker_count(16)) as pool:
+                    for rm in pool.map(_load_resource_meta, meta_files):
+                        if rm:
+                            self._resource_meta_cache[rm.id] = rm
 
         elapsed_time = time.perf_counter() - start_time
         logger.info(

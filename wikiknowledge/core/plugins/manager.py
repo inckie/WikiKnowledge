@@ -1,5 +1,6 @@
 """SourceManager for handling Knowledge Source plugins and config."""
 
+import asyncio
 import json
 import logging
 import time
@@ -24,7 +25,7 @@ class SourceManager:
         self.plugins: dict[str, KnowledgeSourcePlugin] = {}
 
     async def initialize(self) -> None:
-        """Load configurations and initialize all plugins."""
+        """Load configurations and initialize all plugins concurrently."""
         t_init_start = time.perf_counter()
         self.plugins.clear()
         
@@ -46,7 +47,7 @@ class SourceManager:
             except Exception as e:
                 logger.error("Error reading %s: %s", self.settings_file, e)
 
-        for source_name, decl in declarations.items():
+        async def _init_source(source_name: str, decl: dict) -> tuple[str, Optional[KnowledgeSourcePlugin]]:
             # Check if this source connects to the current KB
             kbs = decl.get("knowledge_bases", {"default": "self"})
             kb_alias = None
@@ -56,77 +57,96 @@ class SourceManager:
                     break
                     
             if not kb_alias:
-                continue # Source doesn't connect to this KB
+                return source_name, None  # Source doesn't connect to this KB
                 
             plugin_type = decl.get("type")
             source_settings = settings.get(source_name, {})
             p_start = time.perf_counter()
 
-            if plugin_type in ("source-code", "markdown-files"):
-                if plugin_type == "source-code":
-                    plugin = SourceCodePlugin(source_name, kb_alias)
+            try:
+                if plugin_type in ("source-code", "markdown-files"):
+                    if plugin_type == "source-code":
+                        plugin = SourceCodePlugin(source_name, kb_alias)
+                    else:
+                        plugin = MarkdownFilesPlugin(source_name, kb_alias)
+
+                    # Resolve path
+                    actual_path = source_settings.get("path")
+                    if not actual_path and decl.get("default_path"):
+                        actual_path = (self.kb_dir / decl["default_path"]).resolve()
+                        
+                    decl["path"] = str(actual_path) if actual_path else None
+                    await plugin.initialize(decl)
+
+                elif plugin_type == "google-drive":
+                    # Import lazily to avoid hard dependency if not configured
+                    from wikiknowledge.core.plugins.google_drive import GoogleDrivePlugin
+
+                    plugin = GoogleDrivePlugin(source_name, kb_alias, kb_dir=self.kb_dir)
+
+                    # Inject credentials path from machine-local settings
+                    credentials_file = source_settings.get("credentials_file")
+                    decl["credentials_file"] = credentials_file
+
+                    await plugin.initialize(decl)
+
                 else:
-                    plugin = MarkdownFilesPlugin(source_name, kb_alias)
+                    logger.warning("Unknown plugin type '%s' for source '%s'", plugin_type, source_name)
+                    return source_name, None
 
-                # Resolve path
-                actual_path = source_settings.get("path")
-                if not actual_path and decl.get("default_path"):
-                    actual_path = (self.kb_dir / decl["default_path"]).resolve()
-                    
-                decl["path"] = str(actual_path) if actual_path else None
-                
-                await plugin.initialize(decl)
-                self.plugins[source_name] = plugin
+                p_duration = time.perf_counter() - p_start
+                if plugin.is_available():
+                    plugin_path = getattr(plugin, "root_path", decl.get("folder_id", ""))
+                    logger.info(
+                        "[sources] Initialized source '%s' (%s, path: %s) in %.3fs",
+                        source_name, plugin_type, plugin_path, p_duration,
+                    )
+                else:
+                    logger.warning(
+                        "[sources] Source '%s' (%s) is unavailable (checked in %.3fs)",
+                        source_name, plugin_type, p_duration,
+                    )
+                return source_name, plugin
 
-            elif plugin_type == "google-drive":
-                # Import lazily to avoid hard dependency if not configured
-                from wikiknowledge.core.plugins.google_drive import GoogleDrivePlugin
+            except Exception as e:
+                p_duration = time.perf_counter() - p_start
+                logger.error("[sources] Failed to initialize source '%s' after %.3fs: %s", source_name, p_duration, e)
+                return source_name, None
 
-                plugin = GoogleDrivePlugin(source_name, kb_alias, kb_dir=self.kb_dir)
-
-                # Inject credentials path from machine-local settings
-                credentials_file = source_settings.get("credentials_file")
-                decl["credentials_file"] = credentials_file
-
-                await plugin.initialize(decl)
-                self.plugins[source_name] = plugin
-
-            else:
-                logger.warning("Unknown plugin type '%s' for source '%s'", plugin_type, source_name)
-                continue
-
-            p_duration = time.perf_counter() - p_start
-            if plugin.is_available():
-                plugin_path = getattr(plugin, "root_path", decl.get("folder_id", ""))
-                logger.info(
-                    "[sources] Initialized source '%s' (%s, path: %s) in %.3fs",
-                    source_name, plugin_type, plugin_path, p_duration,
-                )
-            else:
-                logger.warning(
-                    "[sources] Source '%s' (%s) is unavailable (checked in %.3fs)",
-                    source_name, plugin_type, p_duration,
-                )
+        # Initialize all sources concurrently
+        tasks = [_init_source(name, decl) for name, decl in declarations.items()]
+        results = await asyncio.gather(*tasks)
+        for name, plugin in results:
+            if plugin is not None:
+                self.plugins[name] = plugin
 
         total_init = time.perf_counter() - t_init_start
         logger.info("[sources] %d source(s) initialized in %.3fs", len(self.plugins), total_init)
 
     async def discover_all_articles(self) -> list[ArticleMeta]:
-        """Aggregate discover_articles from all available plugins."""
+        """Aggregate discover_articles from all available plugins concurrently."""
+        available_plugins = [p for p in self.plugins.values() if p.is_available()]
+        if not available_plugins:
+            return []
+
+        tasks = [plugin.discover_articles() for plugin in available_plugins]
+        results = await asyncio.gather(*tasks)
         all_meta = []
-        for plugin in self.plugins.values():
-            if plugin.is_available():
-                meta_list = await plugin.discover_articles()
-                all_meta.extend(meta_list)
+        for meta_list in results:
+            all_meta.extend(meta_list)
         return all_meta
 
     async def get_all_links(self) -> dict[str, list[WikiLink]]:
-        """Aggregate get_links from all available plugins."""
+        """Aggregate get_links from all available plugins concurrently."""
+        available_plugins = [p for p in self.plugins.values() if p.is_available()]
+        if not available_plugins:
+            return {}
+
+        tasks = [plugin.get_links() for plugin in available_plugins]
+        results = await asyncio.gather(*tasks)
         all_links = {}
-        for plugin in self.plugins.values():
-            if plugin.is_available():
-                links = await plugin.get_links()
-                all_links.update(links)
+        for links in results:
+            all_links.update(links)
         return all_links
 
     def get_google_drive_plugin(self, article_id: str, require_bidirectional: bool = False):

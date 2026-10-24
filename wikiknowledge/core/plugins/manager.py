@@ -243,7 +243,7 @@ class SourceManager:
                 "available": plugin.is_available(),
             }
             if hasattr(plugin, "root_path"):
-                entry["path"] = str(plugin.root_path)
+                entry["path"] = str(plugin.root_path) if getattr(plugin, "config", {}).get("path") else ""
             if isinstance(plugin, GoogleDrivePlugin):
                 entry["folder_id"] = plugin.config.get("folder_id")
                 entry["bidirectional"] = plugin.config.get("bidirectional", False)
@@ -259,9 +259,12 @@ class SourceManager:
         return status_list
 
     def update_source_path(self, source_id: str, new_path: str) -> None:
-        """Update the local path for a source in .settings/sources.json."""
+        """Update the local path for a source in .settings/sources.json and update the plugin instance."""
         if source_id not in self.plugins:
             raise KeyError(f"Source '{source_id}' is not a declared source.")
+
+        plugin = self.plugins[source_id]
+        clean_path = new_path.strip() if new_path else ""
 
         settings = {}
         if self.settings_file.exists():
@@ -271,13 +274,58 @@ class SourceManager:
             except Exception:
                 settings = {}
 
-        if source_id not in settings:
-            settings[source_id] = {}
-            
-        settings[source_id]["path"] = new_path
-        
+        if clean_path:
+            if source_id not in settings:
+                settings[source_id] = {}
+            settings[source_id]["path"] = clean_path
+            resolved = Path(clean_path).resolve()
+            if hasattr(plugin, "root_path"):
+                plugin.root_path = resolved
+                plugin._available = resolved.exists() and resolved.is_dir()
+            if hasattr(plugin, "config") and isinstance(plugin.config, dict):
+                plugin.config["path"] = clean_path
+        else:
+            if source_id in settings:
+                settings[source_id].pop("path", None)
+                if not settings[source_id]:
+                    del settings[source_id]
+
+            # Revert to default_path from sources.json declarations
+            default_path = None
+            if self.sources_file.exists():
+                try:
+                    with open(self.sources_file, "r", encoding="utf-8") as f:
+                        declarations = json.load(f).get("sources", {})
+                        default_path = declarations.get(source_id, {}).get("default_path")
+                except Exception:
+                    pass
+
+            if default_path:
+                resolved = (self.kb_dir / default_path).resolve()
+                if hasattr(plugin, "root_path"):
+                    plugin.root_path = resolved
+                    plugin._available = resolved.exists() and resolved.is_dir()
+                if hasattr(plugin, "config") and isinstance(plugin.config, dict):
+                    plugin.config["path"] = str(resolved)
+            else:
+                if hasattr(plugin, "root_path"):
+                    plugin.root_path = Path("")
+                    plugin._available = False
+                if hasattr(plugin, "config") and isinstance(plugin.config, dict):
+                    plugin.config["path"] = None
+
+        # Clear cached articles/links from old path
+        if hasattr(plugin, "_articles_meta") and isinstance(plugin._articles_meta, dict):
+            plugin._articles_meta.clear()
+        if hasattr(plugin, "_articles_content") and isinstance(plugin._articles_content, dict):
+            plugin._articles_content.clear()
+        if hasattr(plugin, "_links") and isinstance(plugin._links, dict):
+            plugin._links.clear()
+        if hasattr(plugin, "_path_to_id") and isinstance(plugin._path_to_id, dict):
+            plugin._path_to_id.clear()
+
         # Ensure parent exists
         self.settings_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         with open(self.settings_file, "w", encoding="utf-8") as f:
             json.dump(settings, f, indent=2)

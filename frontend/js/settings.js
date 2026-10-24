@@ -242,23 +242,29 @@ const Settings = {
                         </div>`;
                 }
 
-                // Source-code source card
+                // Source-code or markdown-files source card
+                const isMarkdown = source.type === 'MarkdownFilesPlugin';
+                const typeLabel = isMarkdown ? 'Markdown Files' : 'Source Code';
+                const typeIcon = isMarkdown ? '📝' : '📂';
+
                 return `
                     <div class="source-card">
                         <div class="source-card-header">
-                            <div class="source-card-icon">📂</div>
+                            <div class="source-card-icon">${typeIcon}</div>
                             <div class="source-card-meta">
                                 <div class="source-card-title">
                                     <strong>${Utils.escapeHtml(source.id)}</strong>
                                     ${statusPill}
                                 </div>
-                                <div class="source-card-subtitle">Source Code · ${Utils.escapeHtml(source.path || 'path not set')}</div>
+                                <div class="source-card-subtitle">${typeLabel} · ${Utils.escapeHtml(source.path || 'path not set')}</div>
                             </div>
                         </div>
                         <div class="source-card-path-row">
                             <input type="text" class="form-control" id="src-path-${Utils.escapeHtml(source.id)}"
-                                value="${Utils.escapeHtml(source.path || '')}" placeholder="Local absolute path override">
-                            <button class="btn btn-sm" onclick="Settings.updateSourcePath('${Utils.escapeHtml(source.id)}')">Update Path</button>
+                                value="${Utils.escapeHtml(source.path || '')}" placeholder="Local absolute path override"
+                                onkeydown="if (event.key === 'Enter') Settings.updateSourcePath('${Utils.escapeHtml(source.id)}')">
+                            <button id="btn-update-path-${Utils.escapeHtml(source.id)}" class="btn btn-sm"
+                                onclick="Settings.updateSourcePath('${Utils.escapeHtml(source.id)}')">Update Path</button>
                         </div>
                     </div>`;
             }).join('');
@@ -301,6 +307,14 @@ const Settings = {
         const pathInput = document.getElementById(`src-path-${id}`);
         if (!pathInput) return;
 
+        const btn = document.getElementById(`btn-update-path-${id}`);
+        const originalText = btn ? btn.innerHTML : 'Update Path';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Updating...';
+        }
+        pathInput.disabled = true;
+
         const path = pathInput.value.trim();
         try {
             await API.updateSourcePath(id, path);
@@ -308,6 +322,11 @@ const Settings = {
             await this.loadSources();
         } catch (e) {
             Utils.toast(`Failed to update path: ${e.message}`, 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+            pathInput.disabled = false;
         }
     },
 

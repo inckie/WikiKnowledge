@@ -64,18 +64,16 @@ const Viewer = {
 
         // Process mermaid code blocks
         html = html.replace(/<pre><code class="(?:[^"]*?\s+)?language-mermaid(?:\s+[^"]*?)?">([\s\S]*?)<\/code><\/pre>/gi, (match, code) => {
-            let unescaped = code
-                .replace(/&lt;/g, '<')
-                .replace(/&gt;/g, '>')
-                .replace(/&quot;/g, '"')
-                .replace(/&#39;/g, "'")
-                .replace(/&amp;/g, '&');
+            // Keep HTML entities (&lt;, &gt;, &quot;, &amp;) intact so the browser's DOM parser
+            // does not interpret text placeholders (e.g. <appId>, <1MB) as broken unclosed HTML tags.
+            // Mermaid's internal parser natively decodes HTML entities via entityDecode().
+            let processed = code;
 
             // Resolve file and wiki links within mermaid diagrams
-            unescaped = this._processFileLinks(unescaped);
-            unescaped = this._processWikiLinks(unescaped);
+            processed = this._processFileLinks(processed);
+            processed = this._processWikiLinks(processed);
 
-            return `<div class="mermaid">${unescaped}</div>`;
+            return `<div class="mermaid">${processed}</div>`;
         });
 
         return html;

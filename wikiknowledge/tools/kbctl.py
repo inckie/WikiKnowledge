@@ -135,14 +135,17 @@ def _pid_alive(pid: int) -> bool:
     Reaps first: a child of ours that has exited but not been waited on is a
     zombie, and `os.kill(pid, 0)` happily reports a zombie as alive.
     """
-    with contextlib.suppress(ChildProcessError, OSError):
-        os.waitpid(pid, os.WNOHANG)
+    if pid <= 0:
+        return False
+    if hasattr(os, "waitpid") and hasattr(os, "WNOHANG"):
+        with contextlib.suppress(ChildProcessError, OSError):
+            os.waitpid(pid, os.WNOHANG)
     try:
         os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
     except PermissionError:
         return True
+    except (ProcessLookupError, OSError):
+        return False
     return True
 
 
@@ -318,7 +321,8 @@ def launch_command(kb: KnowledgeBase) -> list[str]:
     """
     cmd = ["uv", "run", "python", "run.py", f"--port={kb.port}", "--no-reload"]
     if kb.kb_dir is not None:
-        cmd.append(f"--kb-dir={kb.kb_dir}")
+        kb_dir_str = Path(kb.kb_dir).as_posix() if isinstance(kb.kb_dir, Path) else str(kb.kb_dir)
+        cmd.append(f"--kb-dir={kb_dir_str}")
     return cmd
 
 
@@ -386,6 +390,21 @@ def _signal_group(leader_pid: int, sig: int) -> None:
     ESRCH, so both are accepted, and callers must not read a delivered signal as
     success — they confirm the outcome by checking that the port was released.
     """
+    if sys.platform == "win32":
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(leader_pid), "/T", "/F"],
+                capture_output=True,
+                check=False,
+            )
+        except Exception:
+            pass
+        try:
+            os.kill(leader_pid, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError, OSError):
+            pass
+        return
+
     with contextlib.suppress(ProcessLookupError, PermissionError):
         os.killpg(leader_pid, sig)
 

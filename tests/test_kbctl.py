@@ -225,9 +225,13 @@ def test_ensure_launches_a_real_instance_and_waits_until_its_api_answers(tmp_pat
 
 
 def _pid_is_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
     try:
         os.kill(pid, 0)
-    except ProcessLookupError:
+    except PermissionError:
+        return True
+    except (ProcessLookupError, OSError):
         return False
     return True
 
@@ -262,16 +266,26 @@ def test_launch_command_omits_kb_dir_for_the_bundled_knowledge_base():
 @contextlib.contextmanager
 def idle_instance(runtime, name="Scratch", **state):
     """A registered instance backed by a real, killable process."""
-    process = subprocess.Popen(["sleep", "600"], start_new_session=True)
+    process = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(600)"],
+        start_new_session=True,
+    )
     runtime.record_start(
         name, pid=process.pid, port=free_port(), owner=kbctl.OWNER_KBCTL, **state
     )
     try:
         yield process
     finally:
-        with contextlib.suppress(ProcessLookupError):
-            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-        process.wait()
+        if sys.platform == "win32":
+            with contextlib.suppress(Exception):
+                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True)
+            with contextlib.suppress(Exception):
+                process.kill()
+        else:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+        with contextlib.suppress(Exception):
+            process.wait(timeout=5)
 
 
 def test_reap_stops_an_instance_that_nobody_is_using(tmp_path):
@@ -373,6 +387,7 @@ def test_unknown_knowledge_base_is_rejected_with_the_available_names(tmp_path):
     assert "Applicaster" in result.stderr
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX wrapper scripts not supported directly on Windows")
 def test_kbctl_wrapper_runs_from_any_working_directory(tmp_path):
     (tmp_path / "kb").mkdir()
     config = write_config(tmp_path, {"Applicaster": {"kb_dir": "./kb", "port": 8004}})
@@ -387,6 +402,7 @@ def test_kbctl_wrapper_runs_from_any_working_directory(tmp_path):
     assert "Applicaster" in result.stdout
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX wrapper scripts not supported directly on Windows")
 def test_kb_mcp_wrapper_runs_from_any_working_directory(tmp_path):
     (tmp_path / "kb").mkdir()
     config = write_config(tmp_path, {"Applicaster": {"kb_dir": "./kb", "port": 8004}})
@@ -424,6 +440,15 @@ def test_instance_serves_its_own_knowledge_base_not_the_bundled_one(tmp_path):
 
 
 def count_reapers(name: str) -> int:
+    if sys.platform == "win32":
+        res = subprocess.run(
+            ["wmic", "process", "where", "name='python.exe'", "get", "commandline"],
+            capture_output=True, text=True,
+        ).stdout
+        return sum(
+            1 for line in res.splitlines()
+            if "wikiknowledge.tools.kbctl" in line and f"reap {name}" in line
+        )
     listing = subprocess.run(["/bin/ps", "-Ao", "command"], capture_output=True, text=True).stdout
     return sum(
         1 for line in listing.splitlines()
@@ -459,7 +484,13 @@ def test_scheduling_twice_leaves_a_single_pending_reaper(tmp_path):
 
             assert count_reapers("Scratch") == 1
         finally:
-            subprocess.run(["/usr/bin/pkill", "-f", "wikiknowledge.tools.kbctl.*reap Scratch"])
+            if sys.platform == "win32":
+                subprocess.run(
+                    ["wmic", "process", "where", "commandline like '%wikiknowledge.tools.kbctl%reap Scratch%'", "call", "terminate"],
+                    capture_output=True,
+                )
+            else:
+                subprocess.run(["/usr/bin/pkill", "-f", "wikiknowledge.tools.kbctl.*reap Scratch"])
 
 
 def test_a_second_reaper_is_scheduled_once_the_first_has_finished(tmp_path):
@@ -470,6 +501,7 @@ def test_a_second_reaper_is_scheduled_once_the_first_has_finished(tmp_path):
         assert runtime.reaper_alive("Scratch") is False
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX process groups and sh not supported on Windows")
 def test_signalling_a_group_still_reaches_it_after_its_leader_has_exited(tmp_path):
     """The recorded pid is the launcher, and the launcher exits first — `uv` hands
     off to the server and goes. What has to be killed is what it left behind, in

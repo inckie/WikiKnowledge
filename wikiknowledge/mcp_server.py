@@ -66,6 +66,18 @@ def create_mcp_server(
             return f"Error: Article '{article_id}' not found. {e}"
 
         meta = article.meta
+        body_content = article.content
+        if "![" in body_content:
+            from wikiknowledge.core.transclusion import resolve_transclusions
+            body_content = await resolve_transclusions(
+                content=body_content,
+                current_article_id=article_id,
+                storage=storage,
+                source_manager=source_manager,
+                index=index,
+                format="markdown",
+            )
+
         return (
             f"---\n"
             f"id: {meta.id}\n"
@@ -76,7 +88,7 @@ def create_mcp_server(
             f"created: {meta.created.isoformat()}\n"
             f"modified: {meta.modified.isoformat()}\n"
             f"---\n\n"
-            f"{article.content}"
+            f"{body_content}"
         )
 
     @mcp.tool()

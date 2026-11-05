@@ -2983,4 +2983,187 @@ body {
 }
 
 
-
+
+
+
+/* --- Transclusion Boxes --- */
+.transclusion-box {
+    margin: var(--space-4) 0;
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--accent-primary);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.transclusion-box:hover {
+    border-color: var(--border-hover, var(--border-color));
+    box-shadow: var(--shadow-md);
+}
+
+.transclusion-box.collapsed .transclusion-header {
+    border-bottom: none;
+}
+
+.transclusion-box.collapsed .transclusion-body {
+    display: none;
+}
+
+.transclusion-box.disconnected {
+    border-left-color: var(--text-muted);
+    background: var(--bg-secondary);
+    opacity: 0.9;
+}
+
+.transclusion-box.error {
+    border-left-color: var(--color-danger);
+}
+
+.transclusion-box.placeholder {
+    border-left-color: var(--accent-secondary, #3b82f6);
+    border-style: dashed;
+}
+
+.transclusion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-4);
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    font-size: var(--text-sm);
+    gap: var(--space-2);
+    user-select: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.transclusion-header:hover {
+    background: var(--bg-hover, rgba(255, 255, 255, 0.04));
+}
+
+.transclusion-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.transclusion-collapse-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.transclusion-collapse-btn:hover {
+    color: var(--text-bright);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.transclusion-chevron {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Expanded by default (points down) */
+.transclusion-box .transclusion-chevron {
+    transform: rotate(0deg);
+}
+
+/* Collapsed state (rotates to point right) */
+.transclusion-box.collapsed .transclusion-chevron {
+    transform: rotate(-90deg);
+}
+
+.transclusion-icon {
+    font-size: 1.1em;
+    flex-shrink: 0;
+}
+
+.transclusion-source-label {
+    font-weight: 600;
+    color: var(--text-normal);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.transclusion-badge {
+    font-size: var(--text-xs);
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--accent-primary);
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.transclusion-badge.disconnected {
+    background: rgba(156, 163, 175, 0.2);
+    color: var(--text-muted);
+}
+
+.transclusion-jump-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    font-size: var(--text-xs);
+    font-weight: 500;
+    color: var(--accent-primary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.transclusion-jump-btn:hover {
+    background: var(--accent-primary);
+    color: #ffffff;
+    border-color: var(--accent-primary);
+    text-decoration: none;
+}
+
+.transclusion-body {
+    padding: var(--space-4);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+}
+
+.transclusion-body > :first-child {
+    margin-top: 0;
+}
+
+.transclusion-body > :last-child {
+    margin-bottom: 0;
+}
+
+.transclusion-body.disconnected-body {
+    color: var(--text-muted);
+    font-style: italic;
+    background: var(--bg-primary);
+    padding: var(--space-3) var(--space-4);
+}
+
+.transclusion-notice {
+    margin: 0;
+    color: var(--text-muted);
+}

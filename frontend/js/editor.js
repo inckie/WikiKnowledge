@@ -157,7 +157,7 @@ const Editor = {
         const preview = document.getElementById('editor-preview');
 
         const updatePreview = Utils.debounce(() => {
-            preview.innerHTML = Viewer.render(textarea.value);
+            preview.innerHTML = Viewer.render(textarea.value, true);
             if (Viewer.renderMermaid) Viewer.renderMermaid();
         }, 300);
 

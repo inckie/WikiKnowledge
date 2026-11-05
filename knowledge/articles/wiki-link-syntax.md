@@ -50,6 +50,16 @@ The `file:` prefix (case-insensitive) denotes a link to a binary or media resour
 - **Images** (`image/*` like SVG, PNG, JPEG) render as inline `<figure>` elements with the image and a caption.
 - **Other files** (audio, video, documents, archives) render as styled download links with a descriptive file icon (e.g., 📄, 🎵, 🎬, 📕, 📎).
 
+### Transclusion (Embed)
+
+```markdown
+![[article-id]]
+![[article-id#Section Name]]
+![[article-id#Section Name|Custom Title]]
+```
+
+Preceding double brackets with an exclamation mark `![[...]]` embeds the target article or section into a styled, boxed card. The card includes a button to jump directly to the source. Transclusions also work with external sources (`src:` and `gdrive:`) and will support block IDs (`#^block-id`).
+
 ## Resolution Rules
 
 1. The text inside `[[...]]` (before any `|`) is matched against the `id` field in article [[markdown-frontmatter|frontmatter]]

@@ -373,3 +373,72 @@ async def test_upload_resource_preserves_created(mcp, mocks):
     assert "Success: Resource 'file.bin' uploaded successfully." in result
     saved_id, saved_data, saved_meta = storage.save_resource.call_args[0]
     assert saved_meta.created == past_time
+
+
+@pytest.mark.asyncio
+async def test_get_article_with_transclusion(mcp, mocks):
+    storage, index, _, _ = mocks
+
+    now = datetime.now(timezone.utc)
+    source_meta = ArticleMeta(
+        id="guide",
+        title="Guide Article",
+        type=ArticleType.LEAF,
+        created=now,
+        modified=now,
+    )
+    target_meta = ArticleMeta(
+        id="syntax",
+        title="Syntax Doc",
+        type=ArticleType.LEAF,
+        created=now,
+        modified=now,
+    )
+
+    def mock_get_article(art_id):
+        if art_id == "guide":
+            return Article(meta=source_meta, content="Guide intro.\n\n![[syntax#Section A]]\n\nGuide footer.")
+        elif art_id == "syntax":
+            return Article(meta=target_meta, content="# Syntax\n## Section A\nDetailed section A text.\n## Section B\nOther text.")
+        raise KeyError(art_id)
+
+    storage.get_article.side_effect = mock_get_article
+    index.get_meta.side_effect = lambda aid: target_meta if aid == "syntax" else source_meta
+
+    result = await _invoke_tool(mcp, "get_article", {"article_id": "guide"})
+    assert "> 📦 **Transcluded from [[syntax#Section A|Syntax Doc > Section A]]**" in result
+    assert "Detailed section A text." in result
+    assert "Other text." not in result
+
+
+@pytest.mark.asyncio
+async def test_get_article_with_disconnected_transclusion(mcp, mocks):
+    storage, index, _, source_manager = mocks
+
+    now = datetime.now(timezone.utc)
+    source_meta = ArticleMeta(
+        id="guide",
+        title="Guide Article",
+        type=ArticleType.LEAF,
+        created=now,
+        modified=now,
+    )
+    disc_meta = ArticleMeta(
+        id="src:repo/module",
+        title="Repo Module",
+        type=ArticleType.LEAF,
+        created=now,
+        modified=now,
+    )
+
+    storage.get_article.return_value = Article(meta=source_meta, content="Intro.\n\n![[src:repo/module#Code Details]]\n\nOutro.")
+    index.get_meta.side_effect = lambda aid: disc_meta if aid == "src:repo/module" else source_meta
+
+    mock_plug = MagicMock()
+    mock_plug.is_available.return_value = False
+    source_manager.plugins = {"repo": mock_plug}
+    source_manager.get_article_content = AsyncMock(side_effect=KeyError("Source 'repo' is currently disconnected"))
+
+    result = await _invoke_tool(mcp, "get_article", {"article_id": "guide"})
+    assert "⊘ **Transcluded content unavailable (Source disconnected)" in result
+    assert "Repo Module > Code Details" in result

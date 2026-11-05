@@ -1,7 +1,7 @@
 """
 Wiki-link parser
 
-Wiki-link and content block parser. Extracts [[...]] links and human/AI markers.
+Wiki-link and content block parser. Extracts [[...]] links, ![[...]] transclusions, and human/AI markers.
 """
 
 from __future__ import annotations
@@ -12,11 +12,15 @@ from typing import Optional
 from wikiknowledge.storage.models import WikiLink, ContentBlock
 
 # Matches [[target]] or [[target|display text]]
+# Negative lookbehind (?<!\!) prevents matching ![[...]] embeds
 # Does NOT match [[file:...]] links (those are handled separately)
-WIKI_LINK_RE = re.compile(r"\[\[(?!file:)([^\[\]|]+?)(?:\|([^\[\]]+?))?\]\]", re.IGNORECASE)
+WIKI_LINK_RE = re.compile(r"(?<!\!)\[\[(?!file:)([^\[\]|]+?)(?:\|([^\[\]]+?))?\]\]", re.IGNORECASE)
 
 # Matches [[file:resource-id]] or [[file:resource-id|display text]]
 FILE_LINK_RE = re.compile(r"\[\[file:([^\[\]|]+?)(?:\|([^\[\]]+?))?\]\]", re.IGNORECASE)
+
+# Matches ![[target]] or ![[target#section]] or ![[target|display text]]
+TRANSCLUSION_LINK_RE = re.compile(r"!\[\[([^\[\]|]+?)(?:\|([^\[\]]+?))?\]\]", re.IGNORECASE)
 
 # Fenced code block boundaries
 CODE_FENCE_RE = re.compile(r"^(`{3,}|~{3,})")
@@ -31,9 +35,13 @@ AI_END_RE = re.compile(r"^\s*<!--\s*ai:end\s*-->\s*$", re.IGNORECASE)
 def extract_wiki_links(
     source_id: str, content: str
 ) -> list[WikiLink]:
-    """Extract all wiki links from markdown content.
+    """Extract all wiki links and transclusions from markdown content.
 
-    Extracts both regular [[target]] links and [[file:resource-id]] links.
+    Extracts:
+    - Regular [[target]] links
+    - Media [[file:resource-id]] links
+    - Transclusion ![[target#section]] embeds
+
     Skips links inside fenced code blocks.
 
     Args:
@@ -63,6 +71,33 @@ def extract_wiki_links(
         if in_code_block:
             continue
 
+        # Extract transclusion ![[...]] embeds from this line
+        for match in TRANSCLUSION_LINK_RE.finditer(line):
+            raw_target = match.group(1).strip()
+            display_text = match.group(2)
+            if display_text:
+                display_text = display_text.strip()
+
+            if "#" in raw_target:
+                target_id, _, section = raw_target.partition("#")
+                target_id = target_id.strip() or source_id
+                section = section.strip() or None
+            else:
+                target_id = raw_target
+                section = None
+
+            links.append(
+                WikiLink(
+                    source_id=source_id,
+                    target_id=target_id,
+                    display_text=display_text,
+                    line_number=line_num,
+                    is_file_link=False,
+                    is_transclusion=True,
+                    section=section,
+                )
+            )
+
         # Extract regular wiki links from this line
         for match in WIKI_LINK_RE.finditer(line):
             target_id = match.group(1).strip()
@@ -77,6 +112,7 @@ def extract_wiki_links(
                     display_text=display_text,
                     line_number=line_num,
                     is_file_link=False,
+                    is_transclusion=False,
                 )
             )
 
@@ -94,6 +130,7 @@ def extract_wiki_links(
                     display_text=display_text,
                     line_number=line_num,
                     is_file_link=True,
+                    is_transclusion=False,
                 )
             )
 

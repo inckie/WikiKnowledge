@@ -64,6 +64,7 @@ class ArticleResponse(BaseModel):
     created: str
     modified: str
     content: str
+    expanded_content: Optional[str] = None
 
 
 class CategoryArticleResponse(ArticleResponse):
@@ -96,7 +97,7 @@ def _meta_to_response(meta: ArticleMeta, is_unmentioned: bool = False, is_newer:
     )
 
 
-def _article_to_response(article: Article) -> ArticleResponse:
+def _article_to_response(article: Article, expanded_content: Optional[str] = None) -> ArticleResponse:
     """Convert Article to API response."""
     return ArticleResponse(
         id=article.meta.id,
@@ -107,6 +108,7 @@ def _article_to_response(article: Article) -> ArticleResponse:
         created=article.meta.created.isoformat(),
         modified=article.meta.modified.isoformat(),
         content=article.content,
+        expanded_content=expanded_content,
     )
 
 
@@ -178,6 +180,19 @@ async def get_article(request: Request, article_id: str):
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Article '{article_id}' not found")
 
+    expanded_content = None
+    if "![" in article.content:
+        from wikiknowledge.core.transclusion import resolve_transclusions
+        source_manager = getattr(request.app.state, "source_manager", None)
+        expanded_content = await resolve_transclusions(
+            content=article.content,
+            current_article_id=article_id,
+            storage=storage,
+            source_manager=source_manager,
+            index=index,
+            format="html",
+        )
+
     if article.meta.type == ArticleType.CATEGORY:
         sub_article_metas = index.get_sub_articles(article_id)
         
@@ -200,11 +215,12 @@ async def get_article(request: Request, article_id: str):
             created=article.meta.created.isoformat(),
             modified=article.meta.modified.isoformat(),
             content=article.content,
+            expanded_content=expanded_content,
             sub_articles=sub_articles_with_mention_status,
             is_dirty=index.is_dirty(article_id),
         )
     else:
-        return _article_to_response(article)
+        return _article_to_response(article, expanded_content=expanded_content)
 
 
 @router.post("/articles", response_model=ArticleMetaResponse, status_code=201)

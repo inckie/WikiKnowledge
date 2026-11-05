@@ -181,6 +181,8 @@ class SourceManager:
             # Route to the Google Drive plugin that owns this doc
             plugin = self.get_google_drive_plugin(article_id)
             if plugin:
+                if not plugin.is_available():
+                    raise KeyError(f"Google Drive source '{plugin.source_name}' is currently disconnected")
                 return await plugin.get_article_content(article_id)
             raise KeyError(f"Google Drive article '{article_id}' not found in any source")
 

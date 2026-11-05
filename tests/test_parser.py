@@ -98,3 +98,29 @@ def test_parse_content_blocks_unclosed_error():
     content = "<!-- ai:start -->\nText but no end"
     with pytest.raises(ValueError, match="Unclosed <!-- ai:start --> block starting at line 1"):
         parse_content_blocks(content)
+
+
+def test_extract_wiki_links_transclusion():
+    content = "Check this ![[transcluded-page]] and ![[other-article#Section Title|Custom Label]] along with [[regular-link]]."
+    links = extract_wiki_links("source-1", content)
+    assert len(links) == 3
+
+    # First is transclusion
+    assert links[0].source_id == "source-1"
+    assert links[0].target_id == "transcluded-page"
+    assert links[0].display_text is None
+    assert links[0].is_transclusion is True
+    assert links[0].section is None
+
+    # Second is section transclusion with display text
+    assert links[1].source_id == "source-1"
+    assert links[1].target_id == "other-article"
+    assert links[1].display_text == "Custom Label"
+    assert links[1].is_transclusion is True
+    assert links[1].section == "Section Title"
+
+    # Third is standard wiki link
+    assert links[2].source_id == "source-1"
+    assert links[2].target_id == "regular-link"
+    assert links[2].is_transclusion is False
+    assert links[2].is_file_link is False

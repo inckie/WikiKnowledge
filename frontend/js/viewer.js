@@ -34,7 +34,7 @@ const Viewer = {
      * @param {string} markdown - Raw markdown content
      * @returns {string} HTML string
      */
-    render(markdown) {
+    render(markdown, isPreview = false) {
         if (!markdown) return '';
 
         // Protect code blocks from wiki-link processing
@@ -61,6 +61,14 @@ const Viewer = {
 
         // Post-process: mark human/AI blocks on the generated HTML
         html = this._processContentBlocks(html);
+
+        // Post-process: convert transclusion comment markers into boxed elements
+        html = this._processTransclusionBlocks(html);
+
+        // Convert any unexpanded ![[...]] embeds into placeholder cards only in live editor preview
+        if (isPreview) {
+            html = this._processTransclusionPlaceholders(html);
+        }
 
         // Process mermaid code blocks
         html = html.replace(/<pre><code class="(?:[^"]*?\s+)?language-mermaid(?:\s+[^"]*?)?">([\s\S]*?)<\/code><\/pre>/gi, (match, code) => {
@@ -132,7 +140,7 @@ const Viewer = {
      * Replace [[target]] and [[target|display]] with clickable HTML links.
      */
     _processWikiLinks(text) {
-        return text.replace(/\[\[(?!file:)([^\[\]|]+?)(?:\|([^\[\]]+?))?\]\]/gi, (match, targetId, displayText) => {
+        return text.replace(/(?<!\!)\[\[(?!file:)([^\[\]|]+?)(?:\|([^\[\]]+?))?\]\]/gi, (match, targetId, displayText) => {
             targetId = targetId.trim();
             const display = displayText ? displayText.trim() : targetId;
             
@@ -190,6 +198,120 @@ const Viewer = {
     },
 
     /**
+     * Convert transclusion comment markers into boxed elements with "Go to Source" button.
+     */
+    _processTransclusionBlocks(text) {
+        return text.replace(
+            /<!--\s*transclusion:start\s+([\s\S]*?)-->([\s\S]*?)<!--\s*transclusion:end\s*-->/gi,
+            (match, attrStr, content) => {
+                const attrs = {};
+                attrStr.replace(/(\w+)="([^"]*)"/g, (_, k, v) => {
+                    attrs[k] = v;
+                });
+
+                const isDisconnected = attrs.disconnected === 'true';
+                const isError = attrs.error === 'true';
+
+                if (isDisconnected) {
+                    const label = attrs.label || attrs.id || 'External Source';
+                    const icon = attrs.icon || '⊘';
+                    return `
+                        <div class="transclusion-box disconnected" data-source-id="${Utils.escapeHtml(attrs.id || '')}">
+                            <div class="transclusion-header">
+                                <div class="transclusion-title">
+                                    <span class="source-icon disconnected" title="Source Disconnected">${icon}</span>
+                                    <span class="transclusion-badge disconnected">Source Disconnected</span>
+                                    <span class="transclusion-source-label">${Utils.escapeHtml(label)}</span>
+                                </div>
+                            </div>
+                            <div class="transclusion-body disconnected-body">
+                                <p class="transclusion-notice"><em>The external knowledge source for this content is currently disconnected. Reconnect the source in Settings to view this content.</em></p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (isError) {
+                    return `
+                        <div class="transclusion-box error" data-source-id="${Utils.escapeHtml(attrs.id || '')}">
+                            <div class="transclusion-header">
+                                <div class="transclusion-title">
+                                    <span class="transclusion-icon">${attrs.icon || '⚠️'}</span>
+                                    <span class="transclusion-source-label">${Utils.escapeHtml(attrs.label || 'Transclusion Error')}</span>
+                                </div>
+                                ${attrs.url ? `<a class="transclusion-jump-btn" href="${Utils.escapeHtml(attrs.url)}">Go to Source ↗</a>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                const sourceLabel = attrs.label || attrs.id || 'Transcluded Content';
+                const jumpUrl = attrs.url || `#/article/${encodeURIComponent(attrs.id || '')}`;
+                const icon = attrs.icon || '📑';
+                const badge = attrs.badge ? `<span class="transclusion-badge">${Utils.escapeHtml(attrs.badge)}</span>` : '';
+
+                return `
+                    <div class="transclusion-box" data-source-id="${Utils.escapeHtml(attrs.id || '')}">
+                        <div class="transclusion-header" title="Click to collapse/expand">
+                            <div class="transclusion-title">
+                                <button type="button" class="transclusion-collapse-btn" aria-label="Toggle collapse" aria-expanded="true">
+                                    <svg class="transclusion-chevron" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                                <span class="transclusion-icon">${icon}</span>
+                                ${badge}
+                                <span class="transclusion-source-label">${Utils.escapeHtml(sourceLabel)}</span>
+                            </div>
+                            <div class="transclusion-actions">
+                                <a class="transclusion-jump-btn" href="${Utils.escapeHtml(jumpUrl)}" title="Open original source">Go to Source ↗</a>
+                            </div>
+                        </div>
+                        <div class="transclusion-body">
+                            ${content.trim()}
+                        </div>
+                    </div>
+                `;
+            }
+        );
+    },
+
+    /**
+     * Replace unexpanded ![[...]] links with preview placeholders (used in live editor preview).
+     */
+    _processTransclusionPlaceholders(text) {
+        // Protect <pre> and <code> blocks from placeholder conversion
+        const codeElements = [];
+        let protectedText = text.replace(/(<pre[\s\S]*?<\/pre>|<code[\s\S]*?<\/code>)/gi, (m) => {
+            codeElements.push(m);
+            return `__WK_CODE_HTML_${codeElements.length - 1}__`;
+        });
+
+        protectedText = protectedText.replace(/!\[\[([^\[\]|]+?)(?:\|([^\[\]]+?))?\]\]/gi, (match, targetSpec, display) => {
+            const label = display ? display.trim() : targetSpec.trim();
+            const articlePart = targetSpec.includes('#') ? targetSpec.substring(0, targetSpec.indexOf('#')).trim() : targetSpec.trim();
+            const jumpUrl = `#/article/${encodeURIComponent(articlePart)}`;
+            return `
+                <div class="transclusion-box placeholder">
+                    <div class="transclusion-header">
+                        <div class="transclusion-title">
+                            <span class="transclusion-icon">📑</span>
+                            <span class="transclusion-badge">Transclusion</span>
+                            <span class="transclusion-source-label">${Utils.escapeHtml(label)}</span>
+                        </div>
+                        <a class="transclusion-jump-btn" href="${Utils.escapeHtml(jumpUrl)}" title="Go to target">Go to Source ↗</a>
+                    </div>
+                    <div class="transclusion-body">
+                        <p class="transclusion-notice"><em>Transcluded content will render when viewing the saved article.</em></p>
+                    </div>
+                </div>
+            `;
+        });
+
+        return protectedText.replace(/__WK_CODE_HTML_(\d+)__/g, (_, idx) => codeElements[parseInt(idx, 10)]);
+    },
+
+    /**
      * Display an article in the viewer.
      * @param {Object} article - Full article object from API
      */
@@ -209,7 +331,7 @@ const Viewer = {
         if (article.type === 'resource') {
             document.getElementById('article-body').innerHTML = this._renderResourcePage(article);
         } else {
-            document.getElementById('article-body').innerHTML = this.render(article.content);
+            document.getElementById('article-body').innerHTML = this.render(article.expanded_content || article.content);
         }
 
         // Process headers, anchors, and floating ToC
@@ -438,7 +560,7 @@ const Viewer = {
         const tocEl = document.getElementById('article-toc');
         if (!bodyEl) return;
 
-        const headings = bodyEl.querySelectorAll('h1, h2, h3, h4, h5, h6');
+        const headings = Array.from(bodyEl.querySelectorAll('h1, h2, h3, h4, h5, h6')).filter(h => !h.closest('.transclusion-box'));
         if (!headings.length) {
             if (tocEl) {
                 tocEl.innerHTML = '';
@@ -721,3 +843,22 @@ const Viewer = {
         });
     },
 };
+
+// Global delegated click listener for transclusion collapse/expand
+document.addEventListener('click', (e) => {
+    if (e.target.closest('.transclusion-jump-btn')) {
+        return;
+    }
+    const header = e.target.closest('.transclusion-header');
+    if (header) {
+        const box = header.closest('.transclusion-box');
+        if (box && !box.classList.contains('placeholder')) {
+            box.classList.toggle('collapsed');
+            const btn = header.querySelector('.transclusion-collapse-btn');
+            if (btn) {
+                const isCollapsed = box.classList.contains('collapsed');
+                btn.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+            }
+        }
+    }
+});

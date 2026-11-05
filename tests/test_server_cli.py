@@ -1,6 +1,7 @@
 """Tests for the WikiKnowledge server command line."""
 
 from __future__ import annotations
+import sys
 
 from wikiknowledge import cli
 
@@ -77,5 +78,8 @@ def test_kb_dir_is_honoured_with_reload_disabled(tmp_path):
         assert "only-here" in ids
         assert "ai-interaction-guide" not in ids, "the bundled knowledge base leaked in"
     finally:
-        os.killpg(os.getpgid(server.pid), signal.SIGTERM)
+        if sys.platform == 'win32':
+            server.terminate()
+        else:
+            os.killpg(os.getpgid(server.pid), signal.SIGTERM)
         server.wait(timeout=30)

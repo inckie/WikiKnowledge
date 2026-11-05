@@ -196,6 +196,36 @@ Follow this exact process to update a dirty category:
 
 By following these steps, you contribute to the knowledge base in a structured way, enhancing its value and navigability for all users and AIs.
 
+## Working with Transclusions
+
+WikiKnowledge supports transclusion—embedding full articles or specific sections (identified by header or slug) directly into another article using the `![[target#section]]` syntax. This allows knowledge reuse without duplication.
+
+### Authoring Transclusions
+
+When authoring or updating articles, you can transclude content from four sources:
+* **Native Wiki Pages**: `![[article-id#Section Name]]`
+* **Markdown Files**: `![[src:source-name/relative-path#Header]]`
+* **Source Code Annotations**: `![[src:source-name/module-id#Header]]`
+* **Google Drive Documents**: `![[gdrive:google-doc-id#Header]]`
+
+You can also specify an optional custom label: `![[article-id#Section|Custom Header]]`.
+
+### How AIs See Transclusions via MCP
+
+When you read an article using `get_article(article_id)`, the server automatically resolves and expands transclusions inline inside annotated blockquotes with full source attribution. For example:
+
+> 📦 **Transcluded from [[wiki-link-syntax#Basic Syntax|Wiki Link Syntax > Basic Syntax]]** ([Go to Source](#/article/wiki-link-syntax#basic-syntax)):
+> 
+> ...
+
+If the underlying source is currently disconnected, the MCP output clearly indicates this status (`⊘ Transcluded content unavailable (Source disconnected)`) instead of crashing or generating broken links.
+
+### Live Transclusion Sample
+
+Below is a live sample embedding the "Basic Syntax" section directly from the [[wiki-link-syntax]] article:
+
+![[wiki-link-syntax#Basic Syntax]]
+
 ## Related Guides
 
 *   **[[ai-source-code-annotations|AI Source Code Annotations Guide]]**: A detailed guide on how to add `wk-` metadata and embed documentation within source files (Tier 3 knowledge).

@@ -56,6 +56,8 @@ class WikiLink(BaseModel):
     display_text: Optional[str] = None
     line_number: int = 0
     is_file_link: bool = False  # True for [[file:...]] links to media resources
+    is_transclusion: bool = False  # True for ![[...]] transclusions
+    section: Optional[str] = None  # Section anchor/header if specified
 
 
 class ResourceMeta(BaseModel):

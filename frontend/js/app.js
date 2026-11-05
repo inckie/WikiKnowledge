@@ -55,6 +55,7 @@ const App = {
             this._sources = sources || [];
             Viewer.setKnownArticles(this._articles);
             Viewer.setKnownResources(this._resources);
+            Viewer.setSources(this._sources);
         } catch (e) {
             console.error('Failed to load articles:', e);
             this._articles = [];
@@ -1104,6 +1105,8 @@ const App = {
         });
     },
 };
+
+window.App = App;
 
 // --- Bootstrap ---
 document.addEventListener('DOMContentLoaded', () => App.init());

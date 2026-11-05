@@ -114,7 +114,7 @@ const Utils = {
             const matchingSource = (sourcesList || []).find(s => s.id === sourceId);
 
             if (matchingSource) {
-                if (matchingSource.type === 'MarkdownFilesPlugin') {
+                if (matchingSource.type === 'MarkdownFilesPlugin' || matchingSource.type === 'markdown-files') {
                     return {
                         type: 'markdown',
                         badgeClass: 'markdown',
@@ -123,7 +123,7 @@ const Utils = {
                         label: 'Markdown Document'
                     };
                 }
-                if (matchingSource.type === 'SourceCodePlugin') {
+                if (matchingSource.type === 'SourceCodePlugin' || matchingSource.type === 'source-code') {
                     return {
                         type: 'code',
                         badgeClass: 'code',
@@ -136,6 +136,15 @@ const Utils = {
 
             // Fallback heuristics based on tags/id
             const tagsLower = tags.map(t => String(t).toLowerCase());
+            if (tagsLower.includes('python') || tagsLower.includes('javascript') || tagsLower.includes('code') || tagsLower.includes('rst') || tagsLower.includes('jsdoc') || tagsLower.includes('java') || tagsLower.includes('kotlin') || tagsLower.includes('swift')) {
+                return {
+                    type: 'code',
+                    badgeClass: 'code',
+                    badgeText: 'Code',
+                    icon: '💻',
+                    label: 'Source Code'
+                };
+            }
             if (tagsLower.includes('markdown') || tagsLower.includes('md') || id.includes('/guides') || id.includes('/docs')) {
                 return {
                     type: 'markdown',
@@ -143,15 +152,6 @@ const Utils = {
                     badgeText: 'Markdown',
                     icon: '📄',
                     label: 'Markdown Document'
-                };
-            }
-            if (tagsLower.includes('python') || tagsLower.includes('javascript') || tagsLower.includes('code') || tagsLower.includes('rst') || tagsLower.includes('jsdoc') || tagsLower.includes('java') || tagsLower.includes('kotlin')) {
-                return {
-                    type: 'code',
-                    badgeClass: 'code',
-                    badgeText: 'Code',
-                    icon: '💻',
-                    label: 'Source Code'
                 };
             }
 

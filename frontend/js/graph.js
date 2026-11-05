@@ -318,7 +318,7 @@ const Graph = {
             .attr('dy', d => sizeScale(d.linkCount) + 14)
             .text(d => {
                 let text = d.title.length > 20 ? d.title.substring(0, 18) + '…' : d.title;
-                const sourcesList = (window.App && window.App._sources) ? window.App._sources : [];
+                const sourcesList = (typeof App !== 'undefined' && App._sources) || (window.App && window.App._sources) || [];
                 const sourceInfo = Utils.getSourceInfo(d, sourcesList);
                 if (sourceInfo.type !== 'native') {
                     text = sourceInfo.icon + ' ' + text;
@@ -330,7 +330,7 @@ const Graph = {
         const tooltip = document.getElementById('graph-tooltip');
 
         node.on('mouseover', (event, d) => {
-            const sourcesList = (window.App && window.App._sources) ? window.App._sources : [];
+            const sourcesList = (typeof App !== 'undefined' && App._sources) || (window.App && window.App._sources) || [];
             const sourceInfo = Utils.getSourceInfo(d, sourcesList);
 
             let typeInfo = d.type === 'resource' ? `resource (${d.mime_type || 'unknown'})` : (sourceInfo.type !== 'native' ? sourceInfo.label : d.type);

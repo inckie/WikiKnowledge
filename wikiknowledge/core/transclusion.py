@@ -1,7 +1,7 @@
 """Transclusion Engine
 
 :wk-id: transclusion-engine
-:wk-tags: transclusion, engine, markdown, mcp, syntax
+:wk-tags: python, transclusion, engine, mcp, syntax
 
 Transclusion resolution and section extraction engine.
 

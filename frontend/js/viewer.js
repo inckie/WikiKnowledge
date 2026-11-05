@@ -29,6 +29,10 @@ const Viewer = {
         this._knownResources = new Map(resources.map(r => [r.id, r]));
     },
 
+    setSources(sources) {
+        this._sources = sources || [];
+    },
+
     /**
      * Render markdown content to HTML with wiki-link support.
      * @param {string} markdown - Raw markdown content
@@ -371,7 +375,7 @@ const Viewer = {
     _renderMeta(article) {
         const parts = [];
 
-        const sourcesList = (window.App && window.App._sources) ? window.App._sources : [];
+        const sourcesList = this._sources || (typeof App !== 'undefined' && App._sources) || (window.App && window.App._sources) || [];
         const sourceInfo = Utils.getSourceInfo(article, sourcesList);
 
         if (sourceInfo.type !== 'native') {
@@ -477,7 +481,7 @@ const Viewer = {
             `<span class="dirty-indicator" title="This category might be outdated. One or more of its articles have been modified more recently than this overview.">⚠️</span>` :
             '';
 
-        const sourcesList = (window.App && window.App._sources) ? window.App._sources : [];
+        const sourcesList = this._sources || (typeof App !== 'undefined' && App._sources) || (window.App && window.App._sources) || [];
         const subArticles = (article.sub_articles || []).map(sub => {
             const unmentionedClass = sub.is_unmentioned ? 'unmentioned' : '';
             const iconClass = sub.type === 'category' ? 'item-icon category' : 'item-icon';

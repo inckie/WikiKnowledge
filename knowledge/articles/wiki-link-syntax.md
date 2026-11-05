@@ -3,12 +3,13 @@ categories:
 - markup-conventions
 created: '2026-06-19T21:00:00+00:00'
 id: wiki-link-syntax
-modified: '2026-09-25T11:20:07.984113+00:00'
+modified: '2026-11-05T04:01:49.743688+00:00'
 tags:
 - markdown
 - wiki-links
 - syntax
 - navigation
+- transclusion
 title: Wiki Link Syntax
 type: leaf
 ---

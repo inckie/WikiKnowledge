@@ -3,17 +3,17 @@ categories:
 - user-manual
 created: '2026-06-21T10:10:00+00:00'
 id: ai-interaction-guide
-modified: '2026-07-24T16:08:25.140211+00:00'
+modified: '2026-11-05T04:01:56.502781+00:00'
 tags:
 - ai
 - mcp
 - guide
 - best-practices
 - skill
+- transclusion
 title: AI Interaction Guide for WikiKnowledge
 type: leaf
 ---
-
 
 # AI Interaction Guide for WikiKnowledge
 

@@ -3,7 +3,7 @@ categories:
 - overview
 created: '2026-06-19T21:00:00+00:00'
 id: system-architecture
-modified: '2026-09-03T11:01:06.098281+00:00'
+modified: '2026-11-05T03:56:07.531089+00:00'
 tags:
 - architecture
 - overview
@@ -44,6 +44,9 @@ flowchart TD
 ### [[embedding-search|Embedding Search & Hybrid Retrieval Architecture]]
 Explains the vector search engine built on Model2Vec (`minishlab/potion-base-8M`), non-blocking background indexing, chunking strategy, and the hybrid retrieval ranking algorithm.
 
+### [[src:wikiknowledge/embedding-search-service|Embedding Search Service]]
+Provides fast semantic search across WikiKnowledge articles using lightweight static embeddings (Model2Vec), indexing native markdown and virtual plugin articles without blocking the FastAPI event loop.
+
 ### [[src:wikiknowledge/ai-service-architecture|AI Service & MCP Architecture]]
 Explains the backend implementation of WikiKnowledge's AI integration, detailing how `AIService` manages FastAPI lifecycles and the active Model Context Protocol execution loop.
 
@@ -55,6 +58,12 @@ Describes the core graph database mechanism that powers WikiKnowledge, allowing 
 
 ### [[src:wikiknowledge/kb-manager|Knowledge Base Manager]]
 Explains the lifecycle and configuration of knowledge base instances running inside the backend.
+
+### [[src:wikiknowledge/kbctl|Knowledge Base Control (kbctl)]]
+Command-line counterpart to the Tkinter manager for scripts and autonomous agents; manages background instance lifecycles, readiness probes, client leases, and idle reapers.
+
+### [[src:wikiknowledge/kb-mcp|MCP stdio shim (kb-mcp)]]
+Presents a knowledge base instance as a standard I/O MCP server to clients by ensuring the instance is running, acquiring leases, and relaying JSON-RPC messages to the SSE transport.
 
 ### [[src:wikiknowledge/storage-abstraction|Storage Abstraction Layer]]
 Outlines how WikiKnowledge abstracts data storage, allowing swapping between flat markdown files and NoSQL databases.

@@ -1,4 +1,9 @@
-"""Transclusion resolution and section extraction engine.
+"""Transclusion Engine
+
+:wk-id: transclusion-engine
+:wk-tags: transclusion, engine, markdown, mcp, syntax
+
+Transclusion resolution and section extraction engine.
 
 Supports transcluding full articles or individual sections from:
 - Native wiki pages

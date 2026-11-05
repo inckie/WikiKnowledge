@@ -199,6 +199,55 @@
                     <h3>System Settings</h3>
                 </div>
                 <div class="settings-container">
+                    <!-- Knowledge Base Health & Statistics Card -->
+                    <div class="settings-card" id="kb-stats-card">
+                        <div class="settings-header">
+                            <span class="settings-icon">📊</span>
+                            <div style="flex: 1;">
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <h4>Knowledge Base Health & Statistics</h4>
+                                    <button id="btn-refresh-stats" class="btn btn-secondary btn-sm" style="font-size: 0.8rem; padding: 4px 10px;">🔄 Refresh</button>
+                                </div>
+                                <p class="settings-desc">Overview of knowledge graph integrity, link connectivity, broken links, and orphaned pages.</p>
+                            </div>
+                        </div>
+
+                        <!-- Stats Grid -->
+                        <div id="stats-overview-grid" class="stats-overview-grid">
+                            <div style="color: var(--text-muted); font-size: 0.85rem;">Loading statistics...</div>
+                        </div>
+
+                        <!-- Broken Links Details -->
+                        <div class="health-accordion" id="broken-links-accordion" style="margin-top: 1.25rem;">
+                            <div class="health-accordion-header" id="btn-toggle-broken-links" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface); padding: var(--space-3) var(--space-4); border-radius: var(--border-radius); border: 1px solid var(--border-color);">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="font-size: 1.1rem;">🔗</span>
+                                    <div>
+                                        <strong style="font-size: 0.9rem; color: var(--text-bright);">Broken Links</strong>
+                                        <span id="broken-links-badge" class="chip" style="margin-left: 8px; font-size: 0.75rem; padding: 1px 7px;">0</span>
+                                    </div>
+                                </div>
+                                <span class="health-toggle-chevron" style="font-size: 0.8rem; color: var(--text-muted); transition: transform 0.2s;">▼</span>
+                            </div>
+                            <div id="broken-links-list" class="health-accordion-content hidden" style="margin-top: 0.5rem;"></div>
+                        </div>
+
+                        <!-- Orphaned Pages Details -->
+                        <div class="health-accordion" id="orphans-accordion" style="margin-top: 0.75rem;">
+                            <div class="health-accordion-header" id="btn-toggle-orphans" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface); padding: var(--space-3) var(--space-4); border-radius: var(--border-radius); border: 1px solid var(--border-color);">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="font-size: 1.1rem;">🏝️</span>
+                                    <div>
+                                        <strong style="font-size: 0.9rem; color: var(--text-bright);">Orphaned Pages</strong>
+                                        <span id="orphans-badge" class="chip" style="margin-left: 8px; font-size: 0.75rem; padding: 1px 7px;">0</span>
+                                    </div>
+                                </div>
+                                <span class="health-toggle-chevron" style="font-size: 0.8rem; color: var(--text-muted); transition: transform 0.2s;">▼</span>
+                            </div>
+                            <div id="orphans-list" class="health-accordion-content hidden" style="margin-top: 0.5rem;"></div>
+                        </div>
+                    </div>
+
                     <!-- Knowledge Sources Card -->
                     <div class="settings-card">
                         <div class="settings-header">

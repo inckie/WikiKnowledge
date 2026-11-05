@@ -198,7 +198,7 @@ By following these steps, you contribute to the knowledge base in a structured w
 
 ## Working with Transclusions
 
-WikiKnowledge supports transclusion—embedding full articles or specific sections (identified by header or slug) directly into another article using the `![[target#section]]` syntax. This allows knowledge reuse without duplication.
+WikiKnowledge supports transclusion—embedding full articles or specific sections (identified by header or slug) directly into another article using the `![[target#section]]` syntax. This allows knowledge reuse without duplication. Section parsing, multi-source retrieval, and fallback handling are executed by the backend [[src:wikiknowledge/transclusion-engine|Transclusion Engine]].
 
 ### Authoring Transclusions
 

@@ -2,6 +2,7 @@
 
 :wk-id: transclusion-engine
 :wk-tags: python, transclusion, engine, mcp, syntax
+:wk-categories: system-architecture
 
 Transclusion resolution and section extraction engine.
 

@@ -59,7 +59,7 @@ The `file:` prefix (case-insensitive) denotes a link to a binary or media resour
 ![[article-id#Section Name|Custom Title]]
 ```
 
-Preceding double brackets with an exclamation mark `![[...]]` embeds the target article or section into a styled, boxed card. The card includes a button to jump directly to the source. Transclusions also work with external sources (`src:` and `gdrive:`) and will support block IDs (`#^block-id`).
+Preceding double brackets with an exclamation mark `![[...]]` embeds the target article or section into a styled, boxed card. The card includes a button to jump directly to the source. Transclusions also work with external sources (`src:` and `gdrive:`) and will support block IDs (`#^block-id`). Section extraction and transclusion rendering across all sources are handled by the backend [[src:wikiknowledge/transclusion-engine|Transclusion Engine]].
 
 ## Resolution Rules
 

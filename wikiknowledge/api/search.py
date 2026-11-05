@@ -50,6 +50,38 @@ class EmbeddingStatusResponse(BaseModel):
     model_name: str
 
 
+class BrokenLinkInfo(BaseModel):
+    """Details for a broken wiki-link."""
+    source_id: str
+    target_id: str
+    display_text: Optional[str] = None
+    line_number: Optional[int] = None
+
+
+class OrphanPageInfo(BaseModel):
+    """An article or resource with no incoming links."""
+    id: str
+    title: str
+    type: str
+    has_outgoing: bool = False
+    outgoing_count: int = 0
+
+
+class KnowledgeBaseStatsResponse(BaseModel):
+    """Comprehensive knowledge base health and graph metrics."""
+    total_articles: int
+    native_articles: int
+    external_articles: int
+    total_resources: int
+    total_categories: int
+    total_tags: int
+    total_links: int
+    broken_links: list[BrokenLinkInfo]
+    broken_links_count: int
+    orphaned_pages: list[OrphanPageInfo]
+    orphaned_pages_count: int
+
+
 @router.get("/tags", response_model=list[TagResponse])
 async def list_tags(request: Request):
     """List all tags with usage counts."""
@@ -75,6 +107,88 @@ async def list_categories(request: Request):
         )
         for cat in categories
     ]
+
+
+@router.get("/stats", response_model=KnowledgeBaseStatsResponse)
+async def get_stats(request: Request):
+    """Retrieve comprehensive knowledge base health and statistics."""
+    index = request.app.state.index
+    storage = request.app.state.storage
+
+    all_articles = index._all_meta
+    native_count = sum(1 for aid in all_articles if not aid.startswith("src:") and not aid.startswith("gdrive:"))
+    external_count = sum(1 for aid in all_articles if aid.startswith("src:") or aid.startswith("gdrive:"))
+
+    all_resources = index._all_resource_meta
+    all_known_ids = set(all_articles.keys()) | set(all_resources.keys())
+
+    # Total links
+    total_links = sum(len(links) for links in index.forward_links.values())
+
+    # Broken links
+    broken_raw = []
+    for links in index.forward_links.values():
+        for link in links:
+            target_base = link.target_id.split("#")[0].strip()
+            if target_base not in all_known_ids:
+                broken_raw.append(link)
+
+    broken_links = [
+        BrokenLinkInfo(
+            source_id=l.source_id,
+            target_id=l.target_id,
+            display_text=l.display_text,
+            line_number=l.line_number,
+        )
+        for l in broken_raw
+    ]
+
+    # Orphaned pages (no incoming links, excluding the root "overview" category)
+    orphaned_pages: list[OrphanPageInfo] = []
+    for aid, meta in sorted(all_articles.items(), key=lambda x: x[0]):
+        if aid == "overview":
+            continue
+        incoming = index.back_links.get(aid, [])
+        if not incoming:
+            outgoing = index.forward_links.get(aid, [])
+            orphaned_pages.append(
+                OrphanPageInfo(
+                    id=aid,
+                    title=meta.title or aid,
+                    type=meta.type.value if hasattr(meta.type, "value") else str(meta.type),
+                    has_outgoing=bool(outgoing),
+                    outgoing_count=len(outgoing),
+                )
+            )
+
+    for rid, rmeta in sorted(all_resources.items(), key=lambda x: x[0]):
+        incoming = index.back_links.get(rid, [])
+        if not incoming:
+            orphaned_pages.append(
+                OrphanPageInfo(
+                    id=rid,
+                    title=rmeta.title or rid,
+                    type="resource",
+                    has_outgoing=False,
+                    outgoing_count=0,
+                )
+            )
+
+    categories = await storage.get_all_categories()
+
+    return KnowledgeBaseStatsResponse(
+        total_articles=len(all_articles),
+        native_articles=native_count,
+        external_articles=external_count,
+        total_resources=len(all_resources),
+        total_categories=len(categories),
+        total_tags=len(index.tag_index),
+        total_links=total_links,
+        broken_links=broken_links,
+        broken_links_count=len(broken_links),
+        orphaned_pages=orphaned_pages,
+        orphaned_pages_count=len(orphaned_pages),
+    )
 
 
 @router.get("/search/embedding/settings", response_model=EmbeddingStatusResponse)

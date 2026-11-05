@@ -56,6 +56,7 @@ On application startup (via FastAPI's lifespan context manager):
 | `GET` | `/api/tags` | List all tags with usage counts |
 | `GET` | `/api/categories` | List all category articles |
 | `GET` | `/api/search?q=...` | Full-text search across article titles and content |
+| `GET` | `/api/stats` | Knowledge base health: total articles, links, broken links, orphans |
 
 ### AI Integration
 

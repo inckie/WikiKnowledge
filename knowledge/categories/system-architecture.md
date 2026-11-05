@@ -82,4 +82,7 @@ Implements the StorageBackend contract using the local filesystem, storing artic
 
 ### [[src:wikiknowledge/refactoring|Refactoring Operations]]
 Core operations for refactoring and renaming articles and resources across the knowledge base with cross-article link updates.
+
+### [[src:wikiknowledge/transclusion-engine|Transclusion Engine]]
+Resolves and renders article and section embeds across native markdown, external source code docblocks, and Google Drive documents.
 <!-- ai:end -->

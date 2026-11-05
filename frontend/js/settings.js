@@ -48,6 +48,7 @@ const Settings = {
 
         await this.loadSources();
         await this.loadEmbeddingSettings();
+        await this.loadStats();
     },
 
     _bindEvents() {
@@ -58,6 +59,9 @@ const Settings = {
         const rescanBtn = document.getElementById('btn-rescan-sources');
         const embeddingToggle = document.getElementById('embedding-enabled');
         const rebuildEmbeddingBtn = document.getElementById('btn-rebuild-embeddings');
+        const refreshStatsBtn = document.getElementById('btn-refresh-stats');
+        const toggleBrokenBtn = document.getElementById('btn-toggle-broken-links');
+        const toggleOrphansBtn = document.getElementById('btn-toggle-orphans');
 
         if (urlEl) urlEl.addEventListener('input', () => this._checkInputState());
         if (keyEl) keyEl.addEventListener('input', () => this._checkInputState());
@@ -80,6 +84,18 @@ const Settings = {
 
         if (rebuildEmbeddingBtn) {
             rebuildEmbeddingBtn.addEventListener('click', () => this.rebuildEmbeddingIndex());
+        }
+
+        if (refreshStatsBtn) {
+            refreshStatsBtn.addEventListener('click', () => this.loadStats());
+        }
+
+        if (toggleBrokenBtn) {
+            toggleBrokenBtn.addEventListener('click', () => this.toggleAccordion('broken-links'));
+        }
+
+        if (toggleOrphansBtn) {
+            toggleOrphansBtn.addEventListener('click', () => this.toggleAccordion('orphans'));
         }
     },
 
@@ -496,6 +512,209 @@ const Settings = {
         } catch (e) {
             Utils.toast(`Failed to rebuild embeddings: ${e.message}`, 'error');
             if (btn) btn.disabled = false;
+        }
+    },
+
+    // --- Knowledge Base Health & Statistics ---
+
+    toggleAccordion(type) {
+        const accordion = document.getElementById(`${type}-accordion`);
+        if (!accordion) return;
+        const list = accordion.querySelector('.health-accordion-content');
+        const chevron = accordion.querySelector('.health-toggle-chevron');
+        if (!list) return;
+
+        const isHidden = list.classList.toggle('hidden');
+        if (chevron) {
+            chevron.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
+        }
+    },
+
+    async loadStats() {
+        const grid = document.getElementById('stats-overview-grid');
+        const refreshBtn = document.getElementById('btn-refresh-stats');
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '⏳ Loading...';
+        }
+
+        try {
+            const stats = await API.getStats();
+            this._renderStats(stats);
+        } catch (e) {
+            console.error('Failed to load KB stats:', e);
+            if (grid) {
+                grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; color: var(--color-danger);">Failed to load statistics: ${Utils.escapeHtml(e.message)}</div>`;
+            }
+        } finally {
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = '🔄 Refresh';
+            }
+        }
+    },
+
+    _renderStats(stats) {
+        const grid = document.getElementById('stats-overview-grid');
+        const brokenBadge = document.getElementById('broken-links-badge');
+        const orphansBadge = document.getElementById('orphans-badge');
+        const brokenList = document.getElementById('broken-links-list');
+        const orphansList = document.getElementById('orphans-list');
+
+        // Render overview mini cards
+        if (grid) {
+            const brokenCount = stats.broken_links_count || 0;
+            const orphansCount = stats.orphaned_pages_count || 0;
+
+            const brokenColorClass = brokenCount === 0 ? 'text-success' : 'text-warning';
+            const brokenSubtitle = brokenCount === 0 ? '✓ All link targets exist' : `⚠ ${brokenCount} link${brokenCount === 1 ? '' : 's'} to missing pages`;
+
+            const orphanColorClass = orphansCount === 0 ? 'text-success' : 'text-info';
+            const orphanSubtitle = orphansCount === 0 ? '✓ Fully connected graph' : `${orphansCount} unreferenced page${orphansCount === 1 ? '' : 's'}`;
+
+            grid.innerHTML = `
+                <div class="stat-mini-card">
+                    <div class="stat-mini-header">
+                        <span class="stat-mini-icon">📄</span>
+                        <span class="stat-mini-lbl">Articles</span>
+                    </div>
+                    <div class="stat-mini-val">${stats.total_articles}</div>
+                    <div class="stat-mini-sub">${stats.native_articles} native · ${stats.external_articles} external</div>
+                </div>
+                <div class="stat-mini-card">
+                    <div class="stat-mini-header">
+                        <span class="stat-mini-icon">🌐</span>
+                        <span class="stat-mini-lbl">Wiki Links</span>
+                    </div>
+                    <div class="stat-mini-val">${stats.total_links}</div>
+                    <div class="stat-mini-sub">${stats.total_categories} categories · ${stats.total_tags} tags</div>
+                </div>
+                <div class="stat-mini-card">
+                    <div class="stat-mini-header">
+                        <span class="stat-mini-icon">🖼️</span>
+                        <span class="stat-mini-lbl">Media Resources</span>
+                    </div>
+                    <div class="stat-mini-val">${stats.total_resources}</div>
+                    <div class="stat-mini-sub">Images, diagrams & docs</div>
+                </div>
+                <div class="stat-mini-card">
+                    <div class="stat-mini-header">
+                        <span class="stat-mini-icon">🔗</span>
+                        <span class="stat-mini-lbl">Broken Links</span>
+                    </div>
+                    <div class="stat-mini-val ${brokenColorClass}">${brokenCount}</div>
+                    <div class="stat-mini-sub">${brokenSubtitle}</div>
+                </div>
+                <div class="stat-mini-card">
+                    <div class="stat-mini-header">
+                        <span class="stat-mini-icon">🏝️</span>
+                        <span class="stat-mini-lbl">Orphaned Pages</span>
+                    </div>
+                    <div class="stat-mini-val ${orphanColorClass}">${orphansCount}</div>
+                    <div class="stat-mini-sub">${orphanSubtitle}</div>
+                </div>
+            `;
+        }
+
+        // Badges on headers
+        if (brokenBadge) {
+            brokenBadge.textContent = stats.broken_links_count;
+            if (stats.broken_links_count > 0) {
+                brokenBadge.className = 'chip chip-warning';
+            } else {
+                brokenBadge.className = 'chip chip-success';
+            }
+        }
+        if (orphansBadge) {
+            orphansBadge.textContent = stats.orphaned_pages_count;
+            if (stats.orphaned_pages_count > 0) {
+                orphansBadge.className = 'chip chip-muted';
+            } else {
+                orphansBadge.className = 'chip chip-success';
+            }
+        }
+
+        // Render Broken Links List
+        if (brokenList) {
+            if (!stats.broken_links || stats.broken_links.length === 0) {
+                brokenList.innerHTML = `
+                    <div class="health-empty-msg">
+                        <span style="font-size: 1.1rem; color: var(--color-success);">✓</span>
+                        <span>Awesome! No broken wiki links detected in any article.</span>
+                    </div>
+                `;
+            } else {
+                brokenList.innerHTML = `
+                    <div class="health-items-table">
+                        <div class="health-table-header">
+                            <div>Source Article</div>
+                            <div>Target Reference</div>
+                            <div style="text-align: right;">Line</div>
+                        </div>
+                        ${stats.broken_links.map(item => `
+                            <div class="health-table-row">
+                                <div class="health-cell-main">
+                                    <a href="#/article/${encodeURIComponent(item.source_id)}" class="health-link" onclick="App.navigateToArticle('${Utils.escapeHtml(item.source_id)}')">
+                                        ${Utils.escapeHtml(item.source_id)}
+                                    </a>
+                                </div>
+                                <div class="health-cell-target">
+                                    <code class="health-broken-code">[[${Utils.escapeHtml(item.target_id)}]]</code>
+                                    ${item.display_text ? `<span class="health-link-display">(${Utils.escapeHtml(item.display_text)})</span>` : ''}
+                                </div>
+                                <div class="health-cell-line">
+                                    ${item.line_number ? `L${item.line_number}` : '—'}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+        }
+
+        // Render Orphaned Pages List
+        if (orphansList) {
+            if (!stats.orphaned_pages || stats.orphaned_pages.length === 0) {
+                orphansList.innerHTML = `
+                    <div class="health-empty-msg">
+                        <span style="font-size: 1.1rem; color: var(--color-success);">✓</span>
+                        <span>All pages have at least one incoming reference from another article or category.</span>
+                    </div>
+                `;
+            } else {
+                orphansList.innerHTML = `
+                    <div class="health-items-table">
+                        <div class="health-table-header">
+                            <div>Orphaned Page / Resource</div>
+                            <div>Type</div>
+                            <div style="text-align: right;">Outgoing</div>
+                        </div>
+                        ${stats.orphaned_pages.map(item => {
+                            const isResource = item.type === 'resource';
+                            const linkHref = isResource ? `#/resource/${encodeURIComponent(item.id)}` : `#/article/${encodeURIComponent(item.id)}`;
+                            const clickHandler = isResource ? '' : `onclick="App.navigateToArticle('${Utils.escapeHtml(item.id)}')"` ;
+                            return `
+                                <div class="health-table-row">
+                                    <div class="health-cell-main">
+                                        <a href="${linkHref}" class="health-link" ${clickHandler}>
+                                            ${Utils.escapeHtml(item.title || item.id)}
+                                        </a>
+                                        <code class="health-id-code">${Utils.escapeHtml(item.id)}</code>
+                                    </div>
+                                    <div>
+                                        <span class="source-badge ${item.type === 'category' ? 'source' : (item.id.startsWith('src:') ? 'code' : (item.id.startsWith('gdrive:') ? 'drive' : 'markdown'))}">
+                                            ${Utils.escapeHtml(item.type)}
+                                        </span>
+                                    </div>
+                                    <div class="health-cell-line">
+                                        ${item.outgoing_count} link${item.outgoing_count === 1 ? '' : 's'}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
         }
     }
 };

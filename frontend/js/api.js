@@ -82,6 +82,10 @@ const API = {
         return this._fetch('/graph/categories');
     },
 
+    async getStats() {
+        return this._fetch('/stats');
+    },
+
     // --- Resources ---
 
     async fetchResources() {
@@ -219,5 +223,11 @@ const API = {
         return this._fetch('/search/embedding/rebuild', {
             method: 'POST',
         });
+    },
+
+    // --- Statistics and Knowledge Base Health ---
+
+    async getStats() {
+        return this._fetch('/stats');
     },
 };

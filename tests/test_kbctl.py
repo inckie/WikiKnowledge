@@ -162,6 +162,7 @@ def stub_kb_server(status: int = 200):
         yield httpd.server_address[1]
     finally:
         httpd.shutdown()
+        httpd.server_close()
 
 
 def test_port_with_nothing_on_it_is_not_listening():
@@ -225,15 +226,7 @@ def test_ensure_launches_a_real_instance_and_waits_until_its_api_answers(tmp_pat
 
 
 def _pid_is_alive(pid: int) -> bool:
-    if pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-    except PermissionError:
-        return True
-    except (ProcessLookupError, OSError):
-        return False
-    return True
+    return kbctl._pid_alive(pid)
 
 
 def test_stop_refuses_to_kill_an_instance_it_did_not_start(tmp_path):
@@ -278,7 +271,7 @@ def idle_instance(runtime, name="Scratch", **state):
     finally:
         if sys.platform == "win32":
             with contextlib.suppress(Exception):
-                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True)
+                process.terminate()
             with contextlib.suppress(Exception):
                 process.kill()
         else:
@@ -441,14 +434,20 @@ def test_instance_serves_its_own_knowledge_base_not_the_bundled_one(tmp_path):
 
 def count_reapers(name: str) -> int:
     if sys.platform == "win32":
-        res = subprocess.run(
-            ["wmic", "process", "where", "name='python.exe'", "get", "commandline"],
-            capture_output=True, text=True,
-        ).stdout
-        return sum(
-            1 for line in res.splitlines()
-            if "wikiknowledge.tools.kbctl" in line and f"reap {name}" in line
+        cmd = (
+            f"$p = @(Get-CimInstance Win32_Process -Filter \"name = 'python.exe'\" | "
+            f"Where-Object {{ $_.CommandLine -like '*wikiknowledge.tools.kbctl*reap {name}*' }}); "
+            f"$ids = $p.ProcessId; "
+            f"@($p | Where-Object {{ $ids -notcontains $_.ParentProcessId }}).Count"
         )
+        try:
+            res = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", cmd],
+                capture_output=True, text=True, timeout=10,
+            )
+            return int(res.stdout.strip() or 0)
+        except Exception:
+            return 0
     listing = subprocess.run(["/bin/ps", "-Ao", "command"], capture_output=True, text=True).stdout
     return sum(
         1 for line in listing.splitlines()
@@ -485,10 +484,16 @@ def test_scheduling_twice_leaves_a_single_pending_reaper(tmp_path):
             assert count_reapers("Scratch") == 1
         finally:
             if sys.platform == "win32":
-                subprocess.run(
-                    ["wmic", "process", "where", "commandline like '%wikiknowledge.tools.kbctl%reap Scratch%'", "call", "terminate"],
-                    capture_output=True,
+                kill_cmd = (
+                    "Get-CimInstance Win32_Process -Filter \"name = 'python.exe'\" | "
+                    "Where-Object { $_.CommandLine -like '*wikiknowledge.tools.kbctl*reap Scratch*' } | "
+                    "ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
                 )
+                with contextlib.suppress(Exception):
+                    subprocess.run(
+                        ["powershell", "-NoProfile", "-Command", kill_cmd],
+                        capture_output=True, timeout=10,
+                    )
             else:
                 subprocess.run(["/usr/bin/pkill", "-f", "wikiknowledge.tools.kbctl.*reap Scratch"])
 

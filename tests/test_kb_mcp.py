@@ -66,7 +66,11 @@ def receive(shim: subprocess.Popen, timeout: float = 120.0) -> dict:
     thread.start()
     thread.join(timeout)
     if "line" not in box:
-        raise TimeoutError("shim produced no message")
+        err = shim.stderr.read() if shim.stderr else ""
+        raise TimeoutError(f"shim produced no message within {timeout}s; stderr: {err}")
+    if not box["line"]:
+        err = shim.stderr.read() if shim.stderr else ""
+        raise RuntimeError(f"shim stdout closed without producing a message; stderr: {err}")
     return json.loads(box["line"])
 
 
@@ -106,6 +110,22 @@ def test_shim_starts_a_stopped_instance_and_relays_a_real_mcp_session(tmp_path):
         kbctl.stop("Scratch", runtime)
 
 
+def _is_same_or_child_process(child_pid: int, parent_pid: int) -> bool:
+    if child_pid == parent_pid:
+        return True
+    if sys.platform == "win32":
+        cmd = f"(Get-CimInstance Win32_Process -Filter 'ProcessId = {child_pid}').ParentProcessId"
+        try:
+            res = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", cmd],
+                capture_output=True, text=True, timeout=5,
+            )
+            return int(res.stdout.strip() or 0) == parent_pid
+        except Exception:
+            return False
+    return False
+
+
 @pytest.mark.slow
 def test_instance_is_released_and_reaped_after_the_client_disconnects(tmp_path):
     port = free_port()
@@ -115,7 +135,9 @@ def test_instance_is_released_and_reaped_after_the_client_disconnects(tmp_path):
     shim = start_shim(config, tmp_path / "run", idle=0.5)
     try:
         handshake(shim)
-        assert runtime.lease_holders("Scratch") == [shim.pid]
+        holders = runtime.lease_holders("Scratch")
+        assert len(holders) == 1
+        assert _is_same_or_child_process(holders[0], shim.pid)
 
         shim.stdin.close()
         shim.wait(timeout=30)

@@ -140,6 +140,15 @@ def _pid_alive(pid: int) -> bool:
     if hasattr(os, "waitpid") and hasattr(os, "WNOHANG"):
         with contextlib.suppress(ChildProcessError, OSError):
             os.waitpid(pid, os.WNOHANG)
+    if sys.platform == "win32":
+        import ctypes
+        SYNCHRONIZE = 0x00100000
+        handle = ctypes.windll.kernel32.OpenProcess(SYNCHRONIZE, False, pid)
+        if not handle:
+            return ctypes.GetLastError() == 5
+        res = ctypes.windll.kernel32.WaitForSingleObject(handle, 0)
+        ctypes.windll.kernel32.CloseHandle(handle)
+        return res == 0x102
     try:
         os.kill(pid, 0)
     except PermissionError:
@@ -331,6 +340,12 @@ def _launch(kb: KnowledgeBase, project_root: Path, runtime: Runtime) -> int:
         raise KbctlError(f"{kb.name}: knowledge base directory {kb.kb_dir} does not exist")
 
     cmd = launch_command(kb)
+    import shutil
+    if shutil.which(cmd[0]) is None:
+        cmd = [sys.executable, "run.py", f"--port={kb.port}", "--no-reload"]
+        if kb.kb_dir is not None:
+            kb_dir_str = Path(kb.kb_dir).as_posix() if isinstance(kb.kb_dir, Path) else str(kb.kb_dir)
+            cmd.append(f"--kb-dir={kb_dir_str}")
 
     runtime.instance_dir(kb.name).mkdir(parents=True, exist_ok=True)
     log = runtime.log_file(kb.name).open("ab")
@@ -376,6 +391,32 @@ def ensure(
     return base_url(kb.port)
 
 
+def _kill_port_owner(port: int) -> None:
+    """If a process is still holding the port on Windows, terminate it."""
+    if sys.platform != "win32" or port <= 0:
+        return
+    try:
+        res = subprocess.run(
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                f"(Get-NetTCPConnection -LocalPort {port} -ErrorAction SilentlyContinue).OwningProcess",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        for line in res.stdout.splitlines():
+            pid_str = line.strip()
+            if pid_str.isdigit():
+                owner_pid = int(pid_str)
+                if owner_pid > 0 and owner_pid != os.getpid():
+                    subprocess.run(["taskkill", "/PID", str(owner_pid), "/T", "/F"], capture_output=True)
+    except Exception:
+        pass
+
+
 def _signal_group(leader_pid: int, sig: int) -> None:
     """Signal the process group an instance was launched into.
 
@@ -390,6 +431,9 @@ def _signal_group(leader_pid: int, sig: int) -> None:
     ESRCH, so both are accepted, and callers must not read a delivered signal as
     success — they confirm the outcome by checking that the port was released.
     """
+    if leader_pid <= 0 or leader_pid == os.getpid():
+        return
+
     if sys.platform == "win32":
         try:
             subprocess.run(
@@ -398,10 +442,6 @@ def _signal_group(leader_pid: int, sig: int) -> None:
                 check=False,
             )
         except Exception:
-            pass
-        try:
-            os.kill(leader_pid, signal.SIGTERM)
-        except (ProcessLookupError, PermissionError, OSError):
             pass
         return
 
@@ -429,6 +469,8 @@ def stop(name: str, runtime: Runtime, grace: float = 10.0) -> None:
 
     _signal_group(state.pid, signal.SIGTERM)
     if not _wait_until_gone(state, grace):
+        if sys.platform == "win32":
+            _kill_port_owner(state.port)
         _signal_group(state.pid, signal.SIGKILL)
         if not _wait_until_gone(state, 5.0):
             raise KbctlError(f"{name}: port {state.port} still held after SIGKILL")

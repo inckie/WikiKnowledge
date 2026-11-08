@@ -48,6 +48,11 @@ const Viewer = {
             return `__WK_CODE_${codeBlocks.length - 1}__`;
         });
 
+        // Stash $$...$$ / $...$ math behind placeholders so marked cannot mangle
+        // backslashes/underscores in LaTeX (code blocks are already protected above).
+        const math = [];
+        processed = this._extractMath(processed, math);
+
         // Pre-process: convert [[file:...]] links first, then [[wiki-links]]
         processed = this._processFileLinks(processed);
         processed = this._processWikiLinks(processed);
@@ -88,7 +93,50 @@ const Viewer = {
             return `<div class="mermaid">${processed}</div>`;
         });
 
-        return html;
+        // Last: swap math placeholders for KaTeX output (after all HTML regex passes)
+        return this._restoreMath(html, math);
+    },
+
+    /**
+     * Replace $$display$$ and $inline$ math with placeholders.
+     * Inline rules follow Pandoc so prices survive ("$5 and $10" is NOT math):
+     * the opening $ must not be followed by whitespace, the closing $ must not be
+     * preceded by whitespace or followed by a digit, and `\$` is a literal dollar.
+     * @param {string} text
+     * @param {Array<{tex: string, display: boolean}>} store - receives extracted items
+     */
+    _extractMath(text, store) {
+        const stash = (tex, display) => {
+            store.push({ tex: tex.trim(), display });
+            return `WKMATHPH${store.length - 1}PH`;
+        };
+        return text
+            .replace(/(?<!\\)\$\$([\s\S]+?)(?<!\\)\$\$/g, (m, tex) => stash(tex, true))
+            .replace(/(?<![\\$])\$(?![\s$])((?:\\.|[^$\\\n])+?)(?<![\s\\])\$(?![\d$])/g, (m, tex) => stash(tex, false));
+    },
+
+    /**
+     * Render stashed math with KaTeX. Falls back to the escaped source if KaTeX is
+     * not loaded (e.g. CDN blocked) so content is never lost.
+     */
+    _restoreMath(html, store) {
+        if (!store.length) return html;
+        return html.replace(/WKMATHPH(\d+)PH/g, (m, idx) => {
+            const { tex, display } = store[parseInt(idx, 10)];
+            if (window.katex) {
+                try {
+                    return window.katex.renderToString(tex, {
+                        displayMode: display,
+                        throwOnError: false,
+                        output: 'htmlAndMathml',
+                    });
+                } catch (e) {
+                    console.warn('KaTeX render error:', e);
+                }
+            }
+            const delim = display ? '$$' : '$';
+            return `<span class="math-fallback">${Utils.escapeHtml(delim + tex + delim)}</span>`;
+        });
     },
 
     /**
@@ -356,18 +404,119 @@ const Viewer = {
         this.renderMermaid();
     },
 
+    /** HTML tags Mermaid labels legitimately use; anything else is treated as literal text. */
+    _MERMAID_HTML_TAGS: new Set([
+        'a', 'b', 'i', 'u', 's', 'em', 'strong', 'br', 'hr', 'p', 'div', 'span',
+        'small', 'big', 'sub', 'sup', 'code', 'pre', 'img', 'ul', 'ol', 'li', 'font', 'mark',
+    ]),
+
     /**
-     * Render Mermaid diagrams in the DOM.
+     * Escape pseudo-tags such as `<appId>` or `List<int>` into Mermaid entity codes so the
+     * label shows the text instead of the HTML sanitizer silently deleting it.
+     * Real formatting tags (<b>, <br/>, ...) and Mermaid syntax (`<-->`, `<<interface>>`)
+     * are left alone.
+     * @param {string} src - decoded Mermaid source
+     * @returns {string}
      */
-    async renderMermaid() {
-        if (window.mermaid) {
+    escapeMermaidPseudoTags(src) {
+        return src.replace(/(?<!<)<(\/?)([A-Za-z][\w:-]*)([^<>\n]*?)(\/?)>(?!>)/g, (m, close, name, rest, selfClose) => {
+            if (this._MERMAID_HTML_TAGS.has(name.toLowerCase())) return m;
+            return `#lt;${close}${name}${rest}${selfClose}#gt;`;
+        });
+    },
+
+    /**
+     * Best-effort syntax repair for flowcharts that Mermaid's strict grammar rejects:
+     * quotes edge labels (`-->|text (x)|`) and node labels (`A[text (x)]`, `A{text (x)}`)
+     * that contain parentheses. Only ever applied after the original source failed to parse.
+     * Non-flowchart diagrams are returned unchanged.
+     * @param {string} src - decoded Mermaid source
+     * @returns {string}
+     */
+    repairMermaidSource(src) {
+        const firstLine = src.split('\n').find(l => l.trim() && !l.trim().startsWith('%%')) || '';
+        if (!/^\s*(flowchart|graph)\b/i.test(firstLine)) return src;
+        const quote = (s) => `"${s.replace(/"/g, '#quot;')}"`;
+        return src
+            // Edge labels: -->|label|, ---|label|, -.->|label|, ==>|label|, <-->|label|
+            .replace(/((?:--+|==+|-\.+-?)[>ox-]?)\s*\|([^|\n"]+)\|/g, (m, arrow, label) =>
+                /[()[\]{}]/.test(label) ? `${arrow}|${quote(label)}|` : m)
+            // Rectangular node labels: ID[text (x)]  (leaves ID[(db)], ID[[sub]], ID[/trap/] alone)
+            .replace(/(\b[\w.-]+)\[(?![[("/\\>])([^[\]"\n]*[()][^[\]"\n]*)\]/g, (m, id, label) => `${id}[${quote(label)}]`)
+            // Diamond node labels: ID{text (x)}
+            .replace(/(\b[\w.-]+)\{(?![{"])([^{}"\n]*[()][^{}"\n]*)\}/g, (m, id, label) => `${id}{${quote(label)}}`);
+    },
+
+    /**
+     * Pick the first Mermaid source variant that parses:
+     * pseudo-tags escaped, then as written, then syntax-repaired.
+     * @param {string} source - decoded Mermaid source
+     * @returns {Promise<{ok: boolean, source: string, error?: string}>}
+     */
+    async resolveMermaidSource(source) {
+        const escaped = this.escapeMermaidPseudoTags(source);
+        const candidates = [...new Set([escaped, source, this.repairMermaidSource(escaped), this.repairMermaidSource(source)])];
+        let error = '';
+        for (const candidate of candidates) {
             try {
-                await mermaid.run({
-                    querySelector: '.mermaid',
-                    suppressErrors: true
-                });
+                if (await window.mermaid.parse(candidate, { suppressErrors: true })) {
+                    return { ok: true, source: candidate };
+                }
+            } catch (e) {
+                error = String(e && e.message || e);
+            }
+        }
+        // suppressErrors hides the message; re-parse the original once to report it.
+        if (!error) {
+            try { await window.mermaid.parse(source); } catch (e) { error = String(e && e.message || e); }
+        }
+        return { ok: false, source, error: error || 'Unknown Mermaid syntax error' };
+    },
+
+    /** Decode a `.mermaid` element back to Mermaid text (HTML entities decoded, injected links kept). */
+    _mermaidSourceFromElement(el) {
+        const ta = document.createElement('textarea');
+        ta.innerHTML = el.innerHTML;
+        return ta.value.replace(/<br\s*\/?>/gi, '<br/>').trim();
+    },
+
+    _mermaidErrorHtml(source, error) {
+        return `<div class="mermaid-error">
+            <div class="mermaid-error-title">⚠️ Mermaid diagram could not be rendered</div>
+            <pre class="mermaid-error-msg">${Utils.escapeHtml(error)}</pre>
+            <details><summary>Show diagram source</summary><pre class="mermaid-error-src">${Utils.escapeHtml(source)}</pre></details>
+        </div>`;
+    },
+
+    _mermaidSeq: 0,
+
+    /**
+     * Render all not-yet-processed `.mermaid` blocks. Each block is validated first, so one
+     * broken diagram shows a readable error box instead of Mermaid's "bomb" graphic.
+     */
+    async renderMermaid(root = document) {
+        if (!window.mermaid) return;
+        const blocks = Array.from(root.querySelectorAll('.mermaid:not([data-wk-rendered])'));
+        for (const el of blocks) {
+            el.setAttribute('data-wk-rendered', '1');
+            const source = this._mermaidSourceFromElement(el);
+            const resolved = await this.resolveMermaidSource(source);
+            if (!resolved.ok) {
+                el.classList.add('mermaid-failed');
+                el.innerHTML = this._mermaidErrorHtml(source, resolved.error);
+                continue;
+            }
+            const id = `wk-mermaid-${++this._mermaidSeq}`;
+            try {
+                const { svg, bindFunctions } = await window.mermaid.render(id, resolved.source);
+                el.innerHTML = svg;
+                if (bindFunctions) bindFunctions(el);
             } catch (e) {
                 console.warn('Mermaid render error:', e);
+                const leftover = document.getElementById(`d${id}`) || document.getElementById(id);
+                if (leftover) leftover.remove();
+                el.classList.add('mermaid-failed');
+                el.innerHTML = this._mermaidErrorHtml(source, String(e && e.message || e));
             }
         }
     },
@@ -557,6 +706,27 @@ const Viewer = {
     },
 
     /**
+     * Heading text without anchor icons. KaTeX output is flattened per `mode`:
+     * 'source' -> `$tex$` (original markdown), 'visible' -> rendered glyph text only.
+     */
+    _headingText(heading, mode) {
+        const clone = heading.cloneNode(true);
+        clone.querySelectorAll('.heading-anchor').forEach(a => a.remove());
+        clone.querySelectorAll('.katex').forEach(k => {
+            let replacement;
+            if (mode === 'source') {
+                const ann = k.querySelector('annotation[encoding="application/x-tex"]');
+                replacement = ann ? `$${ann.textContent}$` : k.textContent;
+            } else {
+                const vis = k.querySelector('.katex-html');
+                replacement = vis ? vis.textContent : k.textContent;
+            }
+            k.replaceWith(document.createTextNode(replacement));
+        });
+        return clone.textContent.trim();
+    },
+
+    /**
      * Process headers in article-body: add IDs, anchor links with copy function, and generate ToC.
      */
     _setupHeadersAndToc(articleId) {
@@ -579,17 +749,10 @@ const Viewer = {
         headings.forEach((heading, idx) => {
             heading.classList.add('heading-with-anchor');
 
-            // Extract text without existing anchor icons or tools
-            let text = '';
-            for (const node of heading.childNodes) {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    text += node.textContent;
-                } else if (node.nodeType === Node.ELEMENT_NODE && !node.classList.contains('heading-anchor')) {
-                    text += node.textContent;
-                }
-            }
-            text = text.trim();
-            if (!text) text = heading.textContent.trim();
+            // Slug source: heading text with math as its original `$tex$` (stable, matches
+            // pre-KaTeX anchors). ToC label: visible text only (no hidden MathML duplicate).
+            const text = this._headingText(heading, 'source') || heading.textContent.trim();
+            const label = this._headingText(heading, 'visible') || text;
 
             let baseSlug = Utils.slugify(text) || `section-${idx + 1}`;
             let count = seenSlugs.get(baseSlug) || 0;
@@ -646,7 +809,7 @@ const Viewer = {
             const level = parseInt(heading.tagName.substring(1), 10);
             headingList.push({
                 id: slug,
-                text: text,
+                text: label,
                 level: level,
                 element: heading
             });

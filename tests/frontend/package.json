@@ -1,0 +1,15 @@
+{
+  "name": "wikiknowledge-frontend-tests",
+  "private": true,
+  "type": "module",
+  "description": "Headless tests for the vanilla-JS frontend renderer (frontend/js/viewer.js). Versions mirror the CDN majors in frontend/index.html.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0",
+    "katex": "^0.16.0",
+    "marked": "^15.0.0",
+    "mermaid": "^11.0.0"
+  }
+}

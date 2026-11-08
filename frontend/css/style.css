@@ -871,6 +871,40 @@ body {
     color: var(--text-primary);
 }
 
+/* Math (KaTeX) */
+.markdown-body .katex-display {
+    margin: var(--space-4) 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.markdown-body .math-fallback {
+    font-family: var(--font-mono, monospace);
+    color: var(--text-secondary);
+}
+
+/* Mermaid diagrams that fail to parse/render */
+.markdown-body .mermaid-error {
+    border: 1px solid #ef4444;
+    border-left-width: 4px;
+    border-radius: var(--border-radius);
+    padding: var(--space-3) var(--space-4);
+    margin: var(--space-4) 0;
+    background: var(--bg-tertiary);
+    text-align: left;
+}
+
+.markdown-body .mermaid-error-title {
+    font-weight: 600;
+    color: #ef4444;
+}
+
+.markdown-body .mermaid-error pre {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-xs);
+    white-space: pre-wrap;
+}
+
 .markdown-body blockquote {
     border-left: 3px solid var(--accent-primary);
     padding-left: var(--space-4);

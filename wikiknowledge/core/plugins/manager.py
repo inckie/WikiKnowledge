@@ -72,9 +72,11 @@ class SourceManager:
 
                     # Resolve path
                     actual_path = source_settings.get("path")
-                    if not actual_path and decl.get("default_path"):
+                    if actual_path:
+                        actual_path = (self.kb_dir / actual_path).resolve()
+                    elif decl.get("default_path"):
                         actual_path = (self.kb_dir / decl["default_path"]).resolve()
-                        
+
                     decl["path"] = str(actual_path) if actual_path else None
                     await plugin.initialize(decl)
 
@@ -267,6 +269,11 @@ class SourceManager:
 
         plugin = self.plugins[source_id]
         clean_path = new_path.strip() if new_path else ""
+        if len(clean_path) >= 2 and (
+            (clean_path[0] == '"' and clean_path[-1] == '"')
+            or (clean_path[0] == "'" and clean_path[-1] == "'")
+        ):
+            clean_path = clean_path[1:-1].strip()
 
         settings = {}
         if self.settings_file.exists():
@@ -280,7 +287,7 @@ class SourceManager:
             if source_id not in settings:
                 settings[source_id] = {}
             settings[source_id]["path"] = clean_path
-            resolved = Path(clean_path).resolve()
+            resolved = (self.kb_dir / clean_path).resolve()
             if hasattr(plugin, "root_path"):
                 plugin.root_path = resolved
                 plugin._available = resolved.exists() and resolved.is_dir()

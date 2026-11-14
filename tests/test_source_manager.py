@@ -118,3 +118,80 @@ async def test_update_source_path_invalid_source_raises(kb_with_sources: Path):
 
     with pytest.raises(KeyError):
         mgr.update_source_path("nonexistent", "/some/path")
+
+
+@pytest.mark.asyncio
+async def test_update_source_path_strips_quotes_and_resolves_relative_to_kb(kb_with_sources: Path):
+    alt_dir = (kb_with_sources.parent / "alt_src").resolve()
+    (alt_dir / "alt.py").write_text('"""Alt\n:wk-id: alt\n"""\n', encoding="utf-8")
+
+    mgr = SourceManager(kb_with_sources)
+    await mgr.initialize()
+
+    # Surrounding quotes (e.g. Windows Copy as path) and relative path should resolve cleanly
+    mgr.update_source_path("test-code", '"../alt_src"')
+    status = mgr.get_status()[0]
+    assert status["path"] == str(alt_dir)
+    assert status["available"] is True
+
+    # Re-initializing from .settings/sources.json keeps resolving relative to kb_dir
+    mgr2 = SourceManager(kb_with_sources)
+    await mgr2.initialize()
+    assert mgr2.get_status()[0]["path"] == str(alt_dir)
+    assert mgr2.get_status()[0]["available"] is True
+
+
+@pytest.mark.asyncio
+async def test_put_source_path_endpoint_saves_and_rebuilds_index(kb_with_sources: Path):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from wikiknowledge.api.sources import router as sources_router
+    from wikiknowledge.core.index import KnowledgeIndex, rebuild_full_index
+    from wikiknowledge.storage.markdown_backend import MarkdownStorageBackend
+
+    ext_dir = (kb_with_sources.parent / "external_src").resolve()
+    (ext_dir / "orig_mod.py").write_text('"""Orig Mod\n:wk-id: orig-mod\n"""\n', encoding="utf-8")
+
+    alt_dir = (kb_with_sources.parent / "alt_src").resolve()
+    (alt_dir / "new_mod.py").write_text('"""New Mod\n:wk-id: new-mod\n"""\n', encoding="utf-8")
+
+    storage = MarkdownStorageBackend(kb_with_sources)
+    await storage.initialize()
+    index = KnowledgeIndex()
+    mgr = SourceManager(kb_with_sources)
+    await mgr.initialize()
+    await rebuild_full_index(index, storage, mgr)
+
+    assert "src:test-code/orig-mod" in index._all_meta
+    assert "src:test-code/new-mod" not in index._all_meta
+
+    app = FastAPI()
+    app.include_router(sources_router, prefix="/api")
+    app.state.storage = storage
+    app.state.index = index
+    app.state.source_manager = mgr
+
+    client = TestClient(app)
+    resp = client.put("/api/sources/test-code/path", json={"path": str(alt_dir)})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert data["path"] == str(alt_dir)
+    assert data["available"] is True
+    assert data["virtual_articles_discovered"] == 1
+    assert data["source"]["path"] == str(alt_dir)
+    assert data["source"]["available"] is True
+
+    # Index is rebuilt right away with articles from the new path
+    assert "src:test-code/orig-mod" not in index._all_meta
+    assert "src:test-code/new-mod" in index._all_meta
+
+    # Missing directory reports available=False while persisting
+    missing = kb_with_sources.parent / "does_not_exist"
+    resp_missing = client.put("/api/sources/test-code/path", json={"path": str(missing)})
+    assert resp_missing.status_code == 200
+    data_missing = resp_missing.json()
+    assert data_missing["available"] is False
+    assert data_missing["virtual_articles_discovered"] == 0
+    assert data_missing["source"]["available"] is False

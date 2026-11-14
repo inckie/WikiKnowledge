@@ -188,6 +188,124 @@ const Settings = {
 
     // --- Knowledge Sources UI ---
 
+    _renderSourceCard(source) {
+        const escapedId = Utils.escapeHtml(source.id);
+        const isDrive = source.type === 'GoogleDrivePlugin';
+        const isAvailable = source.available;
+        const statusPill = isAvailable
+            ? '<span class="source-status-pill connected">● Connected</span>'
+            : '<span class="source-status-pill disconnected">⊘ Disconnected</span>';
+
+        if (isDrive) {
+            const lastSync = source.last_sync
+                ? new Date(source.last_sync).toLocaleString()
+                : 'Never synced';
+            const articleCount = source.article_count ?? 0;
+            const syncStatus = source.sync_status;
+            const syncStatusBadge = syncStatus === 'success'
+                ? '<span class="source-sync-badge ok">✓ Success</span>'
+                : syncStatus === 'partial'
+                    ? '<span class="source-sync-badge warn">⚠ Partial</span>'
+                    : '';
+            const biDir = source.bidirectional
+                ? '<span class="source-feature-tag">↔ Bidirectional</span>'
+                : '<span class="source-feature-tag readonly">→ Read-only</span>';
+
+            return `
+                <div class="source-card drive-source" data-source-id="${escapedId}">
+                    <div class="source-card-header">
+                        <div class="source-card-icon">🗂️</div>
+                        <div class="source-card-meta">
+                            <div class="source-card-title">
+                                <strong>${escapedId}</strong>
+                                ${statusPill}
+                            </div>
+                            <div class="source-card-subtitle">Google Drive · Folder: <code>${Utils.escapeHtml(source.folder_id || '—')}</code></div>
+                        </div>
+                    </div>
+                    <div class="source-card-stats">
+                        <div class="source-stat">
+                            <span class="source-stat-value">${articleCount}</span>
+                            <span class="source-stat-label">Documents</span>
+                        </div>
+                        <div class="source-stat">
+                            <span class="source-stat-value" style="font-size:0.75rem;">${Utils.escapeHtml(lastSync)}</span>
+                            <span class="source-stat-label">Last Sync ${syncStatusBadge}</span>
+                        </div>
+                        <div class="source-stat">
+                            ${biDir}
+                        </div>
+                    </div>
+                    <div class="source-card-actions">
+                        <button class="btn btn-sm" 
+                            id="btn-sync-${escapedId}"
+                            onclick="Settings.syncDriveSource('${escapedId}')"
+                            ${isAvailable ? '' : 'disabled'}>
+                            🔄 Sync Now
+                        </button>
+                    </div>
+                </div>`;
+        }
+
+        // Source-code or markdown-files source card
+        const isMarkdown = source.type === 'MarkdownFilesPlugin';
+        const typeLabel = isMarkdown ? 'Markdown Files' : 'Source Code';
+        const typeIcon = isMarkdown ? '📝' : '📂';
+
+        return `
+            <div class="source-card" data-source-id="${escapedId}">
+                <div class="source-card-header">
+                    <div class="source-card-icon">${typeIcon}</div>
+                    <div class="source-card-meta">
+                        <div class="source-card-title">
+                            <strong>${escapedId}</strong>
+                            ${statusPill}
+                        </div>
+                        <div class="source-card-subtitle">${typeLabel} · ${Utils.escapeHtml(source.path || 'path not set')}</div>
+                    </div>
+                </div>
+                <div class="source-card-path-row">
+                    <input type="text" class="form-control" id="src-path-${escapedId}"
+                        value="${Utils.escapeHtml(source.path || '')}" placeholder="Local absolute path override"
+                        onkeydown="if (event.key === 'Enter') { event.preventDefault(); Settings.updateSourcePath('${escapedId}'); }">
+                    <button id="btn-update-path-${escapedId}" class="btn btn-sm"
+                        onclick="Settings.updateSourcePath('${escapedId}')">Update Path</button>
+                </div>
+            </div>`;
+    },
+
+    _replaceSourceCard(source) {
+        const container = document.getElementById('sources-container');
+        if (!container || !source || !source.id) return false;
+        const existingCard = Array.from(container.querySelectorAll('.source-card'))
+            .find(el => el.dataset.sourceId === source.id);
+        if (!existingCard) return false;
+
+        const tpl = document.createElement('template');
+        tpl.innerHTML = this._renderSourceCard(source).trim();
+        const newCard = tpl.content.firstElementChild;
+        if (!newCard) return false;
+
+        existingCard.replaceWith(newCard);
+        return true;
+    },
+
+    async _refreshAppAfterSourceChange() {
+        if (typeof App !== 'undefined') {
+            if (typeof App._loadArticles === 'function') {
+                await App._loadArticles();
+            }
+            if (typeof App._loadSidebarContent === 'function') {
+                const activeNav = document.querySelector('.nav-btn.active');
+                const sidebarView = (activeNav && (activeNav.dataset.view === 'categories' || activeNav.dataset.view === 'tags'))
+                    ? activeNav.dataset.view
+                    : 'articles';
+                await App._loadSidebarContent(sidebarView);
+            }
+        }
+        await this.loadStats();
+    },
+
     async loadSources() {
         const container = document.getElementById('sources-container');
         if (!container) return;
@@ -200,90 +318,7 @@ const Settings = {
                 return;
             }
 
-            container.innerHTML = sources.map(source => {
-                const isDrive = source.type === 'GoogleDrivePlugin';
-                const isAvailable = source.available;
-                const statusPill = isAvailable
-                    ? '<span class="source-status-pill connected">● Connected</span>'
-                    : '<span class="source-status-pill disconnected">⊘ Disconnected</span>';
-
-                if (isDrive) {
-                    const lastSync = source.last_sync
-                        ? new Date(source.last_sync).toLocaleString()
-                        : 'Never synced';
-                    const articleCount = source.article_count ?? 0;
-                    const syncStatus = source.sync_status;
-                    const syncStatusBadge = syncStatus === 'success'
-                        ? '<span class="source-sync-badge ok">✓ Success</span>'
-                        : syncStatus === 'partial'
-                            ? '<span class="source-sync-badge warn">⚠ Partial</span>'
-                            : '';
-                    const biDir = source.bidirectional
-                        ? '<span class="source-feature-tag">↔ Bidirectional</span>'
-                        : '<span class="source-feature-tag readonly">→ Read-only</span>';
-
-                    return `
-                        <div class="source-card drive-source">
-                            <div class="source-card-header">
-                                <div class="source-card-icon">🗂️</div>
-                                <div class="source-card-meta">
-                                    <div class="source-card-title">
-                                        <strong>${Utils.escapeHtml(source.id)}</strong>
-                                        ${statusPill}
-                                    </div>
-                                    <div class="source-card-subtitle">Google Drive · Folder: <code>${Utils.escapeHtml(source.folder_id || '—')}</code></div>
-                                </div>
-                            </div>
-                            <div class="source-card-stats">
-                                <div class="source-stat">
-                                    <span class="source-stat-value">${articleCount}</span>
-                                    <span class="source-stat-label">Documents</span>
-                                </div>
-                                <div class="source-stat">
-                                    <span class="source-stat-value" style="font-size:0.75rem;">${Utils.escapeHtml(lastSync)}</span>
-                                    <span class="source-stat-label">Last Sync ${syncStatusBadge}</span>
-                                </div>
-                                <div class="source-stat">
-                                    ${biDir}
-                                </div>
-                            </div>
-                            <div class="source-card-actions">
-                                <button class="btn btn-sm" 
-                                    id="btn-sync-${Utils.escapeHtml(source.id)}"
-                                    onclick="Settings.syncDriveSource('${Utils.escapeHtml(source.id)}')"
-                                    ${isAvailable ? '' : 'disabled'}>
-                                    🔄 Sync Now
-                                </button>
-                            </div>
-                        </div>`;
-                }
-
-                // Source-code or markdown-files source card
-                const isMarkdown = source.type === 'MarkdownFilesPlugin';
-                const typeLabel = isMarkdown ? 'Markdown Files' : 'Source Code';
-                const typeIcon = isMarkdown ? '📝' : '📂';
-
-                return `
-                    <div class="source-card">
-                        <div class="source-card-header">
-                            <div class="source-card-icon">${typeIcon}</div>
-                            <div class="source-card-meta">
-                                <div class="source-card-title">
-                                    <strong>${Utils.escapeHtml(source.id)}</strong>
-                                    ${statusPill}
-                                </div>
-                                <div class="source-card-subtitle">${typeLabel} · ${Utils.escapeHtml(source.path || 'path not set')}</div>
-                            </div>
-                        </div>
-                        <div class="source-card-path-row">
-                            <input type="text" class="form-control" id="src-path-${Utils.escapeHtml(source.id)}"
-                                value="${Utils.escapeHtml(source.path || '')}" placeholder="Local absolute path override"
-                                onkeydown="if (event.key === 'Enter') Settings.updateSourcePath('${Utils.escapeHtml(source.id)}')">
-                            <button id="btn-update-path-${Utils.escapeHtml(source.id)}" class="btn btn-sm"
-                                onclick="Settings.updateSourcePath('${Utils.escapeHtml(source.id)}')">Update Path</button>
-                        </div>
-                    </div>`;
-            }).join('');
+            container.innerHTML = sources.map(source => this._renderSourceCard(source)).join('');
         } catch (e) {
             container.innerHTML = '<div class="empty-state">Error loading sources.</div>';
             console.error('Failed to load sources:', e);
@@ -310,6 +345,7 @@ const Settings = {
                 Utils.toast(`Sync complete for "${sourceId}"`, 'success');
             }
             await this.loadSources();
+            await this._refreshAppAfterSourceChange();
         } catch (e) {
             Utils.toast(`Sync failed: ${e.message}`, 'error');
             if (btn) {
@@ -327,15 +363,35 @@ const Settings = {
         const originalText = btn ? btn.innerHTML : 'Update Path';
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '⏳ Updating...';
+            btn.innerHTML = '⏳ Applying...';
         }
         pathInput.disabled = true;
 
-        const path = pathInput.value.trim();
+        let path = pathInput.value.trim();
+        if (path.length >= 2 && (
+            (path.startsWith('"') && path.endsWith('"')) ||
+            (path.startsWith("'") && path.endsWith("'"))
+        )) {
+            path = path.slice(1, -1).trim();
+        }
+        pathInput.value = path;
+
         try {
-            await API.updateSourcePath(id, path);
-            Utils.toast(`Source path updated for ${id}`, 'success');
-            await this.loadSources();
+            const resp = await API.updateSourcePath(id, path);
+            if (!resp.source || !this._replaceSourceCard(resp.source)) {
+                await this.loadSources();
+            }
+
+            if (resp.available === false) {
+                Utils.toast(`Saved path for "${id}", but directory was not found (Disconnected)`, 'error');
+            } else {
+                const countStr = typeof resp.virtual_articles_discovered === 'number'
+                    ? ` (${resp.virtual_articles_discovered} virtual articles indexed)`
+                    : '';
+                Utils.toast(`Saved & applied path for "${id}"${countStr}`, 'success');
+            }
+
+            await this._refreshAppAfterSourceChange();
         } catch (e) {
             Utils.toast(`Failed to update path: ${e.message}`, 'error');
             if (btn) {
@@ -371,6 +427,7 @@ const Settings = {
             }
             Utils.toast(msg, 'success');
             await this.loadSources();
+            await this._refreshAppAfterSourceChange();
         } catch (e) {
             Utils.toast(`Failed to rescan sources: ${e.message}`, 'error');
         } finally {

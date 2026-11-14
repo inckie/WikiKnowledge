@@ -32,11 +32,29 @@ async def get_sources(request: Request) -> list[dict[str, Any]]:
 
 @router.put("/sources/{source_id}/path")
 async def update_source_path(request: Request, source_id: str, body: SourcePathUpdateRequest):
-    """Update the local override path for a source."""
+    """Update the local override path for a source and rebuild the index."""
     source_manager = request.app.state.source_manager
+    storage = getattr(request.app.state, "storage", None)
+    index = getattr(request.app.state, "index", None)
     try:
         source_manager.update_source_path(source_id, body.path)
-        return {"status": "ok", "source_id": source_id, "path": body.path}
+        virtual_count = None
+        if storage is not None and index is not None:
+            from wikiknowledge.core.index import rebuild_full_index
+            virtual_count = await rebuild_full_index(index, storage, source_manager)
+
+        status_entry = next(
+            (s for s in source_manager.get_status() if s["id"] == source_id),
+            None,
+        )
+        return {
+            "status": "ok",
+            "source_id": source_id,
+            "path": status_entry["path"] if status_entry else body.path,
+            "available": status_entry["available"] if status_entry else False,
+            "virtual_articles_discovered": virtual_count,
+            "source": status_entry,
+        }
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Source '{source_id}' not found")
     except Exception as e:

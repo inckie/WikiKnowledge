@@ -465,28 +465,40 @@ def create_mcp_server(
 
     @mcp.tool()
     async def search(query: str) -> str:
-        """Full-text search across article titles, tags, and content.
+        """Ranked keyword search across article titles, ids, tags and bodies,
+        including connected sources (src:/gdrive:).
 
-        Returns matching article IDs and titles.
+        Every word must match (any order); if nothing matches all words, the
+        articles matching the most words are returned, marked as partial.
+        Code identifiers and error strings work as queries.
+        Returns the best 25 article IDs with titles and a matching line.
         """
-        storage_results = await storage.search(query)
-        index_results = index.search(query)
-        
-        seen = {m.id for m in storage_results}
-        results = list(storage_results)
-        for m in index_results:
-            if m.id not in seen:
-                results.append(m)
-                seen.add(m.id)
-                
-        results.sort(key=lambda m: m.title)
-        
-        if not results:
+        from wikiknowledge.core.text_search import rank
+
+        async def docs():
+            out = []
+            for m in index._all_meta.values():
+                try:
+                    if m.id.startswith(("src:", "gdrive:")):
+                        body = await source_manager.get_article_content(m.id)
+                    else:
+                        body = (await storage.get_article(m.id)).content
+                except Exception:
+                    body = ""
+                out.append((m, body or ""))
+            return out
+
+        hits, partial = rank(query, await docs())
+        if not hits:
             return f"No results for '{query}'."
 
-        lines = [f"Search results for '{query}' ({len(results)} matches):\n"]
-        for m in results:
+        kind = "partial matches (no article has every word)" if partial else "matches"
+        lines = [f"Search results for '{query}' — top {len(hits)} {kind}:\n"]
+        for h in hits:
+            m = h.meta
             lines.append(f"- [{m.type.value}] {m.id}: \"{m.title}\"")
+            if h.snippet:
+                lines.append(f"    > {h.snippet}")
         return "\n".join(lines)
 
     @mcp.tool()

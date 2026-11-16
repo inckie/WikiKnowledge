@@ -14,7 +14,9 @@ import diff_match_patch as dmp_module
 
 from mcp.server.fastmcp import FastMCP
 
+from wikiknowledge.core.article_content import is_virtual, read_article
 from wikiknowledge.core.graph import KnowledgeGraph
+from wikiknowledge.core.text_search import lexical_search
 from wikiknowledge.core.index import KnowledgeIndex
 from wikiknowledge.storage.markdown_backend import MarkdownStorageBackend
 from wikiknowledge.storage.models import (
@@ -56,12 +58,7 @@ def create_mcp_server(
         Returns the article as YAML frontmatter + markdown body.
         """
         try:
-            if article_id.startswith("src:") or article_id.startswith("gdrive:"):
-                content = await source_manager.get_article_content(article_id)
-                meta = index._all_meta[article_id]
-                article = Article(meta=meta, content=content)
-            else:
-                article = await storage.get_article(article_id)
+            article = await read_article(article_id, storage, index, source_manager)
         except KeyError as e:
             return f"Error: Article '{article_id}' not found. {e}"
 
@@ -197,7 +194,7 @@ def create_mcp_server(
 
         Returns confirmation of the update.
         """
-        if article_id.startswith("src:") or article_id.startswith("gdrive:"):
+        if is_virtual(article_id):
             if content is not None or content_patches is not None or title is not None or article_type is not None:
                 return f"Error: Cannot update content, title, or type of virtual article '{article_id}'"
             
@@ -473,22 +470,7 @@ def create_mcp_server(
         Code identifiers and error strings work as queries.
         Returns the best 25 article IDs with titles and a matching line.
         """
-        from wikiknowledge.core.text_search import rank
-
-        async def docs():
-            out = []
-            for m in index._all_meta.values():
-                try:
-                    if m.id.startswith(("src:", "gdrive:")):
-                        body = await source_manager.get_article_content(m.id)
-                    else:
-                        body = (await storage.get_article(m.id)).content
-                except Exception:
-                    body = ""
-                out.append((m, body or ""))
-            return out
-
-        hits, partial = rank(query, await docs())
+        hits, partial = await lexical_search(query, storage, index, source_manager, limit=25)
         if not hits:
             return f"No results for '{query}'."
 

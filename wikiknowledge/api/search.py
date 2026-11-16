@@ -5,6 +5,9 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import APIRouter, Request
+
+from wikiknowledge.core.article_content import is_virtual
+from wikiknowledge.core.text_search import lexical_search
 from pydantic import BaseModel
 
 router = APIRouter(tags=["search"])
@@ -116,8 +119,8 @@ async def get_stats(request: Request):
     storage = request.app.state.storage
 
     all_articles = index._all_meta
-    native_count = sum(1 for aid in all_articles if not aid.startswith("src:") and not aid.startswith("gdrive:"))
-    external_count = sum(1 for aid in all_articles if aid.startswith("src:") or aid.startswith("gdrive:"))
+    native_count = sum(1 for aid in all_articles if not is_virtual(aid))
+    external_count = sum(1 for aid in all_articles if is_virtual(aid))
 
     all_resources = index._all_resource_meta
     all_known_ids = set(all_articles.keys()) | set(all_resources.keys())
@@ -247,33 +250,25 @@ async def search_articles(request: Request, q: str = ""):
     index = request.app.state.index
     service = getattr(request.app.state, "embedding_service", None)
 
-    # 1. Lexical search across storage and in-memory index
-    storage_results = await storage.search(query)
-    index_results = index.search(query)
+    # 1. Ranked lexical search (same as the MCP search tool)
+    hits, _partial = await lexical_search(query, storage, index, request.app.state.source_manager)
 
-    seen_lexical = set()
-    lexical_items = []
-    for m in storage_results:
-        if m.id not in seen_lexical:
-            lexical_items.append(m)
-            seen_lexical.add(m.id)
-    for m in index_results:
-        if m.id not in seen_lexical:
-            lexical_items.append(m)
-            seen_lexical.add(m.id)
+    def type_str(m):
+        return m.type.value if hasattr(m.type, "value") else str(m.type)
 
-    # If embedding search is disabled or not ready, return standard lexical results
+    # If embedding search is disabled or not ready, return the lexical ranking
     if not service or not service.enabled or service.status != "ready":
-        lexical_items.sort(key=lambda m: m.title)
         return [
             SearchResultResponse(
-                id=m.id,
-                title=m.title,
-                type=m.type.value if hasattr(m.type, "value") else str(m.type),
-                tags=m.tags,
+                id=h.meta.id,
+                title=h.meta.title,
+                type=type_str(h.meta),
+                tags=h.meta.tags,
                 match_type="lexical",
+                score=h.score,
+                snippet=h.snippet or None,
             )
-            for m in lexical_items
+            for h in hits
         ]
 
     # 2. Semantic search using pre-computed Model2Vec embeddings
@@ -283,19 +278,20 @@ async def search_articles(request: Request, q: str = ""):
     # 3. Hybrid ranking: combine and score
     combined: dict[str, dict] = {}
 
-    for m in lexical_items:
-        aid = m.id
-        sem = semantic_dict.get(aid)
+    top = hits[0].score if hits else 1.0
+    for h in hits:
+        m = h.meta
+        sem = semantic_dict.get(m.id)
         sem_score = sem["score"] if sem else 0.0
-        match_type = "hybrid" if sem else "lexical"
-        combined[aid] = {
-            "id": aid,
+        combined[m.id] = {
+            "id": m.id,
             "title": m.title,
-            "type": m.type.value if hasattr(m.type, "value") else str(m.type),
+            "type": type_str(m),
             "tags": m.tags,
-            "match_type": match_type,
-            "score": 1.0 + sem_score,  # Keyword matches boosted by semantic relevance
-            "snippet": sem.get("snippet") if sem else None,
+            "match_type": "hybrid" if sem else "lexical",
+            # Keyword matches stay above semantic-only ones; lexical rank (0..1) and semantic relevance order them
+            "score": 1.0 + h.score / top + sem_score,
+            "snippet": h.snippet or (sem.get("snippet") if sem else None),
         }
 
     for sem in semantic_results:

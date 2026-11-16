@@ -8,8 +8,9 @@ finds "rivers" and "chromecast" finds "chromecast-ios".
 
 import re
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Optional
 
+from wikiknowledge.core.article_content import collect_article_texts
 from wikiknowledge.storage.models import ArticleMeta
 
 _TOKEN_RE = re.compile(r"[\w.\-/:]+")
@@ -44,7 +45,14 @@ def _snippet(body: str, tokens: list[str], width: int = 160) -> str:
     return best_line[:width]
 
 
-def rank(query: str, docs: Iterable[tuple[ArticleMeta, str]], limit: int = 25) -> tuple[list[SearchHit], bool]:
+async def lexical_search(
+    query: str, storage, index, source_manager, limit: Optional[int] = None
+) -> tuple[list[SearchHit], bool]:
+    """Rank every indexed article, native and virtual. Shared by the REST API and MCP."""
+    return rank(query, await collect_article_texts(storage, index, source_manager), limit)
+
+
+def rank(query: str, docs: Iterable[tuple[ArticleMeta, str]], limit: Optional[int] = 25) -> tuple[list[SearchHit], bool]:
     """Return (hits, partial). `partial` is True when no doc matched every word."""
     tokens = tokenize(query)
     if not tokens:

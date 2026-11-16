@@ -14,7 +14,9 @@ import diff_match_patch as dmp_module
 
 from mcp.server.fastmcp import FastMCP
 
+from wikiknowledge.core.article_content import is_virtual, read_article
 from wikiknowledge.core.graph import KnowledgeGraph
+from wikiknowledge.core.text_search import lexical_search
 from wikiknowledge.core.index import KnowledgeIndex
 from wikiknowledge.storage.markdown_backend import MarkdownStorageBackend
 from wikiknowledge.storage.models import (
@@ -56,12 +58,7 @@ def create_mcp_server(
         Returns the article as YAML frontmatter + markdown body.
         """
         try:
-            if article_id.startswith("src:") or article_id.startswith("gdrive:"):
-                content = await source_manager.get_article_content(article_id)
-                meta = index._all_meta[article_id]
-                article = Article(meta=meta, content=content)
-            else:
-                article = await storage.get_article(article_id)
+            article = await read_article(article_id, storage, index, source_manager)
         except KeyError as e:
             return f"Error: Article '{article_id}' not found. {e}"
 
@@ -197,7 +194,7 @@ def create_mcp_server(
 
         Returns confirmation of the update.
         """
-        if article_id.startswith("src:") or article_id.startswith("gdrive:"):
+        if is_virtual(article_id):
             if content is not None or content_patches is not None or title is not None or article_type is not None:
                 return f"Error: Cannot update content, title, or type of virtual article '{article_id}'"
             
@@ -465,28 +462,25 @@ def create_mcp_server(
 
     @mcp.tool()
     async def search(query: str) -> str:
-        """Full-text search across article titles, tags, and content.
+        """Ranked keyword search across article titles, ids, tags and bodies,
+        including connected sources (src:/gdrive:).
 
-        Returns matching article IDs and titles.
+        Every word must match (any order); if nothing matches all words, the
+        articles matching the most words are returned, marked as partial.
+        Code identifiers and error strings work as queries.
+        Returns the best 25 article IDs with titles and a matching line.
         """
-        storage_results = await storage.search(query)
-        index_results = index.search(query)
-        
-        seen = {m.id for m in storage_results}
-        results = list(storage_results)
-        for m in index_results:
-            if m.id not in seen:
-                results.append(m)
-                seen.add(m.id)
-                
-        results.sort(key=lambda m: m.title)
-        
-        if not results:
+        hits, partial = await lexical_search(query, storage, index, source_manager, limit=25)
+        if not hits:
             return f"No results for '{query}'."
 
-        lines = [f"Search results for '{query}' ({len(results)} matches):\n"]
-        for m in results:
+        kind = "partial matches (no article has every word)" if partial else "matches"
+        lines = [f"Search results for '{query}' — top {len(hits)} {kind}:\n"]
+        for h in hits:
+            m = h.meta
             lines.append(f"- [{m.type.value}] {m.id}: \"{m.title}\"")
+            if h.snippet:
+                lines.append(f"    > {h.snippet}")
         return "\n".join(lines)
 
     @mcp.tool()

@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 import diff_match_patch as dmp_module
 
+from wikiknowledge.core.article_content import read_article
 from wikiknowledge.storage.models import Article, ArticleMeta, ArticleType
 
 router = APIRouter(tags=["articles"])
@@ -169,14 +170,7 @@ async def get_article(request: Request, article_id: str):
     storage = request.app.state.storage
     index = request.app.state.index
     try:
-        if article_id.startswith("src:") or article_id.startswith("gdrive:"):
-            content = await request.app.state.source_manager.get_article_content(article_id)
-            meta = index.get_meta(article_id)
-            if not meta:
-                raise KeyError(article_id)
-            article = Article(meta=meta, content=content)
-        else:
-            article = await storage.get_article(article_id)
+        article = await read_article(article_id, storage, index, request.app.state.source_manager)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Article '{article_id}' not found")
 

@@ -20,6 +20,8 @@ from typing import Any, Optional
 
 import numpy as np
 
+from wikiknowledge.core.article_content import collect_article_texts
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL_NAME = "minishlab/potion-base-8M"
@@ -207,25 +209,10 @@ class EmbeddingSearchService:
     async def _collect_articles(self, storage, index, source_manager) -> list[dict[str, Any]]:
         """Collect reachable wiki content: native articles and virtual plugin articles."""
         collected: list[dict[str, Any]] = []
-
-        # Iterate over all registered metadata in the knowledge graph
-        all_meta_copy = dict(index._all_meta)
-
-        for article_id, meta in all_meta_copy.items():
-            content = ""
-            try:
-                if article_id.startswith("src:") or article_id.startswith("gdrive:"):
-                    content = await source_manager.get_article_content(article_id)
-                else:
-                    article = await storage.get_article(article_id)
-                    content = article.content
-            except Exception as e:
-                logger.debug("Could not read content for %s: %s", article_id, e)
-                content = ""
-
+        for meta, content in await collect_article_texts(storage, index, source_manager):
             collected.append({
-                "id": article_id,
-                "title": meta.title or article_id,
+                "id": meta.id,
+                "title": meta.title or meta.id,
                 "type": meta.type.value if hasattr(meta.type, "value") else str(meta.type),
                 "tags": list(meta.tags or []),
                 "categories": list(meta.categories or []),

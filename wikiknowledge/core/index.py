@@ -375,12 +375,15 @@ class KnowledgeIndex:
         return orphans
 
     def get_broken_links(self) -> list[WikiLink]:
-        """Links whose targets don't exist (in either articles or resources)."""
+        """Links whose targets don't exist (in either articles or resources).
+
+        A `#section` anchor is ignored: `[[a#b]]` is fine when article `a` exists.
+        """
         all_known_ids = set(self._all_meta.keys()) | set(self._all_resource_meta.keys())
         broken = []
         for links in self.forward_links.values():
             for link in links:
-                if link.target_id not in all_known_ids:
+                if link.target_id.split("#")[0].strip() not in all_known_ids:
                     broken.append(link)
         return broken
 

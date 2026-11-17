@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from wikiknowledge.api.search import router as search_router, get_stats
 from wikiknowledge.storage.models import ArticleMeta, ArticleType, ResourceMeta
-from wikiknowledge.core.index import WikiLink
+from wikiknowledge.core.index import KnowledgeIndex, WikiLink
 
 
 def test_get_stats_endpoint():
@@ -41,6 +41,11 @@ def test_get_stats_endpoint():
         "image.png": [link2],
     }
     mock_index.tag_index = {"tag1": ["page-a"], "tag2": ["page-a", "src:code"]}
+    mock_index.get_broken_links = lambda: KnowledgeIndex.get_broken_links(mock_index)
+    # An anchor into an existing article is not broken.
+    mock_index.forward_links["page-a"].append(
+        WikiLink(source_id="page-a", target_id="overview#goals", display_text=None, line_number=20)
+    )
 
     app.state.storage = mock_storage
     app.state.index = mock_index
@@ -56,7 +61,7 @@ def test_get_stats_endpoint():
     assert data["total_resources"] == 1
     assert data["total_categories"] == 1
     assert data["total_tags"] == 2
-    assert data["total_links"] == 2
+    assert data["total_links"] == 3
 
     # Broken links
     assert data["broken_links_count"] == 1

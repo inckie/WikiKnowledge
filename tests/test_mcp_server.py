@@ -442,3 +442,65 @@ async def test_get_article_with_disconnected_transclusion(mcp, mocks):
     result = await _invoke_tool(mcp, "get_article", {"article_id": "guide"})
     assert "⊘ **Transcluded content unavailable (Source disconnected)" in result
     assert "Repo Module > Code Details" in result
+
+
+@pytest.mark.asyncio
+async def test_search_miss_logged_and_reported_by_kb_health(tmp_path, monkeypatch):
+    from wikiknowledge.core.index import KnowledgeIndex, WikiLink
+
+    (tmp_path / "articles").mkdir()
+    (tmp_path / "articles" / "huge.md").write_text("x" * 3000)
+    storage = AsyncMock()
+    storage.knowledge_dir = tmp_path
+    storage.articles_dir = tmp_path / "articles"
+
+    index = MagicMock()
+    index._all_meta = {
+        "overview": ArticleMeta(id="overview", title="Overview", type=ArticleType.CATEGORY),
+        "page-a": ArticleMeta(id="page-a", title="Page A", type=ArticleType.LEAF),
+        "huge": ArticleMeta(id="huge", title="Huge", type=ArticleType.LEAF),
+        "src:code": ArticleMeta(id="src:code", title="Code", type=ArticleType.LEAF),
+    }
+    index._all_resource_meta = {}
+    index.forward_links = {"page-a": [
+        WikiLink(source_id="page-a", target_id="nowhere", display_text=None, line_number=3),
+        WikiLink(source_id="page-a", target_id="huge#part", display_text=None, line_number=4),
+    ]}
+    index.back_links = {"huge": [index.forward_links["page-a"][1]]}
+    index.get_broken_links = lambda: KnowledgeIndex.get_broken_links(index)
+
+    monkeypatch.setattr("wikiknowledge.mcp_server.lexical_search", AsyncMock(return_value=([], False)))
+    mcp = create_mcp_server(storage, index, MagicMock(), AsyncMock())
+    for q in ("AppLoaderBridge android", "apploaderbridge  Android", "other"):
+        assert "No results" in await _invoke_tool(mcp, "search", {"query": q})
+
+    report = await _invoke_tool(mcp, "kb_health", {"max_kb": 2})
+    assert "page-a → [[nowhere]] (line 3)" in report
+    assert "huge#part" not in report                      # anchor into an existing article
+    assert "- page-a: \"Page A\"" in report and "src:code" not in report and "overview:" not in report
+    assert "- huge: 2.9 KB" in report
+    assert "\"AppLoaderBridge android\": missed 2×, 2× with no result at all" in report
+
+
+@pytest.mark.asyncio
+async def test_unparseable_files_are_recorded_and_reported(tmp_path):
+    from wikiknowledge.core.index import KnowledgeIndex
+    from wikiknowledge.storage.markdown_backend import MarkdownStorageBackend
+
+    (tmp_path / "articles").mkdir()
+    (tmp_path / "media").mkdir()
+    (tmp_path / "articles" / "ok.md").write_text("---\nid: ok\ntitle: Ok\ntype: leaf\n---\nSee [[bad]].\n")
+    (tmp_path / "articles" / "bad.md").write_text("---\nid: bad\ntitle: Level map: chars\ntype: leaf\n---\nx\n")
+    (tmp_path / "media" / "a.png").write_bytes(b"x")
+    (tmp_path / "media" / "a.png.meta").write_text("id: a.png\ntitle: 'Mia's sheet'\n")
+    storage = MarkdownStorageBackend(tmp_path)
+    await storage.initialize()
+    assert set(storage.load_errors) == {"articles/bad.md", "media/a.png.meta"}
+
+    index = KnowledgeIndex()
+    index.build(all_meta=dict(storage._meta_cache), all_links=storage.get_all_links(),
+                all_resource_meta={}, all_resource_links={})
+    report = await _invoke_tool(create_mcp_server(storage, index, MagicMock(), AsyncMock()), "kb_health", {})
+    assert "## Files that failed to load (2)" in report
+    assert "- articles/bad.md:" in report and "- media/a.png.meta:" in report
+    assert "ok → [[bad]]" in report

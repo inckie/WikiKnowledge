@@ -123,19 +123,11 @@ async def get_stats(request: Request):
     external_count = sum(1 for aid in all_articles if is_virtual(aid))
 
     all_resources = index._all_resource_meta
-    all_known_ids = set(all_articles.keys()) | set(all_resources.keys())
 
     # Total links
     total_links = sum(len(links) for links in index.forward_links.values())
 
-    # Broken links
-    broken_raw = []
-    for links in index.forward_links.values():
-        for link in links:
-            target_base = link.target_id.split("#")[0].strip()
-            if target_base not in all_known_ids:
-                broken_raw.append(link)
-
+    broken_raw = index.get_broken_links()
     broken_links = [
         BrokenLinkInfo(
             source_id=l.source_id,

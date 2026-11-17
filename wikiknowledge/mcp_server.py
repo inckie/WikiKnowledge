@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import mimetypes
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 import diff_match_patch as dmp_module
 
@@ -16,6 +17,7 @@ from mcp.server.fastmcp import FastMCP
 
 from wikiknowledge.core.article_content import is_virtual, read_article
 from wikiknowledge.core.graph import KnowledgeGraph
+from wikiknowledge.core.search_log import record_miss, top_misses
 from wikiknowledge.core.text_search import lexical_search
 from wikiknowledge.core.index import KnowledgeIndex
 from wikiknowledge.storage.markdown_backend import MarkdownStorageBackend
@@ -50,6 +52,9 @@ def create_mcp_server(
             "Use these tools to read, create, update, and query articles."
         ),
     )
+    # Folder of a markdown-backed KB; None for other backends (and mocks in tests).
+    kb_dir = getattr(storage, "knowledge_dir", None)
+    kb_dir = kb_dir if isinstance(kb_dir, Path) else None
 
     @mcp.tool()
     async def get_article(article_id: str) -> str:
@@ -471,6 +476,7 @@ def create_mcp_server(
         Returns the best 25 article IDs with titles and a matching line.
         """
         hits, partial = await lexical_search(query, storage, index, source_manager, limit=25)
+        record_miss(kb_dir, query, len(hits), partial)
         if not hits:
             return f"No results for '{query}'."
 
@@ -482,6 +488,42 @@ def create_mcp_server(
             if h.snippet:
                 lines.append(f"    > {h.snippet}")
         return "\n".join(lines)
+
+    @mcp.tool()
+    async def kb_health(max_kb: int = 15) -> str:
+        """Maintenance report: what to fix or write next in this knowledge base.
+
+        Lists broken wiki-links, native articles nothing links to, leaf articles
+        larger than `max_kb` kilobytes, and the searches that most often found
+        nothing or only partial matches (a recurring miss is a missing article).
+        """
+        out = []
+
+        broken = index.get_broken_links()
+        out.append(f"## Broken links ({len(broken)})")
+        out += [f"- {l.source_id} → [[{l.target_id}]]" + (f" (line {l.line_number})" if l.line_number else "")
+                for l in sorted(broken, key=lambda l: (l.source_id, l.target_id))]
+
+        orphans = sorted(aid for aid in index._all_meta
+                         if aid != "overview" and not is_virtual(aid) and not index.back_links.get(aid))
+        out.append(f"\n## Not linked from anywhere ({len(orphans)})")
+        out += [f"- {aid}: \"{index._all_meta[aid].title}\"" for aid in orphans]
+
+        big = []
+        articles_dir = getattr(storage, "articles_dir", None)
+        if isinstance(articles_dir, Path) and articles_dir.is_dir():
+            big = sorted(((p.stat().st_size, p.stem) for p in articles_dir.glob("*.md")
+                          if p.stat().st_size > max_kb * 1024), reverse=True)
+        out.append(f"\n## Leaves over {max_kb} KB ({len(big)})")
+        out += [f"- {aid}: {size / 1024:.1f} KB" for size, aid in big]
+
+        misses = top_misses(kb_dir)
+        out.append(f"\n## Frequent search misses ({len(misses)})")
+        out += [f"- \"{q}\": missed {n}×" + (f", {empty}× with no result at all" if empty else ", partial matches only")
+                for q, n, empty in misses]
+        if kb_dir is None:
+            out.append("- (search misses are only logged for markdown knowledge bases)")
+        return "\n".join(out)
 
     @mcp.tool()
     async def get_all_tags() -> str:

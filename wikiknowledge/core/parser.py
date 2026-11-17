@@ -25,6 +25,9 @@ TRANSCLUSION_LINK_RE = re.compile(r"!\[\[([^\[\]|]+?)(?:\|([^\[\]]+?))?\]\]", re
 # Fenced code block boundaries
 CODE_FENCE_RE = re.compile(r"^(`{3,}|~{3,})")
 
+# Inline code span: `...` (or ``...``). Its text is literal, never a link: `[[1, 2], [3, 4]]`.
+INLINE_CODE_RE = re.compile(r"(`+)(?!`).*?(?<!`)\1(?!`)")
+
 # Human/AI content block markers
 HUMAN_START_RE = re.compile(r"^\s*<!--\s*human:start\s*-->\s*$", re.IGNORECASE)
 HUMAN_END_RE = re.compile(r"^\s*<!--\s*human:end\s*-->\s*$", re.IGNORECASE)
@@ -70,6 +73,10 @@ def extract_wiki_links(
 
         if in_code_block:
             continue
+
+        # Inline code is literal text; `\|` is a pipe escaped inside a markdown table cell
+        # ([[target\|label]]), which renders as [[target|label]].
+        line = INLINE_CODE_RE.sub("", line).replace("\\|", "|")
 
         # Extract transclusion ![[...]] embeds from this line
         for match in TRANSCLUSION_LINK_RE.finditer(line):

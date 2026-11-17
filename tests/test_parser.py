@@ -124,3 +124,15 @@ def test_extract_wiki_links_transclusion():
     assert links[2].target_id == "regular-link"
     assert links[2].is_transclusion is False
     assert links[2].is_file_link is False
+
+
+def test_extract_wiki_links_table_pipe_and_inline_code():
+    content = (
+        "| [[hero-mia\\|Mia]] | open |\n"
+        "`trunkWalls` `[[263, 293, 8, 19]]` and ``[[x]]`` are code, [[real]] is not.\n"
+        "`![[file:x.png]]` is a sample; [[file:y.png|Y]] is a file."
+    )
+    links = extract_wiki_links("s", content)
+    assert [(l.target_id, l.display_text, l.line_number) for l in links if not l.is_file_link] == [
+        ("hero-mia", "Mia", 1), ("real", None, 2)]
+    assert [l.target_id for l in links if l.is_file_link] == ["y.png"]

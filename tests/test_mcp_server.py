@@ -480,3 +480,27 @@ async def test_search_miss_logged_and_reported_by_kb_health(tmp_path, monkeypatc
     assert "- page-a: \"Page A\"" in report and "src:code" not in report and "overview:" not in report
     assert "- huge: 2.9 KB" in report
     assert "\"AppLoaderBridge android\": missed 2×, 2× with no result at all" in report
+
+
+@pytest.mark.asyncio
+async def test_unparseable_files_are_recorded_and_reported(tmp_path):
+    from wikiknowledge.core.index import KnowledgeIndex
+    from wikiknowledge.storage.markdown_backend import MarkdownStorageBackend
+
+    (tmp_path / "articles").mkdir()
+    (tmp_path / "media").mkdir()
+    (tmp_path / "articles" / "ok.md").write_text("---\nid: ok\ntitle: Ok\ntype: leaf\n---\nSee [[bad]].\n")
+    (tmp_path / "articles" / "bad.md").write_text("---\nid: bad\ntitle: Level map: chars\ntype: leaf\n---\nx\n")
+    (tmp_path / "media" / "a.png").write_bytes(b"x")
+    (tmp_path / "media" / "a.png.meta").write_text("id: a.png\ntitle: 'Mia's sheet'\n")
+    storage = MarkdownStorageBackend(tmp_path)
+    await storage.initialize()
+    assert set(storage.load_errors) == {"articles/bad.md", "media/a.png.meta"}
+
+    index = KnowledgeIndex()
+    index.build(all_meta=dict(storage._meta_cache), all_links=storage.get_all_links(),
+                all_resource_meta={}, all_resource_links={})
+    report = await _invoke_tool(create_mcp_server(storage, index, MagicMock(), AsyncMock()), "kb_health", {})
+    assert "## Files that failed to load (2)" in report
+    assert "- articles/bad.md:" in report and "- media/a.png.meta:" in report
+    assert "ok → [[bad]]" in report

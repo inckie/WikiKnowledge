@@ -493,19 +493,31 @@ def create_mcp_server(
     async def kb_health(max_kb: int = 15) -> str:
         """Maintenance report: what to fix or write next in this knowledge base.
 
-        Lists broken wiki-links, native articles nothing links to, leaf articles
+        Lists files that failed to load (bad frontmatter or .meta YAML), broken
+        wiki-links, native articles nothing links to, leaf articles
         larger than `max_kb` kilobytes, and the searches that most often found
         nothing or only partial matches (a recurring miss is a missing article).
         """
         out = []
 
+        load_errors = getattr(storage, "load_errors", None)
+        load_errors = load_errors if isinstance(load_errors, dict) else {}
+        out.append(f"## Files that failed to load ({len(load_errors)})")
+        out += [f"- {name}: {err}" for name, err in sorted(load_errors.items())]
+        if load_errors:
+            out.append("  (each is missing from the index, so every link to it shows up as broken below)")
+
         broken = index.get_broken_links()
+        out.append("")
         out.append(f"## Broken links ({len(broken)})")
         out += [f"- {l.source_id} → [[{l.target_id}]]" + (f" (line {l.line_number})" if l.line_number else "")
                 for l in sorted(broken, key=lambda l: (l.source_id, l.target_id))]
 
-        orphans = sorted(aid for aid in index._all_meta
-                         if aid != "overview" and not is_virtual(aid) and not index.back_links.get(aid))
+        def is_root(meta):  # a top-level category: nothing above it to link it
+            return meta.type == ArticleType.CATEGORY and not meta.categories
+
+        orphans = sorted(aid for aid, meta in index._all_meta.items()
+                         if not is_root(meta) and not is_virtual(aid) and not index.back_links.get(aid))
         out.append(f"\n## Not linked from anywhere ({len(orphans)})")
         out += [f"- {aid}: \"{index._all_meta[aid].title}\"" for aid in orphans]
 

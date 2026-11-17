@@ -66,6 +66,9 @@ class MarkdownStorageBackend(StorageBackend):
         self._links_cache: dict[str, list[WikiLink]] = {}
         # In-memory cache: resource_id → ResourceMeta
         self._resource_meta_cache: dict[str, ResourceMeta] = {}
+        # Files skipped on the last scan because they did not parse: file name → error.
+        # Such an article or resource is simply absent, so links to it look broken.
+        self.load_errors: dict[str, str] = {}
 
     # --- Initialization ---
 
@@ -75,6 +78,7 @@ class MarkdownStorageBackend(StorageBackend):
         self._meta_cache.clear()
         self._links_cache.clear()
         self._resource_meta_cache.clear()
+        self.load_errors.clear()
 
         # Scan articles and categories in parallel
         md_files: list[Path] = []
@@ -89,6 +93,7 @@ class MarkdownStorageBackend(StorageBackend):
                 return article.meta, links
             except Exception as e:
                 logger.warning("Failed to parse %s: %s", md_file, e)
+                self.load_errors[f"{md_file.parent.name}/{md_file.name}"] = str(e).splitlines()[0]
                 return None
 
         if md_files:
@@ -107,6 +112,7 @@ class MarkdownStorageBackend(StorageBackend):
                     return self._read_resource_meta(meta_file)
                 except Exception as e:
                     logger.warning("Failed to parse resource meta %s: %s", meta_file, e)
+                    self.load_errors[f"media/{meta_file.name}"] = str(e).splitlines()[0]
                     return None
 
             if meta_files:

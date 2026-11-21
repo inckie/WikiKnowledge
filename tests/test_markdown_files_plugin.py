@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from wikiknowledge.core.plugins.markdown_files import MarkdownFilesPlugin
+from wikiknowledge.storage.models import SourceType
 
 
 @pytest.fixture
@@ -64,11 +65,14 @@ async def test_folders_become_categories(docs_root: Path):
 
     guides = plugin._articles_meta["src:docs/guides"]
     assert guides.type.value == "category"
+    assert guides.source_type == SourceType.MARKDOWN
     assert guides.title == "Guides"
     assert guides.categories == ["external-docs"]
 
     login = plugin._articles_meta["src:docs/guides-auth-login"]
+    assert login.source_type == SourceType.MARKDOWN
     assert login.categories == ["src:docs/guides-auth"]
+    assert plugin._articles_meta["src:docs/guides-auth"].source_type == SourceType.MARKDOWN
     assert plugin._articles_meta["src:docs/guides-auth"].categories == ["src:docs/guides"]
 
 

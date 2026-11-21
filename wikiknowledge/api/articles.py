@@ -47,6 +47,7 @@ class ArticleMetaResponse(BaseModel):
     id: str
     title: str
     type: str
+    source_type: str = "native"
     tags: list[str]
     categories: list[str]
     created: str
@@ -60,6 +61,7 @@ class ArticleResponse(BaseModel):
     id: str
     title: str
     type: str
+    source_type: str = "native"
     tags: list[str]
     categories: list[str]
     created: str
@@ -89,6 +91,7 @@ def _meta_to_response(meta: ArticleMeta, is_unmentioned: bool = False, is_newer:
         id=meta.id,
         title=meta.title,
         type=meta.type.value,
+        source_type=meta.source_type.value,
         tags=meta.tags,
         categories=meta.categories,
         created=meta.created.isoformat(),
@@ -104,6 +107,7 @@ def _article_to_response(article: Article, expanded_content: Optional[str] = Non
         id=article.meta.id,
         title=article.meta.title,
         type=article.meta.type.value,
+        source_type=article.meta.source_type.value,
         tags=article.meta.tags,
         categories=article.meta.categories,
         created=article.meta.created.isoformat(),
@@ -204,6 +208,7 @@ async def get_article(request: Request, article_id: str):
             id=article.meta.id,
             title=article.meta.title,
             type=article.meta.type.value,
+            source_type=article.meta.source_type.value,
             tags=article.meta.tags,
             categories=article.meta.categories,
             created=article.meta.created.isoformat(),

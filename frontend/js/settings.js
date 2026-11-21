@@ -750,6 +750,9 @@ const Settings = {
                             const isResource = item.type === 'resource';
                             const linkHref = isResource ? `#/resource/${encodeURIComponent(item.id)}` : `#/article/${encodeURIComponent(item.id)}`;
                             const clickHandler = isResource ? '' : `onclick="App.navigateToArticle('${Utils.escapeHtml(item.id)}')"` ;
+                            const sourceInfo = !isResource ? Utils.getSourceInfo(item) : null;
+                            const sourceBadge = sourceInfo && sourceInfo.type !== 'native' ?
+                                `<span class="source-badge ${sourceInfo.badgeClass}" title="${sourceInfo.label}">${sourceInfo.badgeText}</span>` : '';
                             return `
                                 <div class="health-table-row">
                                     <div class="health-cell-main">
@@ -759,9 +762,8 @@ const Settings = {
                                         <code class="health-id-code">${Utils.escapeHtml(item.id)}</code>
                                     </div>
                                     <div>
-                                        <span class="source-badge ${item.type === 'category' ? 'source' : (item.id.startsWith('src:') ? 'code' : (item.id.startsWith('gdrive:') ? 'drive' : 'markdown'))}">
-                                            ${Utils.escapeHtml(item.type)}
-                                        </span>
+                                        <span class="type-badge ${Utils.escapeHtml(item.type)}">${Utils.escapeHtml(item.type)}</span>
+                                        ${sourceBadge}
                                     </div>
                                     <div class="health-cell-line">
                                         ${item.outgoing_count} link${item.outgoing_count === 1 ? '' : 's'}

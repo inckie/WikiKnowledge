@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from wikiknowledge.core.plugins.google_drive import GoogleDrivePlugin
-from wikiknowledge.storage.models import ArticleType
+from wikiknowledge.storage.models import ArticleType, SourceType
 
 
 # ---------------------------------------------------------------------------
@@ -168,6 +168,7 @@ class TestCacheLoadSave:
         assert result is True
         assert "gdrive:doc-001" in plugin._articles_meta
         assert plugin._articles_meta["gdrive:doc-001"].title == "Hello"
+        assert plugin._articles_meta["gdrive:doc-001"].source_type == SourceType.DRIVE
         assert "gdrive:doc-001" in plugin._articles_content
         assert "Hello" in plugin._articles_content["gdrive:doc-001"]
 
@@ -400,6 +401,7 @@ class TestSync:
         assert stats["deleted"] == 0
         assert "gdrive:doc-001" in plugin._articles_meta
         assert plugin._articles_meta["gdrive:doc-001"].title == "New Doc"
+        assert plugin._articles_meta["gdrive:doc-001"].source_type == SourceType.DRIVE
 
         # Check cache file written
         cache_file = plugin._cache_dir / "articles" / "doc-001.md"
@@ -484,6 +486,7 @@ class TestSync:
 
         assert stats["unchanged"] == 1
         assert stats["new"] == 0
+        assert plugin._articles_meta["gdrive:doc-001"].source_type == SourceType.DRIVE
         # Export should NOT have been called for unchanged docs
         plugin._drive_service.files.return_value.export.assert_not_called()
 
@@ -614,6 +617,7 @@ class TestBidirectionalMetadata:
 
         assert plugin._articles_meta["gdrive:doc-001"].tags == ["new-tag"]
         assert plugin._articles_meta["gdrive:doc-001"].categories == ["cat-a"]
+        assert plugin._articles_meta["gdrive:doc-001"].source_type == SourceType.DRIVE
 
     async def test_update_metadata_writes_the_new_values_to_the_manifest(self, tmp_path: Path):
         plugin = _make_plugin(tmp_path)

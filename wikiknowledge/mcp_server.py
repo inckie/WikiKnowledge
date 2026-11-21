@@ -231,6 +231,7 @@ def create_mcp_server(
                     id=current_meta.id,
                     title=current_meta.title,
                     type=current_meta.type,
+                    source_type=current_meta.source_type,
                     tags=new_tags,
                     categories=new_cats,
                     created=current_meta.created,

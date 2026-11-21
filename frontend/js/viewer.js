@@ -29,10 +29,6 @@ const Viewer = {
         this._knownResources = new Map(resources.map(r => [r.id, r]));
     },
 
-    setSources(sources) {
-        this._sources = sources || [];
-    },
-
     /**
      * Render markdown content to HTML with wiki-link support.
      * @param {string} markdown - Raw markdown content
@@ -524,8 +520,7 @@ const Viewer = {
     _renderMeta(article) {
         const parts = [];
 
-        const sourcesList = this._sources || (typeof App !== 'undefined' && App._sources) || (window.App && window.App._sources) || [];
-        const sourceInfo = Utils.getSourceInfo(article, sourcesList);
+        const sourceInfo = Utils.getSourceInfo(article);
 
         if (sourceInfo.type !== 'native') {
             parts.push(`<div class="meta-group"><span class="source-badge ${sourceInfo.badgeClass}" title="${sourceInfo.label}">${sourceInfo.badgeText}</span></div><div class="meta-divider"></div>`);
@@ -630,13 +625,12 @@ const Viewer = {
             `<span class="dirty-indicator" title="This category might be outdated. One or more of its articles have been modified more recently than this overview.">⚠️</span>` :
             '';
 
-        const sourcesList = this._sources || (typeof App !== 'undefined' && App._sources) || (window.App && window.App._sources) || [];
         const subArticles = (article.sub_articles || []).map(sub => {
             const unmentionedClass = sub.is_unmentioned ? 'unmentioned' : '';
             const iconClass = sub.type === 'category' ? 'item-icon category' : 'item-icon';
             const newerIcon = sub.is_newer ? `<span class="newer-indicator" title="Modified more recently than the category article" style="margin-left: 6px; font-size: 0.9em; cursor: help;">✨</span>` : '';
             
-            const sourceInfo = Utils.getSourceInfo(sub, sourcesList);
+            const sourceInfo = Utils.getSourceInfo(sub);
             const sourceBadge = sourceInfo.type !== 'native' ?
                 `<span class="source-badge ${sourceInfo.badgeClass}" title="${sourceInfo.label}">${sourceInfo.badgeText}</span>` : '';
             const tagChips = sub.tags && sub.tags.length ?

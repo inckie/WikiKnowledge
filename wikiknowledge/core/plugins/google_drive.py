@@ -24,7 +24,7 @@ import frontmatter
 
 from wikiknowledge.core.parser import extract_wiki_links
 from wikiknowledge.core.plugins.base import KnowledgeSourcePlugin
-from wikiknowledge.storage.models import ArticleMeta, ArticleType, WikiLink
+from wikiknowledge.storage.models import ArticleMeta, ArticleType, SourceType, WikiLink
 
 logger = logging.getLogger(__name__)
 
@@ -478,6 +478,7 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                 id=article_id,
                 title=target_title,
                 type=ArticleType.CATEGORY if is_folder else ArticleType.LEAF,
+                source_type=SourceType.DRIVE,
                 tags=tags,
                 categories=categories,
                 created=created,
@@ -578,6 +579,7 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
             id=meta.id,
             title=meta.title,
             type=meta.type,
+            source_type=SourceType.DRIVE,
             tags=tags,
             categories=categories,
             created=meta.created,
@@ -1039,6 +1041,7 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
                 id=article_id,
                 title=entry.get("title", doc_id),
                 type=ArticleType.CATEGORY if is_folder else ArticleType.LEAF,
+                source_type=SourceType.DRIVE,
                 tags=entry.get("tags", []),
                 categories=entry.get("categories", []),
                 created=created,
@@ -1099,6 +1102,7 @@ class GoogleDrivePlugin(KnowledgeSourcePlugin):
             id=article_id,
             title=entry.get("title", doc_id),
             type=ArticleType.CATEGORY if is_folder else ArticleType.LEAF,
+            source_type=SourceType.DRIVE,
             tags=entry.get("tags", []),
             categories=entry.get("categories", []),
             created=created,

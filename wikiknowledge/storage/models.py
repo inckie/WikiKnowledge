@@ -24,11 +24,20 @@ class ArticleType(str, Enum):
     CATEGORY = "category"
 
 
+class SourceType(str, Enum):
+    """Origin kind of an article in the knowledge base."""
+    NATIVE = "native"
+    CODE = "code"
+    MARKDOWN = "markdown"
+    DRIVE = "drive"
+
+
 class ArticleMeta(BaseModel):
     """Metadata extracted from article YAML frontmatter."""
     id: str
     title: str
     type: ArticleType = ArticleType.LEAF
+    source_type: SourceType = SourceType.NATIVE
     tags: list[str] = Field(default_factory=list)
     categories: list[str] = Field(default_factory=list)
     created: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

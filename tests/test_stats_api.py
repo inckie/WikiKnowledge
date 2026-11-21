@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
 from wikiknowledge.api.search import router as search_router, get_stats
-from wikiknowledge.storage.models import ArticleMeta, ArticleType, ResourceMeta
+from wikiknowledge.storage.models import ArticleMeta, ArticleType, ResourceMeta, SourceType
 from wikiknowledge.core.index import KnowledgeIndex, WikiLink
 
 
@@ -25,7 +25,7 @@ def test_get_stats_endpoint():
     mock_index._all_meta = {
         "overview": ArticleMeta(id="overview", title="Overview", type=ArticleType.CATEGORY),
         "page-a": ArticleMeta(id="page-a", title="Page A", type=ArticleType.LEAF),
-        "src:code": ArticleMeta(id="src:code", title="Code", type=ArticleType.LEAF),
+        "src:code": ArticleMeta(id="src:code", title="Code", type=ArticleType.LEAF, source_type=SourceType.CODE),
     }
     mock_index._all_resource_meta = {
         "image.png": ResourceMeta(id="image.png", title="Image", filename="image.png", mime_type="image/png")
@@ -72,6 +72,6 @@ def test_get_stats_endpoint():
 
     # Orphaned pages (overview excluded, image.png has backlink, page-a and src:code are orphans)
     assert data["orphaned_pages_count"] == 2
-    orphan_ids = [o["id"] for o in data["orphaned_pages"]]
-    assert "page-a" in orphan_ids
-    assert "src:code" in orphan_ids
+    orphans_by_id = {o["id"]: o for o in data["orphaned_pages"]}
+    assert orphans_by_id["page-a"]["source_type"] == "native"
+    assert orphans_by_id["src:code"]["source_type"] == "code"

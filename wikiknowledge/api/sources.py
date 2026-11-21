@@ -115,6 +115,7 @@ async def update_article_metadata(
             id=meta.id,
             title=meta.title,
             type=meta.type,
+            source_type=meta.source_type,
             tags=body.tags,
             categories=body.categories,
             created=meta.created,

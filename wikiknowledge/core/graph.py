@@ -45,6 +45,7 @@ class KnowledgeGraph:
                 "id": article_id,
                 "title": meta.title,
                 "type": meta.type.value,
+                "source_type": meta.source_type.value,
                 "linkCount": incoming + outgoing,
                 "tags": meta.tags,
                 "categories": meta.categories,

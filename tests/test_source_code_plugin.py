@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from wikiknowledge.core.plugins.source_code import SourceCodePlugin
+from wikiknowledge.storage.models import SourceType
 
 
 @pytest.fixture
@@ -164,8 +165,10 @@ async def test_discover_python_and_javascript(src_root: Path):
 
     py_meta = plugin._articles_meta["src:myproject/backend/py-service"]
     assert py_meta.title == "Python Backend Service."
+    assert py_meta.source_type == SourceType.CODE
     assert "python" in py_meta.tags
     assert py_meta.categories == ["backend-layer"]
+    assert plugin._articles_meta["src:myproject/frontend/controller"].source_type == SourceType.CODE
 
 
 @pytest.mark.asyncio

@@ -23,7 +23,7 @@ import frontmatter
 
 from wikiknowledge.core.parser import extract_wiki_links
 from wikiknowledge.core.plugins.base import KnowledgeSourcePlugin, collect_source_files
-from wikiknowledge.storage.models import ArticleMeta, ArticleType, WikiLink
+from wikiknowledge.storage.models import ArticleMeta, ArticleType, SourceType, WikiLink
 
 logger = logging.getLogger(__name__)
 
@@ -264,6 +264,7 @@ class MarkdownFilesPlugin(KnowledgeSourcePlugin):
             id=article_id,
             title=title,
             type=ArticleType.CATEGORY,
+            source_type=SourceType.MARKDOWN,
             tags=list(self._extra_tags),
             categories=self._parent_categories(folder),
             created=modified,
@@ -312,6 +313,7 @@ class MarkdownFilesPlugin(KnowledgeSourcePlugin):
             id=article_id,
             title=title,
             type=ArticleType.CATEGORY if is_category else ArticleType.LEAF,
+            source_type=SourceType.MARKDOWN,
             tags=tags,
             categories=categories,
             created=datetime.fromtimestamp(stat.st_ctime, tz=timezone.utc),

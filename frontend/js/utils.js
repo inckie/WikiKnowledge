@@ -92,51 +92,22 @@ const Utils = {
     },
 
     /**
-     * Determine source type, badge styling, label, and icon for an article or article ID.
+     * Determine source type, badge styling, label, and icon for an article.
      */
-    getSourceInfo(articleOrId, sourcesList = []) {
-        const article = typeof articleOrId === 'object' && articleOrId !== null ? articleOrId : { id: String(articleOrId || '') };
-        const id = article.id || '';
-        const tags = Array.isArray(article.tags) ? article.tags : [];
+    getSourceInfo(article) {
+        const obj = typeof article === 'object' && article !== null ? article : {};
+        const sourceType = obj.source_type || 'native';
 
-        if (id.startsWith('gdrive:')) {
-            return {
-                type: 'drive',
-                badgeClass: 'drive',
-                badgeText: 'Drive',
-                icon: '☁️',
-                label: 'Google Drive Document'
-            };
-        }
-
-        if (id.startsWith('src:')) {
-            const sourceId = id.slice(4).split('/')[0];
-            const matchingSource = (sourcesList || []).find(s => s.id === sourceId);
-
-            if (matchingSource) {
-                if (matchingSource.type === 'MarkdownFilesPlugin' || matchingSource.type === 'markdown-files') {
-                    return {
-                        type: 'markdown',
-                        badgeClass: 'markdown',
-                        badgeText: 'Markdown',
-                        icon: '📄',
-                        label: 'Markdown Document'
-                    };
-                }
-                if (matchingSource.type === 'SourceCodePlugin' || matchingSource.type === 'source-code') {
-                    return {
-                        type: 'code',
-                        badgeClass: 'code',
-                        badgeText: 'Code',
-                        icon: '💻',
-                        label: 'Source Code'
-                    };
-                }
-            }
-
-            // Fallback heuristics based on tags/id
-            const tagsLower = tags.map(t => String(t).toLowerCase());
-            if (tagsLower.includes('python') || tagsLower.includes('javascript') || tagsLower.includes('code') || tagsLower.includes('rst') || tagsLower.includes('jsdoc') || tagsLower.includes('java') || tagsLower.includes('kotlin') || tagsLower.includes('swift')) {
+        switch (sourceType) {
+            case 'drive':
+                return {
+                    type: 'drive',
+                    badgeClass: 'drive',
+                    badgeText: 'Drive',
+                    icon: '☁️',
+                    label: 'Google Drive Document'
+                };
+            case 'code':
                 return {
                     type: 'code',
                     badgeClass: 'code',
@@ -144,8 +115,7 @@ const Utils = {
                     icon: '💻',
                     label: 'Source Code'
                 };
-            }
-            if (tagsLower.includes('markdown') || tagsLower.includes('md') || id.includes('/guides') || id.includes('/docs')) {
+            case 'markdown':
                 return {
                     type: 'markdown',
                     badgeClass: 'markdown',
@@ -153,23 +123,22 @@ const Utils = {
                     icon: '📄',
                     label: 'Markdown Document'
                 };
-            }
-
-            return {
-                type: 'source',
-                badgeClass: 'source',
-                badgeText: 'Source',
-                icon: '🔌',
-                label: 'External Source'
-            };
+            case 'native':
+                return {
+                    type: 'native',
+                    badgeClass: 'native',
+                    badgeText: 'Wiki',
+                    icon: obj.type === 'category' ? '📁' : '📄',
+                    label: 'Wiki Article'
+                };
+            default:
+                return {
+                    type: 'source',
+                    badgeClass: 'source',
+                    badgeText: 'Source',
+                    icon: '🔌',
+                    label: 'External Source'
+                };
         }
-
-        return {
-            type: 'native',
-            badgeClass: 'native',
-            badgeText: 'Wiki',
-            icon: article.type === 'category' ? '📁' : '📄',
-            label: 'Wiki Article'
-        };
     },
 };

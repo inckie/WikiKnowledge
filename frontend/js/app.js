@@ -7,7 +7,6 @@
 const App = {
     _articles: [],
     _resources: [],
-    _sources: [],
     _currentView: 'welcome',
     _currentArticleId: null,
 
@@ -45,22 +44,18 @@ const App = {
      */
     async _loadArticles() {
         try {
-            const [articles, resources, sources] = await Promise.all([
+            const [articles, resources] = await Promise.all([
                 API.fetchArticles(),
                 API.fetchResources().catch(() => []),
-                API.getSources().catch(() => []),
             ]);
             this._articles = articles;
             this._resources = resources;
-            this._sources = sources || [];
             Viewer.setKnownArticles(this._articles);
             Viewer.setKnownResources(this._resources);
-            Viewer.setSources(this._sources);
         } catch (e) {
             console.error('Failed to load articles:', e);
             this._articles = [];
             this._resources = [];
-            this._sources = [];
         }
     },
 
@@ -338,7 +333,7 @@ const App = {
 
             if (resultsListEl) {
                 resultsListEl.innerHTML = results.map(r => {
-                    const sourceInfo = Utils.getSourceInfo(r, this._sources);
+                    const sourceInfo = Utils.getSourceInfo(r);
                     const sourceBadge = sourceInfo.type !== 'native' ?
                         `<span class="source-badge ${sourceInfo.badgeClass}" title="${sourceInfo.label}">${sourceInfo.badgeText}</span>` : '';
                     const matchBadge = r.match_type === 'semantic' ?
@@ -452,7 +447,7 @@ const App = {
                     const displayResults = hasMore ? results.slice(0, 10) : results;
 
                     let itemsHtml = displayResults.map(r => {
-                        const sourceInfo = Utils.getSourceInfo(r, this._sources);
+                        const sourceInfo = Utils.getSourceInfo(r);
                         const sourceBadge = sourceInfo.type !== 'native' ?
                             `<span class="source-badge ${sourceInfo.badgeClass}" title="${sourceInfo.label}">${sourceInfo.badgeText}</span>` : '';
                         const matchBadge = r.match_type === 'semantic' ?
@@ -690,7 +685,7 @@ const App = {
             );
             
             container.innerHTML = sortedArticles.map(a => {
-                const sourceInfo = Utils.getSourceInfo(a, this._sources);
+                const sourceInfo = Utils.getSourceInfo(a);
                 let sourceBadge = '';
                 if (sourceInfo.type !== 'native') {
                     sourceBadge = `<span class="source-badge ${sourceInfo.badgeClass}" title="${sourceInfo.label}">${sourceInfo.badgeText}</span>`;

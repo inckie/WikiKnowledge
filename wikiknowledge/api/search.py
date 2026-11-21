@@ -31,6 +31,7 @@ class SearchResultResponse(BaseModel):
     id: str
     title: str
     type: str
+    source_type: str = "native"
     tags: list[str]
     match_type: Optional[str] = None
     score: Optional[float] = None
@@ -66,6 +67,7 @@ class OrphanPageInfo(BaseModel):
     id: str
     title: str
     type: str
+    source_type: str = "native"
     has_outgoing: bool = False
     outgoing_count: int = 0
 
@@ -151,6 +153,7 @@ async def get_stats(request: Request):
                     id=aid,
                     title=meta.title or aid,
                     type=meta.type.value if hasattr(meta.type, "value") else str(meta.type),
+                    source_type=meta.source_type.value if hasattr(meta.source_type, "value") else str(meta.source_type),
                     has_outgoing=bool(outgoing),
                     outgoing_count=len(outgoing),
                 )
@@ -248,6 +251,9 @@ async def search_articles(request: Request, q: str = ""):
     def type_str(m):
         return m.type.value if hasattr(m.type, "value") else str(m.type)
 
+    def source_type_str(m):
+        return m.source_type.value if hasattr(m.source_type, "value") else str(m.source_type)
+
     # If embedding search is disabled or not ready, return the lexical ranking
     if not service or not service.enabled or service.status != "ready":
         return [
@@ -255,6 +261,7 @@ async def search_articles(request: Request, q: str = ""):
                 id=h.meta.id,
                 title=h.meta.title,
                 type=type_str(h.meta),
+                source_type=source_type_str(h.meta),
                 tags=h.meta.tags,
                 match_type="lexical",
                 score=h.score,
@@ -279,6 +286,7 @@ async def search_articles(request: Request, q: str = ""):
             "id": m.id,
             "title": m.title,
             "type": type_str(m),
+            "source_type": source_type_str(m),
             "tags": m.tags,
             "match_type": "hybrid" if sem else "lexical",
             # Keyword matches stay above semantic-only ones; lexical rank (0..1) and semantic relevance order them
@@ -289,10 +297,12 @@ async def search_articles(request: Request, q: str = ""):
     for sem in semantic_results:
         aid = sem["id"]
         if aid not in combined:
+            meta = index.get_meta(aid)
             combined[aid] = {
                 "id": aid,
                 "title": sem["title"],
                 "type": sem["type"],
+                "source_type": source_type_str(meta) if meta else "native",
                 "tags": sem["tags"],
                 "match_type": "semantic",
                 "score": sem["score"],

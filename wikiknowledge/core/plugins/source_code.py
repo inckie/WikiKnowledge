@@ -20,7 +20,7 @@ from wikiknowledge.core.plugins.base import (
     get_optimal_worker_count,
     is_path_ignored,
 )
-from wikiknowledge.storage.models import ArticleMeta, ArticleType, WikiLink
+from wikiknowledge.storage.models import ArticleMeta, ArticleType, SourceType, WikiLink
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +208,7 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
             id=article_id,
             title=title,
             type=ArticleType.LEAF,
+            source_type=SourceType.CODE,
             tags=tags,
             categories=categories,
             created=modified,
@@ -327,6 +328,7 @@ class SourceCodePlugin(KnowledgeSourcePlugin):
             id=article_id,
             title=title,
             type=ArticleType.LEAF,
+            source_type=SourceType.CODE,
             tags=tags,
             categories=categories,
             created=modified,

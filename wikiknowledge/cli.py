@@ -44,7 +44,12 @@ def main():
         os.environ["WIKIKNOWLEDGE_KB_DIR"] = os.path.abspath(args.kb_dir)
 
     PROJECT_ROOT = Path(__file__).resolve().parent.parent
-    options = {"host": "0.0.0.0", "port": args.port, "reload": args.reload}
+    options = {
+        "host": "0.0.0.0",
+        "port": args.port,
+        "reload": args.reload,
+        "timeout_graceful_shutdown": 3,
+    }
     if args.reload:
         options["reload_dirs"] = [str(PROJECT_ROOT / "wikiknowledge")]
 

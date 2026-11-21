@@ -146,7 +146,7 @@ class KBManagerApp:
             return # Already running
             
         kb_info = self.kbs[kb_id]
-        cmd = ["uv", "run", "python", "run.py", f"--port={kb_info['port']}"]
+        cmd = ["uv", "run", "python", "run.py", f"--port={kb_info['port']}", "--no-reload"]
         if kb_info.get("kb_dir"):
             cmd.append(f"--kb-dir={kb_info['kb_dir']}")
             

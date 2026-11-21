@@ -25,6 +25,25 @@ def test_unknown_arguments_are_still_tolerated():
     assert cli.parse_args(["--port=8001", "serve-http"]).port == 8001
 
 
+def test_main_passes_bounded_graceful_shutdown_timeout(monkeypatch):
+    """Open SSE streams must not hang uvicorn indefinitely during shutdown/reload."""
+    captured = {}
+
+    def fake_run(app_str, **kwargs):
+        captured["app"] = app_str
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setattr(cli.uvicorn, "run", fake_run)
+    monkeypatch.setattr(sys, "argv", ["run.py", "--port=8005", "--no-reload"])
+
+    cli.main()
+
+    assert captured["app"] == "wikiknowledge.api.app:app"
+    assert captured["kwargs"]["port"] == 8005
+    assert captured["kwargs"]["reload"] is False
+    assert captured["kwargs"]["timeout_graceful_shutdown"] == 3
+
+
 import json
 import os
 import signal
